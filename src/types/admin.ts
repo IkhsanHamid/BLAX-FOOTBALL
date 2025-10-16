@@ -17,6 +17,7 @@ export interface UserManagement {
   role: string;
   gamesPlayed: number;
   lastPlayed: string | null;
+  createdAt: Date;
 }
 export interface AdminStats {
   totalPolicies: number;
@@ -69,4 +70,10 @@ export interface BookingHistory {
   confirmedStatus: number;
   pendingStatus: number;
   failedStatus: number;
+}
+
+export interface Users {
+  phone: string;
+  name: string;
+  email: string;
 }

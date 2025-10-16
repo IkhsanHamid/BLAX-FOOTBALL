@@ -622,7 +622,7 @@ export default function PaymentPage() {
                       {user && (
                         <Button
                           variant="outline"
-                          onClick={() => router.push("/dashboard")}
+                          onClick={() => router.push("/player-dashboard")}
                           className="w-full"
                         >
                           Go to Dashboard

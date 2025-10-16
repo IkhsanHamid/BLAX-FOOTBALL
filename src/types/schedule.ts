@@ -44,7 +44,7 @@ export interface ScheduleOverview {
   team: number;
   typeEvent: string;
   typeMatch: string;
-  imageUrl: string;
+  image: string;
   openSlots: number;
   bookedSlots: number;
   totalSlots: number;

@@ -1,5 +1,7 @@
 import React from "react";
-import { Shield, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import BlaxLogo from "@/assets/blax-logo.png";
+import Image from "next/image";
 
 interface LoadingScreenProps {
   message?: string;
@@ -20,7 +22,7 @@ export default function LoadingScreen({
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <div className="bg-gradient-to-r from-blue-400 to-teal-400 p-4 rounded-2xl mr-4 relative">
-            <Shield className="h-12 w-12 text-white" />
+            <Image src={BlaxLogo} alt="Logo" width={150} height={150} />
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-teal-400 rounded-2xl animate-pulse opacity-50"></div>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">

@@ -43,7 +43,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
     setIsAuthModalOpen(false);
 
     // Redirect to dashboard after successful login
-    // router.push("/dashboard");
+    router.push("/player-dashboard");
   };
 
   const handleSignOut = async () => {
@@ -293,7 +293,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                           </p>
                         </div>
                         <Link
-                          href="/dashboard"
+                          href="/player-dashboard"
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
@@ -418,7 +418,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
 
                     {/* Profile Button */}
                     <Link
-                      href="/dashboard"
+                      href="/player-dashboard"
                       className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}
                       onClick={() => setIsMenuOpen(false)}
                     >

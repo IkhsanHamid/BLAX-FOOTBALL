@@ -1,8 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Shield, Users, Zap, ArrowRight, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Button from "./atoms/Button";
 import AuthModal from "./molecules/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroActions } from "./molecules/HeroActions";
@@ -11,25 +9,13 @@ import BlaxLogo from "@/assets/blax-logo.png";
 
 export default function Hero() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  const handleGetStarted = () => {
-    if (loading) return; // Don't do anything while loading
-
-    if (user) {
-      // User is logged in, redirect to dashboard
-      router.push("/dashboard");
-    } else {
-      // User is not logged in, open auth modal with signup mode
-      setIsAuthModalOpen(true);
-    }
-  };
 
   const handleAuthSuccess = (userData: any, session: any) => {
     setIsAuthModalOpen(false);
     // Redirect to dashboard after successful signup/login
-    router.push("/dashboard");
+    router.push("/player-dashboard");
   };
 
   return (

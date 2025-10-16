@@ -5,6 +5,7 @@ import {
   ReportBooking,
   Roles,
   UserManagement,
+  Users,
 } from "@/types/admin";
 import { News } from "@/types/news";
 
@@ -183,6 +184,37 @@ class AdminService {
       const response = await apiClient.get(
         "/api/v1/booking/recent-booking?" + queryParams
       );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async addStaff(data: Users) {
+    try {
+      const response = await apiClient.post(`/api/v1/users/addStaff`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error create staff:", error);
+      throw error;
+    }
+  }
+
+  async editStaff(id: string, data: Users) {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/users/updateStaff/${id}`,
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async removeUser(id: string) {
+    try {
+      const response = await apiClient.delete(`/api/v1/users/removeUser/${id}`);
       return response.data;
     } catch (error) {
       throw error;

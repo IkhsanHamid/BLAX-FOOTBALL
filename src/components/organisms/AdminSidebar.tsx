@@ -32,8 +32,18 @@ const navItems: NavItem[] = [
   { id: "lineup", label: "Lineup", icon: Shield },
   { id: "users", label: "Pengguna", icon: Users },
   { id: "news", label: "Berita", icon: Newspaper },
-  { id: "master-data", label: "Master Data", icon: Database, shortLabel: "Master" },
-  { id: "booking-history", label: "Booking History", icon: History, shortLabel: "History" },
+  {
+    id: "master-data",
+    label: "Master Data",
+    icon: Database,
+    shortLabel: "Master",
+  },
+  {
+    id: "booking-history",
+    label: "Booking History",
+    icon: History,
+    shortLabel: "History",
+  },
 ];
 
 export default function AdminSidebar({
@@ -91,10 +101,6 @@ export default function AdminSidebar({
         aria-expanded={isMobileOpen}
       >
         <div className="h-full flex flex-col">
-          <div className="h-16 flex items-center px-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
-          </div>
-
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -113,7 +119,12 @@ export default function AdminSidebar({
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon className={cn("h-5 w-5 flex-shrink-0", isActive ? "text-sky-600" : "text-gray-500")} />
+                  <Icon
+                    className={cn(
+                      "h-5 w-5 flex-shrink-0",
+                      isActive ? "text-sky-600" : "text-gray-500"
+                    )}
+                  />
                   <span className="truncate">{item.label}</span>
                 </button>
               );
