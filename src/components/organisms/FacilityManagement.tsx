@@ -98,6 +98,7 @@ export default function FacilityManagement() {
   const [itemsPerPage] = useState(12);
   const [showDialog, setShowDialog] = useState(false);
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     facility: Facility | null;
@@ -210,6 +211,7 @@ export default function FacilityManagement() {
     if (!deleteConfirmation.facility) return;
 
     try {
+      setActionLoading("delete");
       await masterDataService.deleteFacility(deleteConfirmation.facility.id);
       showSuccess("Success", "Facility deleted successfully");
       setDeleteConfirmation({ isOpen: false, facility: null });
@@ -217,6 +219,8 @@ export default function FacilityManagement() {
     } catch (error) {
       console.error("Error deleting facility:", error);
       showError("Error", "Failed to delete facility");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -331,13 +335,15 @@ export default function FacilityManagement() {
               className="flex items-center"
             >
               <Trash2 className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
-              <span className="hidden md:inline">Hapus ({selectedFacilities.length})</span>
+              <span className="hidden md:inline">
+                Hapus ({selectedFacilities.length})
+              </span>
               <span className="md:hidden">({selectedFacilities.length})</span>
             </Button>
           )}
 
           <Button
-            variant="primary"
+            variant="black"
             size="sm"
             onClick={() => setShowDialog(true)}
             disabled={loading}
@@ -488,21 +494,6 @@ export default function FacilityManagement() {
           {Math.min(startIndex + itemsPerPage, filteredFacilities.length)} of{" "}
           {filteredFacilities.length} facilities
         </p>
-
-        {filteredFacilities.length > 0 && (
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={
-                selectedFacilities.length === paginatedFacilities.length &&
-                paginatedFacilities.length > 0
-              }
-              onChange={handleSelectAll}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-600">Select all</span>
-          </div>
-        )}
       </div>
 
       {/* Facilities Display */}
@@ -520,7 +511,7 @@ export default function FacilityManagement() {
             </p>
             {!searchTerm && (
               <Button
-                variant="primary"
+                variant="black"
                 size="sm"
                 onClick={() => setShowDialog(true)}
                 className="flex items-center mx-auto"
@@ -542,16 +533,6 @@ export default function FacilityManagement() {
                 key={facility.id}
                 className="hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 group"
               >
-                {/* Selection Checkbox */}
-                <div className="absolute top-4 left-2 z-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedFacilities.includes(facility.id)}
-                    onChange={() => handleSelectFacility(facility.id)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-
                 <CardContent className="p-6">
                   <div className="pt-4 flex items-center space-x-4 mb-4">
                     <div
@@ -624,12 +605,6 @@ export default function FacilityManagement() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedFacilities.includes(facility.id)}
-                          onChange={() => handleSelectFacility(facility.id)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
                         <div
                           className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center`}
                         >
@@ -738,7 +713,7 @@ export default function FacilityManagement() {
               </Button>
               <Button
                 type="submit"
-                variant="primary"
+                variant="black"
                 size="sm"
                 disabled={submitting}
                 className="flex items-center"
@@ -765,22 +740,11 @@ export default function FacilityManagement() {
         onClose={() => setDeleteConfirmation({ isOpen: false, facility: null })}
         onConfirm={handleDelete}
         title="Delete Facility"
-        message={`Are you sure you want to delete "${deleteConfirmation.facility?.name}"? This action cannot be undone.`}
+        message={`Apakah kamu yakin hapus fasilitas "${deleteConfirmation.facility?.name}"? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
-      />
-
-      {/* Bulk Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showBulkDeleteConfirm}
-        onClose={() => setShowBulkDeleteConfirm(false)}
-        onConfirm={handleBulkDelete}
-        title="Delete Multiple Facilities"
-        message={`Are you sure you want to delete ${selectedFacilities.length} selected facilities? This action cannot be undone.`}
-        type="danger"
-        confirmText="Delete All"
-        cancelText="Cancel"
+        isLoading={actionLoading === "delete"}
       />
     </div>
   );

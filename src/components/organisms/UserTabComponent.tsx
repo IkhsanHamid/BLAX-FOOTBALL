@@ -680,7 +680,7 @@ export default function UsersTab() {
         }}
         onConfirm={handleDeleteUser}
         title="Delete User"
-        message={`Are you sure you want to delete "${userToDelete?.name}"? This action cannot be undone.`}
+        message={`Apakah kamu yakin delete user "${userToDelete?.name}"? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"

@@ -388,7 +388,7 @@ export default function VoucherManagement() {
           )}
 
           <Button
-            variant="primary"
+            variant="black"
             size="sm"
             onClick={() => setShowDialog(true)}
             disabled={loading}
@@ -594,7 +594,7 @@ export default function VoucherManagement() {
             </p>
             {!searchTerm && statusFilter === "all" && (
               <Button
-                variant="primary"
+                variant="black"
                 size="sm"
                 onClick={() => setShowDialog(true)}
                 className="flex items-center mx-auto"
@@ -1091,7 +1091,7 @@ export default function VoucherManagement() {
               </Button>
               <Button
                 type="submit"
-                variant="primary"
+                variant="black"
                 size="sm"
                 disabled={submitting}
                 className="flex items-center"

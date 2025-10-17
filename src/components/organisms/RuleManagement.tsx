@@ -31,6 +31,7 @@ export default function RuleManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -123,6 +124,7 @@ export default function RuleManagement() {
     if (!deleteConfirmation.rule) return;
 
     try {
+      setActionLoading("delete");
       await masterDataService.deleteRule(deleteConfirmation.rule.id);
       showSuccess("Success", "Rule deleted successfully");
       setDeleteConfirmation({ isOpen: false, rule: null });
@@ -130,6 +132,8 @@ export default function RuleManagement() {
     } catch (error) {
       console.error("Error deleting rule:", error);
       showError("Error", "Failed to delete rule");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -153,13 +157,15 @@ export default function RuleManagement() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Manajemen Aturan</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+            Manajemen Aturan
+          </h2>
           <p className="text-sm md:text-base text-gray-600 mt-1">
             Kelola aturan dan regulasi pertandingan
           </p>
         </div>
         <Button
-          variant="primary"
+          variant="black"
           size="sm"
           onClick={() => setShowDialog(true)}
           disabled={loading}
@@ -349,10 +355,11 @@ export default function RuleManagement() {
         onClose={() => setDeleteConfirmation({ isOpen: false, rule: null })}
         onConfirm={handleDelete}
         title="Delete Rule"
-        message={`Are you sure you want to delete this rule? This action cannot be undone.`}
+        message={`Apakah kamu yakin hapus aturan ini? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
+        isLoading={actionLoading === "delete"}
       />
     </div>
   );

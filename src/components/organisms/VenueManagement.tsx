@@ -31,6 +31,7 @@ export default function VenueManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -140,6 +141,7 @@ export default function VenueManagement() {
     if (!deleteConfirmation.venue) return;
 
     try {
+      setActionLoading("delete");
       await masterDataService.deleteVenue(deleteConfirmation.venue.id);
       showSuccess("Success", "Venue deleted successfully");
       setDeleteConfirmation({ isOpen: false, venue: null });
@@ -147,6 +149,8 @@ export default function VenueManagement() {
     } catch (error) {
       console.error("Error deleting venue:", error);
       showError("Error", "Failed to delete venue");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -170,13 +174,15 @@ export default function VenueManagement() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Manajemen Venue</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+            Manajemen Venue
+          </h2>
           <p className="text-sm md:text-base text-gray-600 mt-1">
             Kelola data venue dan lokasi pertandingan
           </p>
         </div>
         <Button
-          variant="primary"
+          variant="black"
           size="sm"
           onClick={() => setShowDialog(true)}
           disabled={loading}
@@ -405,10 +411,11 @@ export default function VenueManagement() {
         onClose={() => setDeleteConfirmation({ isOpen: false, venue: null })}
         onConfirm={handleDelete}
         title="Delete Venue"
-        message={`Are you sure you want to delete "${deleteConfirmation.venue?.name}"? This action cannot be undone.`}
+        message={`Apakah kamu yakin hapus venue "${deleteConfirmation.venue?.name}"? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
+        isLoading={actionLoading === "delete"}
       />
     </div>
   );
