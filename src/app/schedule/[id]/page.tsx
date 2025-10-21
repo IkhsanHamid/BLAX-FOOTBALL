@@ -20,7 +20,8 @@ import Badge from "@/components/atoms/Badge";
 import { scheduleService } from "@/utils/schedule";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
-import { Rules, ScheduleDetail } from "@/types/schedule";
+import { Rules, Schedule, ScheduleDetail } from "@/types/schedule";
+import BookModal from "@/components/molecules/BookModal";
 
 const positionColors = {
   GK: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -205,6 +206,10 @@ export default function ScheduleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const { showError } = useNotifications();
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchScheduleDetail = async () => {
@@ -230,6 +235,11 @@ export default function ScheduleDetailPage() {
 
     fetchScheduleDetail();
   }, [params.id, showError]);
+
+  const handleBooking = (schedule: any) => {
+    setIsBookModalOpen(true);
+    setSelectedSchedule(schedule);
+  };
 
   if (loading) {
     return <SkeletonLoading />;
@@ -471,14 +481,10 @@ export default function ScheduleDetailPage() {
                         className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md hover:shadow-lg"
                         variant="primary"
                         size="lg"
+                        onClick={() => handleBooking(schedule)}
+                        disabled={Number(schedule.openSlots) === 0}
                       >
                         Book Now
-                      </Button>
-                      <Button
-                        className="w-full border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                        variant="outline"
-                      >
-                        Share Match
                       </Button>
                     </div>
                   </div>
@@ -690,6 +696,17 @@ export default function ScheduleDetailPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Book Modal */}
+      <BookModal
+        isOpen={isBookModalOpen}
+        onClose={() => {
+          setIsBookModalOpen(false);
+          setSelectedSchedule(null);
+        }}
+        schedule={selectedSchedule}
+        scheduleId={selectedSchedule?.id || null}
+      />
     </>
   );
 }

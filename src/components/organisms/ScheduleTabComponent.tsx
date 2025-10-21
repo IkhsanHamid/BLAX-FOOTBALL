@@ -71,8 +71,8 @@ interface ScheduleForm {
   date: string;
   time: string;
   venueId: string;
-  totalTeams: string;
-  totalSlots: string;
+  totalTeams: number;
+  totalSlots: number;
   feePlayer: string;
   feeGk: string;
   typeEvent: string;
@@ -87,8 +87,8 @@ const initialFormState: ScheduleForm = {
   date: "",
   time: "",
   venueId: "",
-  totalTeams: "4",
-  totalSlots: "16",
+  totalTeams: 4,
+  totalSlots: 16,
   feePlayer: "",
   feeGk: "",
   typeEvent: "",
@@ -314,7 +314,7 @@ export default function ScheduleTab({
         const slots =
           SLOTS_PER_TEAM[matchType as keyof typeof SLOTS_PER_TEAM] || 0;
         const teams = Number(field === "totalTeams" ? value : prev.totalTeams);
-        updated.totalSlots = (slots * teams).toString();
+        updated.totalSlots = slots * teams;
       }
 
       return updated;
@@ -355,24 +355,35 @@ export default function ScheduleTab({
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      Object.entries(scheduleForm).forEach(([key, value]) => {
-        if (key === "totalSlots") return;
-        if (key === "facilityIds" || key === "ruleIds") {
-          (value as string[]).forEach((id) => formData.append(`${key}[]`, id));
-        } else if (key === "image" && value) {
-          formData.append("imageUrl", value as File);
-        } else if (key === "totalTeams") {
-          formData.append("team", value as string);
-        } else if (value) {
-          formData.append(key, value as string);
-        }
-      });
+
+      // Basic fields
+      formData.append("name", scheduleForm.name);
+      formData.append("date", scheduleForm.date);
+      formData.append("time", scheduleForm.time);
+      formData.append("venueId", scheduleForm.venueId);
+      formData.append("team", String(scheduleForm.totalTeams)); // Kirim sebagai "team"
+      formData.append("feePlayer", scheduleForm.feePlayer);
+      formData.append("feeGk", scheduleForm.feeGk);
+      formData.append("typeEvent", scheduleForm.typeEvent);
+      formData.append("typeMatch", scheduleForm.typeMatch);
+
+      // Image
+      if (scheduleForm.image) {
+        formData.append("imageUrl", scheduleForm.image as File);
+      }
+
+      // Arrays
+      scheduleForm.facilityIds.forEach((id) =>
+        formData.append("facilityIds[]", id)
+      );
+      scheduleForm.ruleIds.forEach((id) => formData.append("ruleIds[]", id));
 
       if (editingSchedule) {
         await adminService.updateSchedule(editingSchedule.id, formData);
       } else {
         await adminService.createSchedule(formData);
       }
+
       showSuccess(
         `Schedule ${editingSchedule ? "updated" : "created"} successfully!`
       );
@@ -391,12 +402,16 @@ export default function ScheduleTab({
     const venue = venues.find((v) => v.name === schedule.venue);
     setEditingSchedule(schedule);
     setScheduleForm({
-      ...schedule,
+      name: schedule.name,
+      date: schedule.date,
+      time: schedule.time,
       venueId: venue?.id || "",
-      totalTeams: String(schedule.team),
-      totalSlots: String(schedule.totalSlots),
+      totalTeams: Number(schedule.team),
+      totalSlots: schedule.totalSlots,
       feePlayer: String(schedule.feePlayer),
       feeGk: String(schedule.feeGk),
+      typeEvent: schedule.typeEvent,
+      typeMatch: schedule.typeMatch,
       image: String(schedule.image),
       facilityIds:
         schedule.facilities?.map((f: any) =>
@@ -765,7 +780,11 @@ export default function ScheduleTab({
                 </label>
                 <Input
                   type="date"
-                  value={scheduleForm.date}
+                  value={
+                    scheduleForm.date
+                      ? new Date(scheduleForm.date).toISOString().split("T")[0]
+                      : ""
+                  }
                   onChange={(e) => handleFormChange("date", e.target.value)}
                   className={formErrors.date ? "border-red-500" : ""}
                 />
@@ -866,7 +885,7 @@ export default function ScheduleTab({
                 </label>
                 <Input
                   type="number"
-                  value={scheduleForm.totalTeams}
+                  value={String(scheduleForm.totalTeams)}
                   onChange={(e) =>
                     handleFormChange("totalTeams", e.target.value)
                   }
@@ -880,7 +899,7 @@ export default function ScheduleTab({
                 </label>
                 <Input
                   type="number"
-                  value={scheduleForm.totalSlots}
+                  value={String(scheduleForm.totalSlots)}
                   disabled
                   className="bg-gray-100"
                 />

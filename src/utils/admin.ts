@@ -116,7 +116,7 @@ class AdminService {
   async updateSchedule(id: string, scheduleData: FormData): Promise<any> {
     try {
       const response = await apiClient.put(
-        `/api/v1/matches/update-schedule/${id}`,
+        `/api/v1/matches/update-schedule?id=${id}`,
         scheduleData
       );
       return response.data;
