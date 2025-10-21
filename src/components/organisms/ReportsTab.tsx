@@ -29,7 +29,6 @@ import { adminService } from "@/utils/admin";
 export default function ReportsTab() {
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState("7d");
-  const [reportType, setReportType] = useState("bookings");
 
   // Initialize with last 7 days
   const getDefaultDates = () => {
@@ -395,22 +394,6 @@ export default function ReportsTab() {
           <div className="pt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipe Laporan
-              </label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="bookings">Laporan Booking</option>
-                <option value="revenue">Laporan Pendapatan</option>
-                <option value="users">Aktivitas User</option>
-                <option value="venues">Performa Venue</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Rentang Tanggal
               </label>
               <select
@@ -447,6 +430,19 @@ export default function ReportsTab() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleRefreshData}
+                disabled={loading || !startDate || !endDate}
+                className="w-full flex items-center justify-center"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {loading ? "Memfilter..." : "Terapkan Filter"}
+              </Button>
             </div>
           </div>
         </CardContent>

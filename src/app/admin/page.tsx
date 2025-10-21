@@ -23,7 +23,7 @@ export default function AdminPage() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState("reports");
+  const [selectedTab, setSelectedTab] = useState("booking-history");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -147,7 +147,9 @@ export default function AdminPage() {
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center space-x-2">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.name}
+                  </p>
                   <p className="text-xs text-gray-500">Administrator</p>
                 </div>
               </div>

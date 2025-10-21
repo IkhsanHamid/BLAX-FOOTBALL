@@ -27,7 +27,12 @@ interface AdminSidebarProps {
 }
 
 const navItems: NavItem[] = [
-  { id: "reports", label: "Laporan", icon: BarChart3 },
+  {
+    id: "booking-history",
+    label: "Booking History",
+    icon: History,
+    shortLabel: "History",
+  },
   { id: "schedules", label: "Jadwal", icon: Calendar },
   { id: "lineup", label: "Lineup", icon: Shield },
   { id: "users", label: "Pengguna", icon: Users },
@@ -38,12 +43,7 @@ const navItems: NavItem[] = [
     icon: Database,
     shortLabel: "Master",
   },
-  {
-    id: "booking-history",
-    label: "Booking History",
-    icon: History,
-    shortLabel: "History",
-  },
+  { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 
 export default function AdminSidebar({
