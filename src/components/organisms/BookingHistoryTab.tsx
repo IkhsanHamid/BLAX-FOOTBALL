@@ -167,7 +167,7 @@ export default function BookingHistoryTab() {
   // API-based pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const itemsPerPage = 5;
+  const itemsPerPage = 5; // Static limit per page
 
   // Stats state
   const [stats, setStats] = useState({
@@ -185,32 +185,34 @@ export default function BookingHistoryTab() {
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Fetch stats separately (without pagination)
+  // Fetch stats separately (with first page data to get totalData count)
   const fetchStats = useCallback(async () => {
     try {
       const { startDate, endDate } = getDateRange(dateFilter);
 
-      // Fetch all data to calculate stats
+      // Fetch first page to get total count and calculate stats from it
+      // The API should return totalData which represents filtered total
       const response = (await adminService.historyRecentBooking(
         startDate,
         endDate,
         statusFilter || undefined,
         debouncedSearchTerm || undefined,
         0,
-        9999
+        itemsPerPage
       )) as unknown as BookingHistoryResponse;
 
       if (response.status && response.data) {
-        const allData = response.data;
+        // Use the totalData from API response for actual count
+        // Calculate stats from current page data as sample
+        const pageData = response.data;
 
-        // Calculate stats from all data
-        const successCount = allData.filter(
+        const successCount = pageData.filter(
           (b: BookingHistory) => b.paymentStatus === "PAID"
         ).length;
-        const pendingCount = allData.filter(
+        const pendingCount = pageData.filter(
           (b: BookingHistory) => b.paymentStatus === "PENDING"
         ).length;
-        const failedCount = allData.filter(
+        const failedCount = pageData.filter(
           (b: BookingHistory) =>
             b.paymentStatus === "FAILED" || b.paymentStatus === "EXPIRED"
         ).length;
@@ -225,7 +227,7 @@ export default function BookingHistoryTab() {
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
-  }, [debouncedSearchTerm, statusFilter, dateFilter]);
+  }, [debouncedSearchTerm, statusFilter, dateFilter, itemsPerPage]);
 
   // Fetch paginated booking history
   const fetchBookingHistory = useCallback(
@@ -243,7 +245,15 @@ export default function BookingHistoryTab() {
         const { startDate, endDate } = getDateRange(dateFilter);
 
         // Calculate skip based on current page
+        // Page 1: skip = 0
+        // Page 2: skip = 10
+        // Page 3: skip = 20
+        // etc.
         const skip = (currentPage - 1) * itemsPerPage;
+
+        console.log(
+          `Fetching page ${currentPage}: skip=${skip}, limit=${itemsPerPage}`
+        );
 
         // Call API with query parameters
         const response = (await adminService.historyRecentBooking(
@@ -254,7 +264,11 @@ export default function BookingHistoryTab() {
           skip,
           itemsPerPage
         )) as unknown as BookingHistoryResponse;
-        console.log("response111", response);
+        console.log(
+          "response111",
+          response,
+          `skip: ${skip}, limit: ${itemsPerPage}`
+        );
 
         console.log("Booking history response:", response);
 
@@ -780,57 +794,155 @@ export default function BookingHistoryTab() {
           </CardContent>
         </Card>
 
-        {/* API-based Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}{" "}
-              results
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={!hasPreviousPage || filterLoading}
-              >
-                Previous
-              </Button>
-
-              <div className="flex items-center space-x-1">
-                {getVisiblePages().map((page, index) =>
-                  page === "..." ? (
-                    <span key={`dots-${index}`} className="px-2 text-gray-500">
-                      ...
+        {/* API-based Pagination - Always Visible */}
+        <Card className="border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+              {/* Left: Summary Info */}
+              <div className="text-sm text-gray-700 font-medium">
+                <span className="text-gray-600">Showing</span>
+                <span className="mx-2 text-gray-900 font-semibold">
+                  {totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                </span>
+                <span className="text-gray-600">to</span>
+                <span className="mx-2 text-gray-900 font-semibold">
+                  {totalCount === 0
+                    ? 0
+                    : Math.min(currentPage * itemsPerPage, totalCount)}
+                </span>
+                <span className="text-gray-600">of</span>
+                <span className="mx-2 text-gray-900 font-semibold">
+                  {totalCount}
+                </span>
+                <span className="text-gray-600">
+                  booking{totalCount !== 1 ? "s" : ""}
+                </span>
+                {totalPages > 1 && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="text-gray-600">Page</span>
+                    <span className="mx-2 text-gray-900 font-semibold">
+                      {currentPage}
                     </span>
-                  ) : (
-                    <Button
-                      key={page}
-                      variant={page === currentPage ? "primary" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page as number)}
-                      disabled={filterLoading}
-                      className="w-10"
-                    >
-                      {page}
-                    </Button>
-                  )
+                    <span className="text-gray-600">of</span>
+                    <span className="mx-2 text-gray-900 font-semibold">
+                      {totalPages}
+                    </span>
+                  </>
                 )}
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={!hasNextPage || filterLoading}
-              >
-                Next
-              </Button>
+              {/* Right: Pagination Controls */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={
+                    !hasPreviousPage || filterLoading || totalCount === 0
+                  }
+                  // title="Go to first page"
+                  className="px-2"
+                >
+                  ⟨⟨
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={
+                    !hasPreviousPage || filterLoading || totalCount === 0
+                  }
+                  // title="Previous page"
+                >
+                  ⟨
+                </Button>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-1 px-3 py-2 bg-white rounded-lg border border-gray-200">
+                    {getVisiblePages().map((page, index) =>
+                      page === "..." ? (
+                        <span
+                          key={`dots-${index}`}
+                          className="px-2 text-gray-400"
+                        >
+                          •••
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={page === currentPage ? "primary" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page as number)}
+                          disabled={filterLoading}
+                          className={`w-9 h-9 p-0 ${
+                            page === currentPage
+                              ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                              : "hover:bg-gray-100"
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={!hasNextPage || filterLoading || totalCount === 0}
+                  // title="Next page"
+                >
+                  ⟩
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={!hasNextPage || filterLoading || totalCount === 0}
+                  // title="Go to last page"
+                  className="px-2"
+                >
+                  ⟩⟩
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+
+            {/* Quick Page Jump */}
+            {totalPages > 10 && (
+              <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center gap-3">
+                <label className="text-sm text-gray-600 font-medium">
+                  Jump to page:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  placeholder="Enter page number"
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      const page = parseInt(
+                        (e.target as HTMLInputElement).value
+                      );
+                      if (page >= 1 && page <= totalPages) {
+                        setCurrentPage(page);
+                        (e.target as HTMLInputElement).value = "";
+                      }
+                    }
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24 text-sm"
+                />
+                <span className="text-sm text-gray-500">
+                  (1 - {totalPages})
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Booking Detail Modal */}
