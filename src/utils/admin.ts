@@ -181,7 +181,7 @@ class AdminService {
       const queryParams = new URLSearchParams();
       if (startDate) queryParams.append("startDate", startDate.toString());
       if (endDate) queryParams.append("endDate", endDate.toString());
-      if (status) queryParams.append("status", status.toString());
+      if (status) queryParams.append("paymentStatus", status.toString());
       if (search) queryParams.append("keyword", search.toString());
       if (skip !== undefined) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
