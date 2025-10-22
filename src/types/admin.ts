@@ -72,6 +72,16 @@ export interface BookingHistory {
   failedStatus: number;
 }
 
+export interface BookingHistoryResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  skip: number;
+  limit: number;
+  totalData: number; // ← Total untuk pagination
+  data: BookingHistory[];
+}
+
 export interface Users {
   phone: string;
   name: string;

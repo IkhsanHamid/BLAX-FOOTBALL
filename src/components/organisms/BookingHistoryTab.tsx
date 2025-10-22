@@ -33,6 +33,17 @@ import BookingHistoryDetail from "./BookingHistoryDetail";
 import { BookingHistory } from "@/types/admin";
 import { adminService } from "@/utils/admin";
 
+// Response type from API
+interface BookingHistoryResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  skip: number;
+  limit: number;
+  totalData: number;
+  data: BookingHistory[];
+}
+
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -71,7 +82,7 @@ const TableSkeleton = () => (
           <TableHead className="font-semibold text-gray-900">
             Booked At
           </TableHead>
-          <TableHead className="font-semibold text-gray-900">Actions</TableHead>
+          <TableHead className="font-semibold text-gray-900">Pay At</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -109,7 +120,7 @@ const TableSkeleton = () => (
               <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
             </TableCell>
             <TableCell>
-              <div className="h-8 bg-gray-200 rounded animate-pulse w-16"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
             </TableCell>
           </TableRow>
         ))}
@@ -140,10 +151,7 @@ const StatsSkeleton = () => (
 );
 
 export default function BookingHistoryTab() {
-  const [allBookings, setAllBookings] = useState<BookingHistory[]>([]);
-  const [displayedBookings, setDisplayedBookings] = useState<BookingHistory[]>(
-    []
-  );
+  const [bookings, setBookings] = useState<BookingHistory[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,61 +164,139 @@ export default function BookingHistoryTab() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
+  // API-based pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 5;
+
+  // Stats state
+  const [stats, setStats] = useState({
+    total: 0,
+    confirmed: 0,
+    pending: 0,
+    failed: 0,
+  });
+
   // Loading state for UI
   const loading = initialLoading || filterLoading;
-
-  // Frontend pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   const { showSuccess, showError } = useNotifications();
 
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
+  // Fetch stats separately (without pagination)
+  const fetchStats = useCallback(async () => {
+    try {
+      const { startDate, endDate } = getDateRange(dateFilter);
+
+      // Fetch all data to calculate stats
+      const response = (await adminService.historyRecentBooking(
+        startDate,
+        endDate,
+        statusFilter || undefined,
+        debouncedSearchTerm || undefined,
+        0,
+        9999
+      )) as unknown as BookingHistoryResponse;
+
+      if (response.status && response.data) {
+        const allData = response.data;
+
+        // Calculate stats from all data
+        const successCount = allData.filter(
+          (b: BookingHistory) => b.paymentStatus === "PAID"
+        ).length;
+        const pendingCount = allData.filter(
+          (b: BookingHistory) => b.paymentStatus === "PENDING"
+        ).length;
+        const failedCount = allData.filter(
+          (b: BookingHistory) =>
+            b.paymentStatus === "FAILED" || b.paymentStatus === "EXPIRED"
+        ).length;
+
+        setStats({
+          total: response.totalData,
+          confirmed: successCount,
+          pending: pendingCount,
+          failed: failedCount,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  }, [debouncedSearchTerm, statusFilter, dateFilter]);
+
+  // Fetch paginated booking history
   const fetchBookingHistory = useCallback(
     async (isSearch = false) => {
       try {
-        // Determine loading state based on whether it's a search/filter or initial load
+        // Determine loading state
         if (isFirstLoad) {
           setInitialLoading(true);
         } else if (isSearch) {
           setFilterLoading(true);
         } else {
-          setInitialLoading(true);
+          setFilterLoading(true);
         }
 
         const { startDate, endDate } = getDateRange(dateFilter);
 
-        const response = await adminService.historyRecentBooking(
+        // Calculate skip based on current page
+        const skip = (currentPage - 1) * itemsPerPage;
+
+        // Call API with query parameters
+        const response = (await adminService.historyRecentBooking(
           startDate,
           endDate,
           statusFilter || undefined,
-          debouncedSearchTerm || undefined
-        );
+          debouncedSearchTerm || undefined,
+          skip,
+          itemsPerPage
+        )) as unknown as BookingHistoryResponse;
+        console.log("response111", response);
 
-        setAllBookings(response);
+        console.log("Booking history response:", response);
+
+        // Handle response based on API structure
+        if (response.status && response.data) {
+          setBookings(response.data);
+          setTotalCount(response.totalData);
+        } else {
+          setBookings([]);
+          setTotalCount(0);
+        }
       } catch (error) {
         console.error("Error fetching booking history:", error);
         showError("Error", "Failed to load booking history");
+        setBookings([]);
+        setTotalCount(0);
       } finally {
         setInitialLoading(false);
         setFilterLoading(false);
         setIsFirstLoad(false);
       }
     },
-    [debouncedSearchTerm, statusFilter, dateFilter, showError, isFirstLoad]
+    [
+      debouncedSearchTerm,
+      statusFilter,
+      dateFilter,
+      currentPage,
+      itemsPerPage,
+      showError,
+      isFirstLoad,
+    ]
   );
 
   // Initial load
   useEffect(() => {
     fetchBookingHistory();
+    fetchStats();
   }, []);
 
-  // Handle filter changes (search, status, date)
+  // Handle filter changes and pagination
   useEffect(() => {
     if (!isFirstLoad) {
-      // Determine if this is a search-only change
       const isSearchOnly =
         !!debouncedSearchTerm && !statusFilter && dateFilter === "all";
       fetchBookingHistory(isSearchOnly);
@@ -219,25 +305,28 @@ export default function BookingHistoryTab() {
     debouncedSearchTerm,
     statusFilter,
     dateFilter,
+    currentPage,
     isFirstLoad,
     fetchBookingHistory,
   ]);
 
-  // Pagination effect
+  // Fetch stats when filters change (but not on page change)
   useEffect(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    setDisplayedBookings(allBookings.slice(startIndex, endIndex));
-  }, [allBookings, currentPage]);
+    if (!isFirstLoad) {
+      fetchStats();
+    }
+  }, [debouncedSearchTerm, statusFilter, dateFilter, isFirstLoad, fetchStats]);
 
   // Reset to first page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    if (!isFirstLoad) {
+      setCurrentPage(1);
+    }
   }, [debouncedSearchTerm, statusFilter, dateFilter]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchBookingHistory();
+    await Promise.all([fetchBookingHistory(), fetchStats()]);
     setRefreshing(false);
     showSuccess("Booking history refreshed successfully");
   };
@@ -256,6 +345,7 @@ export default function BookingHistoryTab() {
     setSearchTerm("");
     setStatusFilter("");
     setDateFilter("all");
+    setCurrentPage(1);
   };
 
   const getStatusColor = (status: string) => {
@@ -289,26 +379,41 @@ export default function BookingHistoryTab() {
     }
   };
 
-  // Calculate stats from the first booking (assuming all bookings have the same totals)
-  const stats =
-    allBookings.length > 0
-      ? {
-          total: allBookings[0].totalBookings || 0,
-          confirmed: allBookings[0].confirmedStatus || 0,
-          pending: allBookings[0].pendingStatus || 0,
-          failed: allBookings[0].failedStatus || 0,
-        }
-      : {
-          total: 0,
-          confirmed: 0,
-          pending: 0,
-          failed: 0,
-        };
-
   // Pagination calculations
-  const totalPages = Math.ceil(allBookings.length / itemsPerPage);
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
   const hasNextPage = currentPage < totalPages;
   const hasPreviousPage = currentPage > 1;
+
+  // Calculate visible page numbers for pagination
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, "...");
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push("...", totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
 
   // Check if any filters are active
   const hasActiveFilters = searchTerm || statusFilter || dateFilter !== "all";
@@ -344,7 +449,7 @@ export default function BookingHistoryTab() {
         </div>
 
         {/* Stats Cards */}
-        {loading ? (
+        {loading && isFirstLoad ? (
           <StatsSkeleton />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -516,7 +621,7 @@ export default function BookingHistoryTab() {
           <CardContent className="p-0">
             {loading ? (
               <TableSkeleton />
-            ) : allBookings.length === 0 ? (
+            ) : bookings.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -557,13 +662,10 @@ export default function BookingHistoryTab() {
                       <TableHead className="font-semibold text-gray-900">
                         Pay At
                       </TableHead>
-                      {/* <TableHead className="font-semibold text-gray-900">
-                        Actions
-                      </TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayedBookings.map((booking, index) => (
+                    {bookings.map((booking, index) => (
                       <TableRow
                         key={`${booking.bookingId}-${index}`}
                         className="hover:bg-gray-50/50"
@@ -669,17 +771,6 @@ export default function BookingHistoryTab() {
                             )}
                           </div>
                         </TableCell>
-                        {/* <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleViewDetail(booking.bookingId)}
-                            className="hover:bg-blue-50 text-blue-600"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell> */}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -689,13 +780,13 @@ export default function BookingHistoryTab() {
           </CardContent>
         </Card>
 
-        {/* Frontend Pagination */}
+        {/* API-based Pagination */}
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, allBookings.length)} of{" "}
-              {allBookings.length} results
+              {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}{" "}
+              results
             </div>
 
             <div className="flex items-center space-x-2">
@@ -703,19 +794,24 @@ export default function BookingHistoryTab() {
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={!hasPreviousPage}
+                disabled={!hasPreviousPage || filterLoading}
               >
                 Previous
               </Button>
 
               <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
+                {getVisiblePages().map((page, index) =>
+                  page === "..." ? (
+                    <span key={`dots-${index}`} className="px-2 text-gray-500">
+                      ...
+                    </span>
+                  ) : (
                     <Button
                       key={page}
                       variant={page === currentPage ? "primary" : "outline"}
                       size="sm"
-                      onClick={() => setCurrentPage(page)}
+                      onClick={() => setCurrentPage(page as number)}
+                      disabled={filterLoading}
                       className="w-10"
                     >
                       {page}
@@ -728,7 +824,7 @@ export default function BookingHistoryTab() {
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={!hasNextPage}
+                disabled={!hasNextPage || filterLoading}
               >
                 Next
               </Button>

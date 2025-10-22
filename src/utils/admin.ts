@@ -2,6 +2,7 @@ import { ScheduleOverview } from "@/types/schedule";
 import { apiClient } from "./api";
 import {
   BookingHistory,
+  BookingHistoryResponse,
   ReportBooking,
   Roles,
   UserManagement,
@@ -172,19 +173,25 @@ class AdminService {
     startDate?: string,
     endDate?: string,
     status?: string,
-    search?: string
-  ): Promise<BookingHistory[]> {
+    search?: string,
+    skip?: number,
+    limit?: number
+  ): Promise<BookingHistoryResponse> {
     try {
       const queryParams = new URLSearchParams();
       if (startDate) queryParams.append("startDate", startDate.toString());
       if (endDate) queryParams.append("endDate", endDate.toString());
       if (status) queryParams.append("status", status.toString());
       if (search) queryParams.append("keyword", search.toString());
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
 
       const response = await apiClient.get(
         "/api/v1/booking/recent-booking?" + queryParams
       );
-      return response.data;
+
+      console.log("response recent booking", response);
+      return response;
     } catch (error) {
       throw error;
     }
