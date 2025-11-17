@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  email?: string;
+  email: string;
   name: string;
   phone: string;
   role: string;
@@ -14,7 +14,7 @@ export interface SignUpRequest {
   phone: string;
   password: string;
   name: string;
-  email?: string;
+  email: string;
 }
 
 export interface SignInRequest {

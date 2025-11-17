@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { PUBLIC_KEY } from "./publicKey";
+import Pako from "pako";
 
 const secret = PUBLIC_KEY;
 
@@ -47,13 +48,17 @@ export async function encryptWithPublicKey(data: object) {
   );
 
   // --- Encrypt ---
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
+  // Step 1: Convert object to string
+  const jsonString = JSON.stringify(data);
+
+  // Step 2: Compress
+  const compressed = Pako.deflate(jsonString);
   const encrypted = await window.crypto.subtle.encrypt(
     {
       name: "RSA-OAEP",
     },
     key,
-    encoded
+    compressed
   );
 
   // Convert ke base64 supaya aman dikirim ke server

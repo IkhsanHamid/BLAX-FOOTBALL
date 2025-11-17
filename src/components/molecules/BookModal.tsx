@@ -30,10 +30,10 @@ export default function BookModal({
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [isBookingLoading, setIsBookingLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    email: "",
     teamName: "",
     teamSize:
       schedule?.typeMatch === "MINI-SOCCER"
@@ -53,6 +53,7 @@ export default function BookModal({
         ...prev,
         name: user.name || "",
         phone: user.phone || "",
+        email: user.email || "",
       }));
     }
   }, [user]);
@@ -113,6 +114,7 @@ export default function BookModal({
       bookingType: bookingType.toUpperCase(),
       isGuest: user ? false : true,
       name: user ? user.name : formData.name,
+      email: user ? user.email : formData.email,
       phoneNumber: user ? user.phone : formData.phone,
       isPlayer: selectedFeeType === "player" || bookingType === "team",
       isGk: selectedFeeType === "gk" || bookingType === "team",
@@ -157,6 +159,7 @@ export default function BookModal({
 
     try {
       const payload = createBookingPayload();
+      console.log("payload", payload);
 
       const response = await bookingService.bookSlot(payload);
 
@@ -409,6 +412,35 @@ export default function BookModal({
 
                     <div>
                       <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Email
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="Masukkan email anda"
+                        value={formData.email}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
+                        disabled={!!user} // Disable if user exists
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                          user
+                            ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                            : "border-gray-300"
+                        }`}
+                      />
+                      {user && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Data diambil dari profil akun Anda
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
                         htmlFor="phone"
                         className="block text-sm font-medium text-gray-700 mb-1"
                       >
@@ -455,6 +487,35 @@ export default function BookModal({
                         value={formData.name}
                         onChange={(e) =>
                           handleInputChange("name", e.target.value)
+                        }
+                        disabled={!!user} // Disable if user exists
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                          user
+                            ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                            : "border-gray-300"
+                        }`}
+                      />
+                      {user && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Data diambil dari profil akun Anda
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Email PIC Tim
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="Masukkan email PIC"
+                        value={formData.email}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
                         }
                         disabled={!!user} // Disable if user exists
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
