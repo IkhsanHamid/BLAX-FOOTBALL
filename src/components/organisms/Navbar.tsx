@@ -379,7 +379,8 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
               </Link>
               <Link
                 href="/gallery"
-                className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
+                className={`block font-medium py-2 px-4 rounded-lg transition-all duration-300 ${getMobileTextStyles()}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Gallery
                 <span
