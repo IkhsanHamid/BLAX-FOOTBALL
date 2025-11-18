@@ -30,6 +30,7 @@ export default function AuthModal({
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [formData, setFormData] = useState({
     phone: "",
+    email: "",
     password: "",
     name: "",
     confirmPassword: "",
@@ -44,6 +45,7 @@ export default function AuthModal({
   const resetForm = () => {
     setFormData({
       phone: "",
+      email: "",
       password: "",
       name: "",
       confirmPassword: "",
@@ -100,6 +102,17 @@ export default function AuthModal({
         setError("Passwords do not match");
         return false;
       }
+
+      if (!formData.email.trim()) {
+        setError("Email is required");
+        return false;
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          setError("Invalid email format");
+          return false;
+        }
+      }
     }
 
     return true;
@@ -120,6 +133,7 @@ export default function AuthModal({
       if (mode === "signup") {
         await AuthService.signUp({
           phone: formData.phone,
+          email: formData.email,
           password: formData.password,
           name: formData.name,
         });
@@ -220,19 +234,34 @@ export default function AuthModal({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name Field (Sign Up Only) */}
           {mode === "signup" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <Input
-                type="text"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                icon={<User className="h-5 w-5 text-gray-400" />}
-                className="w-full"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Masukkan nama anda"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  icon={<User className="h-5 w-5 text-gray-400" />}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  placeholder="Masukkan email anda"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  icon={<Mail className="h-5 w-5 text-gray-400" />}
+                  className="w-full"
+                />
+              </div>
+            </>
           )}
 
           {/* Phone Field */}
@@ -242,7 +271,7 @@ export default function AuthModal({
             </label>
             <Input
               type="tel"
-              placeholder="Enter your phone number"
+              placeholder="Masukkan no hp anda"
               value={formData.phone}
               onChange={(e) => {
                 // hanya ambil angka (0-9)
@@ -263,9 +292,7 @@ export default function AuthModal({
               <Input
                 type={showPassword ? "text" : "password"}
                 placeholder={
-                  mode === "signin"
-                    ? "Enter your password"
-                    : "Create a password"
+                  mode === "signin" ? "Masukkan password" : "Buat password"
                 }
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
@@ -295,7 +322,7 @@ export default function AuthModal({
               <div className="relative">
                 <Input
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
+                  placeholder="Confirm password"
                   value={formData.confirmPassword}
                   onChange={(e) =>
                     handleInputChange("confirmPassword", e.target.value)
@@ -332,7 +359,7 @@ export default function AuthModal({
             ) : mode === "signin" ? (
               "Sign In"
             ) : (
-              "Create Account"
+              "Buat Akun"
             )}
           </Button>
         </form>
@@ -340,16 +367,14 @@ export default function AuthModal({
         {/* Mode Switch */}
         <div className="mt-8 text-center">
           <p className="text-gray-600">
-            {mode === "signin"
-              ? "Don't have an account? "
-              : "Already have an account? "}
+            {mode === "signin" ? "Tidak punya akun? " : "Sudah punya akun? "}
             <button
               onClick={() =>
                 handleModeSwitch(mode === "signin" ? "signup" : "signin")
               }
               className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
             >
-              {mode === "signin" ? "Create one" : "Sign in"}
+              {mode === "signin" ? "Buat akun" : "Masuk"}
             </button>
           </p>
         </div>
