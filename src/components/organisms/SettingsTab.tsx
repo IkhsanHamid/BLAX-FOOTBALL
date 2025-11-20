@@ -143,9 +143,6 @@ export default function SettingsTab() {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // In real implementation, save to backend
-      console.log("Saving settings:", settings);
-
       showSuccess(
         "Settings Saved",
         "All settings have been updated successfully"

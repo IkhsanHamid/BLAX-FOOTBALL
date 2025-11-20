@@ -55,7 +55,6 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
       router.push("/");
       // Show success message
       showSuccess("Success Logout!");
-      console.log("Signed out successfully");
     } catch (error) {
       console.error("Sign out error:", error);
       // You could show an error toast here

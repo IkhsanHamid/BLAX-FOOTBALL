@@ -251,10 +251,6 @@ export default function BookingHistoryTab() {
         // etc.
         const skip = (currentPage - 1) * itemsPerPage;
 
-        console.log(
-          `Fetching page ${currentPage}: skip=${skip}, limit=${itemsPerPage}`
-        );
-
         // Call API with query parameters
         const response = (await adminService.historyRecentBooking(
           startDate,
@@ -264,13 +260,6 @@ export default function BookingHistoryTab() {
           skip,
           itemsPerPage
         )) as unknown as BookingHistoryResponse;
-        console.log(
-          "response111",
-          response,
-          `skip: ${skip}, limit: ${itemsPerPage}`
-        );
-
-        console.log("Booking history response:", response);
 
         // Handle response based on API structure
         if (response.status && response.data) {

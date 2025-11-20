@@ -159,7 +159,6 @@ export default function BookModal({
 
     try {
       const payload = createBookingPayload();
-      console.log("payload", payload);
 
       const response = await bookingService.bookSlot(payload);
 

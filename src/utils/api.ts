@@ -98,7 +98,6 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<any> {
     const isFormData = data instanceof FormData;
-    console.log("dataaaa", data);
     const headers = await this.getAuthHeaders(isFormData);
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {

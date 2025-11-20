@@ -396,7 +396,6 @@ export default function ScheduleTab({
       setIsSubmitting(false);
     }
   };
-  console.log("editingSchedule", editingSchedule);
 
   const handleEditSchedule = (schedule: ScheduleOverview) => {
     const venue = venues.find((v) => v.name === schedule.venue);

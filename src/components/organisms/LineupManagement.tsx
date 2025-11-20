@@ -360,9 +360,6 @@ export default function LineupManagement() {
     player: LineupPlayer,
     lineup: LineupMatch
   ): { canAccept: boolean; reason?: string } => {
-    console.log("teamKey", teamKey);
-    console.log("player", player);
-    console.log("lineup", lineup);
     if (!lineup.teams || !lineup.teams[teamKey]) {
       return { canAccept: false, reason: "Invalid team" };
     }

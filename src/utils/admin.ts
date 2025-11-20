@@ -155,8 +155,6 @@ class AdminService {
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
-      console.log("startDate", startDate);
-      console.log("endDate", endDate);
       if (startDate) queryParams.append("startDate", startDate.toString());
       if (endDate) queryParams.append("endDate", endDate.toString());
       const response = await apiClient.get(
@@ -189,8 +187,6 @@ class AdminService {
       const response = await apiClient.get(
         "/api/v1/booking/recent-booking?" + queryParams
       );
-
-      console.log("response recent booking", response);
       return response;
     } catch (error) {
       throw error;

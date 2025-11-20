@@ -354,11 +354,6 @@ export default function PaymentPreviewModal({
       // Bersihkan container sementara
       document.body.removeChild(link);
       document.body.removeChild(tempContainer);
-
-      console.log(
-        "Receipt PNG downloaded successfully for:",
-        paymentData.bookingId
-      );
     } catch (error) {
       console.error("Error downloading receipt:", error);
       alert("Failed to download receipt. Please try again.");

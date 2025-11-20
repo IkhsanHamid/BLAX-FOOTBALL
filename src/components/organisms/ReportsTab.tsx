@@ -41,8 +41,6 @@ export default function ReportsTab() {
     };
   };
 
-  console.log("getDefaultDates", getDefaultDates());
-
   const [startDate, setStartDate] = useState(getDefaultDates().startDate);
   const [endDate, setEndDate] = useState(getDefaultDates().endDate);
   const [reportData, setReportData] = useState<ReportBooking | null>(null);
@@ -57,27 +55,14 @@ export default function ReportsTab() {
 
     setLoading(true);
     try {
-      console.log("=== DEBUG API CALL ===");
-      console.log("Original startDate:", startDate);
-      console.log("Original endDate:", endDate);
-
-      console.log("Calling adminService.reportBooking...");
-
       const reportResponse = await adminService.reportBooking(
         startDate,
         endDate
       );
 
-      console.log("API Response:", reportResponse);
-
       setReportData(reportResponse);
       showSuccess("Data berhasil di-refresh");
     } catch (error: any) {
-      console.error("=== API ERROR ===");
-      console.error("Error type:", error.constructor.name);
-      console.error("Error message:", error.message);
-      console.error("Full error:", error);
-
       // Check if it's a network error
       if (error.message.includes("fetch")) {
         showError(

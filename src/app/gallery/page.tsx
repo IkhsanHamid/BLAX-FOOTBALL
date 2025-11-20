@@ -134,8 +134,6 @@ export default function GalleryPage() {
     }
   };
 
-  console.log(galleryPhotos);
-
   const filterPhotos = () => {
     let filtered = galleryPhotos;
 
