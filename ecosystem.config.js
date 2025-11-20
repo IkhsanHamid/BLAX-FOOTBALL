@@ -4,7 +4,7 @@ module.exports = {
       name: "blax-frontend",
       script: "npm",
       args: "start",
-      cwd: "/var/www/frontend",
+      cwd: "/home/ubuntu/frontend",
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
