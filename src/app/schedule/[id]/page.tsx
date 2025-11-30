@@ -32,7 +32,12 @@ const positionColors = {
 function SkeletonLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Back Button Skeleton */}
         <div className="w-20 h-10 bg-white/20 rounded-lg mb-6 animate-pulse"></div>
@@ -91,7 +96,12 @@ function NotFoundDisplay() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <Button
           variant="ghost"
@@ -255,7 +265,12 @@ export default function ScheduleDetailPage() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           {/* Back Button */}
           <Button

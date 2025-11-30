@@ -27,8 +27,8 @@ export default function Button({
 }: ButtonProps) {
   const baseClasses = `${
     variant === "ghost"
-      ? "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
-      : "font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center"
+      ? "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95"
+      : "font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center"
   }`;
 
   const getDynamicVariant = () => {
@@ -42,11 +42,11 @@ export default function Button({
 
   const variantClasses = {
     primary:
-      "bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white",
+      "bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 text-white",
     secondary: "bg-gray-100 hover:bg-gray-200 text-gray-700",
     black: "bg-black text-white",
     outline:
-      "border-2 border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 backdrop-blur-sm",
+      "border-2 border-blue-300 hover:border-blue-400 text-gray-700 hover:bg-gray-50 backdrop-blur-sm",
     danger: "bg-red-500 hover:bg-red-600 text-white",
     ghost: "hover:bg-accent hover:text-accent-foreground",
   };

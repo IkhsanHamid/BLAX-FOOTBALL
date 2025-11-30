@@ -1,3 +1,4 @@
+"use client";
 import Navbar from "@/components/organisms/Navbar";
 import Hero from "@/components/Hero";
 import Testimonials from "@/components/Testimonials";
@@ -9,12 +10,21 @@ import PaymentChecker from "@/components/molecules/PaymentChecker";
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      <Navbar useScrollEffect={true} />
+      <Navbar
+        useScrollEffect={true}
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <Hero />
       <SchedulesCarousel />
 
       {/* Payment Checker Section */}
-      <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <section
+        id="payment-checker-section"
+        className="py-16 bg-gradient-to-br from-blue-50 to-indigo-50"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">

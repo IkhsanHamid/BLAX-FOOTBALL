@@ -5,7 +5,7 @@ import AuthModal from "./molecules/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroActions } from "./molecules/HeroActions";
 import Image from "next/image";
-import BlaxLogo from "@/assets/blax-logo.png";
+import BlaxLogo from "@/assets/blax-1.png";
 
 export default function Hero() {
   const router = useRouter();
@@ -14,110 +14,85 @@ export default function Hero() {
 
   const handleAuthSuccess = (userData: any, session: any) => {
     setIsAuthModalOpen(false);
-    // Redirect to dashboard after successful signup/login
     router.push("/player-dashboard");
   };
 
+  // Dummy data merchant
+  const merchants = [
+    {
+      name: "KFC",
+      logo: "https://1000logos.net/wp-content/uploads/2017/03/Kfc_logo.png",
+    },
+    {
+      name: "Starbucks",
+      logo: "https://upload.wikimedia.org/wikipedia/en/4/45/Starbucks_Corporation_Logo_2011.svg",
+    },
+    {
+      name: "Kopi Kenangan",
+      logo: "https://raw.githubusercontent.com/dwyl/english-words/master/img/kopi-kenangan-logo.pnghttps://images.squarespace-cdn.com/content/v1/5fa1095912d2fc6dfc63ac9c/dd9b911d-7295-43fc-9452-17a585607187/logo.png",
+    },
+    {
+      name: "Burger King",
+      logo: "https://upload.wikimedia.org/wikipedia/commons/c/cc/Burger_King_2020.svg",
+    },
+  ];
+
   return (
     <>
-      <section className="min-h-screen relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 text-white overflow-hidden">
-        {/* Background Pattern */}
-        {/* <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%a22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23ffffff%22 fill-opacity=%220.1%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%221%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
-        </div> */}
-
+      {/* HERO */}
+      <section className="min-h-[75vh] relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 text-white overflow-hidden">
         <div className="absolute inset-0">
           <img
             src="https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg"
             alt="Football player"
             className="w-full h-full object-cover opacity-60"
           />
-          {/* <div className="absolute inset-0 bg-gradient-to-br from-sky-500/40 to-blue-600/40"></div> */}
         </div>
 
-        <div className="relative container mx-auto px-6 py-20 pt-24 flex items-center min-h-screen">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Logo/Brand */}
-            <div className="flex items-center justify-center mb-8">
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl mr-2">
-                <Image src={BlaxLogo} alt="Logo" width={150} height={150} />
-              </div>
-            </div>
-
-            {/* Main Headline */}
-            <h2 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-              Booking Fun Game
+        <div className="relative container mx-auto px-6 py-20 pt-24 flex items-center min-h-[75vh]">
+          <div className="max-w-4xl text-center md:text-left mx-auto md:mx-0">
+            <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+              Fun game. Good vibes
               <span className="block bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
-                Mini Soccer & Football
+                Great community
               </span>
             </h2>
 
-            {/* Subheadline */}
-            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto leading-relaxed bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 inline-block mt-6 p-4">
-              Bergabung dengan salah satu komunitas football terbesar di Jakarta
-            </p>
+            <div className="flex justify-center md:justify-start">
+              <HeroActions />
+            </div>
 
-            {/* Value Props */}
-            {/* <div className="grid md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <Users className="h-8 w-8 text-blue-400 mb-4 mx-auto" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Community Verified
-                </h3>
-                <p className="text-slate-300 text-sm">
-                  Real humans review and verify every AI summary
-                </p>
-              </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <Zap className="h-8 w-8 text-teal-400 mb-4 mx-auto" />
-                <h3 className="text-lg font-semibold mb-2">AI-Powered</h3>
-                <p className="text-slate-300 text-sm">
-                  Advanced AI analyzes complex legal language instantly
-                </p>
-              </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <CheckCircle className="h-8 w-8 text-green-400 mb-4 mx-auto" />
-                <h3 className="text-lg font-semibold mb-2">Risk Scores</h3>
-                <p className="text-slate-300 text-sm">
-                  Clear risk ratings for every privacy policy
-                </p>
-              </div>
-            </div> */}
-
-            {/* CTA Buttons */}
-            <HeroActions />
-
-            {/* User Status Indicator (Optional) */}
             {user && (
               <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 inline-block">
                 <p className="text-sm text-slate-300">
-                  Welcome back,{" "}
+                  Selamat datang kembali,{" "}
                   <span className="font-semibold text-white">
                     {user.name ? user.name : user.phone}
                   </span>
-                  ! Ready to play fun game weekday or weekend ?
+                  ! Ready bermain bersama di weekday atau weekend nih ?
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      </section>
 
-            {/* Trust Indicators */}
-            {/* <div className="mt-16 pt-8 border-t border-white/10">
-              <p className="text-slate-400 text-sm mb-4">
-                Trusted by volunteers and enterprises worldwide
-              </p>
-              <div className="flex items-center justify-center space-x-8 opacity-60">
-                <div className="text-2xl font-bold">10K+</div>
-                <div className="text-slate-500">|</div>
-                <div className="text-2xl font-bold">95%</div>
-                <div className="text-slate-500">|</div>
-                <div className="text-2xl font-bold">50M+</div>
+      {/* MERCHANT PARTNERS SECTION */}
+      <section className="bg-white py-5">
+        <div className="container mx-auto px-6">
+          <h3 className="text-2xl md:text-3xl font-semibold text-center text-black mb-10">
+            Merchant Partner Kami
+          </h3>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center">
+            {merchants.map((m, index) => (
+              <div
+                key={index}
+                className="flex justify-center grayscale hover:grayscale-0 transition"
+              >
+                <img src={m.logo} alt={m.name} className="h-16 md:h-20" />
               </div>
-              <div className="flex items-center justify-center space-x-8 text-xs text-slate-400 mt-2">
-                <div>Verified Policies</div>
-                <div>Accuracy Rate</div>
-                <div>Risk Assessments</div>
-              </div>
-            </div> */}
+            ))}
           </div>
         </div>
       </section>

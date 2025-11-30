@@ -8,6 +8,7 @@ import {
   LogOut,
   Settings,
   Calendar,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,11 +16,15 @@ import Button from "../atoms/Button";
 import AuthModal from "../molecules/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "./NotificationContainer";
-import BlaxLogo from "@/assets/blax-logo.png";
+import BlaxLogo from "@/assets/blax.png";
 import Image from "next/image";
+import { motion } from "motion/react";
 
 interface NavbarProps {
   useScrollEffect?: boolean;
+  currentPage: string;
+  navigateTo: (page: string) => void;
+  userData?: any;
 }
 
 export default function Navbar({ useScrollEffect = false }: NavbarProps) {
@@ -30,6 +35,10 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { showSuccess, showError } = useNotifications();
+  const [isSignIn, setIsSignIn] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  console.log("isSignIn", isSignIn);
 
   const { user, loading, signOut, setUser } = useAuth();
 
@@ -90,93 +99,86 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
 
   // Dynamic styles based on useScrollEffect and isScrolled
   const getNavbarStyles = () => {
-    if (!useScrollEffect) {
-      return "bg-white/95 backdrop-blur-md shadow-lg border border-gray-200/20";
-    }
-    return isScrolled
-      ? "bg-white/95 backdrop-blur-md shadow-lg border border-gray-200/20"
-      : "bg-white/10 backdrop-blur-sm border border-white/20";
+    return "bg-white/95 backdrop-blur-md shadow-lg border border-gray-200/20";
   };
 
   const getTextStyles = () => {
-    if (!useScrollEffect) {
-      return "text-gray-700 hover:text-blue-600";
-    }
-    return isScrolled
-      ? "text-gray-700 hover:text-blue-600"
-      : "text-white/90 hover:text-white";
+    return "text-gray-700 hover:text-blue-600";
   };
 
   const getLogoStyles = () => {
     if (!useScrollEffect) {
-      return "bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent";
+      return "bg-clip-text text-transparent";
     }
-    return isScrolled
-      ? "bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent"
-      : "text-white";
+    return isScrolled ? "text-blue-600 bg-clip-text" : "text-white";
   };
 
   const getButtonStyles = () => {
-    if (!useScrollEffect) {
-      return "hover:bg-gray-100 text-gray-700";
-    }
-    return isScrolled
-      ? "hover:bg-gray-100 text-gray-700"
-      : "hover:bg-white/10 text-white";
+    return "hover:bg-gray-100 text-gray-700";
   };
 
   const getGradientStyles = () => {
-    if (!useScrollEffect) {
-      return "bg-gradient-to-r from-blue-500 to-teal-500";
-    }
-    return isScrolled
-      ? "bg-gradient-to-r from-blue-500 to-teal-500"
-      : "bg-gradient-to-r from-blue-400 to-teal-400";
+    return "bg-gradient-to-r from-blue-500 to-teal-500";
   };
 
   const getMobileTextStyles = () => {
-    if (!useScrollEffect) {
-      return "text-gray-700 hover:text-blue-600 hover:bg-gray-50";
-    }
-    return isScrolled
-      ? "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-      : "text-white/90 hover:text-white hover:bg-white/10";
+    return "text-gray-700 hover:text-blue-600 hover:bg-gray-50";
   };
 
   const getMobileBorderStyles = () => {
-    if (!useScrollEffect) {
-      return "border-gray-200/50";
-    }
-    return isScrolled ? "border-gray-200/50" : "border-white/20";
+    return "border-gray-200/50";
   };
 
   const getMobileUserTextStyles = () => {
-    if (!useScrollEffect) {
-      return "text-gray-700";
-    }
-    return isScrolled ? "text-gray-700" : "text-white";
+    return "text-gray-700";
   };
 
   const getMobileUserSecondaryTextStyles = () => {
-    if (!useScrollEffect) {
-      return "text-gray-500";
-    }
-    return isScrolled ? "text-gray-500" : "text-white/70";
+    return "text-gray-500";
   };
 
   const getSignOutStyles = () => {
-    if (!useScrollEffect) {
-      return "text-red-600 hover:bg-red-50";
-    }
-    return isScrolled
-      ? "text-red-600 hover:bg-red-50"
-      : "text-red-400 hover:bg-red-500/10";
+    return "text-red-600 hover:bg-red-50";
   };
 
   return (
     <>
+      {/* Running Text Banner */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-400 overflow-hidden">
+        <motion.div
+          animate={{ x: [0, -1000] }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="whitespace-nowrap py-2 text-white flex items-center gap-8"
+        >
+          {/* Repeat the content multiple times for seamless loop */}
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-center gap-8">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                <span>Membership program hanya Rp 100.000 per tahun</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-300">•</span>
+                <span>Dapatkan 15% diskon untuk semua produk</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-300">•</span>
+                <span>10% diskon semua pertandingan</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-300">•</span>
+                <span>Exclusive Member Benefits</span>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      </div>
       <nav
-        className={`fixed top-4 left-4 right-4 z-50 rounded-2xl transition-all duration-300 ${getNavbarStyles()}`}
+        className={`fixed top-10 left-0 px-4 right-0 z-50 transition-all duration-300 ${getNavbarStyles()}`}
       >
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
@@ -186,13 +188,13 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 onClick={() => router.push("/")}
                 className="p-2 rounded-xl"
               >
-                <Image src={BlaxLogo} alt="Logo" width={50} height={50} />
-              </button>
-              <button
-                className={`text-xl font-bold transition-colors duration-300 ${getLogoStyles()}`}
-                onClick={() => router.push("/")}
-              >
-                Blax Football
+                <Image
+                  src={BlaxLogo}
+                  alt="Logo"
+                  width={150}
+                  height={150}
+                  className="mix-blend-mode"
+                />
               </button>
             </div>
 
@@ -202,7 +204,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 href="/schedule"
                 className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
               >
-                Schedule
+                Jadwal
                 <span
                   className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
                 ></span>
@@ -211,7 +213,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 href="/news"
                 className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
               >
-                News
+                Berita
                 <span
                   className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
                 ></span>
@@ -220,7 +222,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 href="/gallery"
                 className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
               >
-                Gallery
+                Galeri
                 <span
                   className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
                 ></span>
@@ -332,9 +334,24 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      setIsSignIn(true);
+                      setIsSignUp(false);
+                    }}
                   >
-                    Sign In
+                    Login
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      setIsSignUp(true);
+                      setIsSignIn(false);
+                    }}
+                  >
+                    Daftar
                   </Button>
                 </>
               )}
@@ -367,21 +384,21 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 className={`block font-medium py-2 px-4 rounded-lg transition-all duration-300 ${getMobileTextStyles()}`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Schedule
+                Jadwal
               </Link>
               <Link
                 href="/news"
                 className={`block font-medium py-2 px-4 rounded-lg transition-all duration-300 ${getMobileTextStyles()}`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                News
+                Berita
               </Link>
               <Link
                 href="/gallery"
                 className={`block font-medium py-2 px-4 rounded-lg transition-all duration-300 ${getMobileTextStyles()}`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Gallery
+                Galeri
                 <span
                   className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
                 ></span>
@@ -478,13 +495,25 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   <>
                     <Button
                       variant="primary"
-                      className="w-full"
+                      size="sm"
                       onClick={() => {
                         setIsAuthModalOpen(true);
-                        setIsMenuOpen(false);
+                        setIsSignIn(true);
+                        setIsSignUp(false);
                       }}
                     >
-                      Sign In
+                      Login
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsAuthModalOpen(true);
+                        setIsSignUp(true);
+                        setIsSignIn(false);
+                      }}
+                    >
+                      Daftar
                     </Button>
                   </>
                 )}
@@ -499,6 +528,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
+        mode={isSignIn ? "signin" : isSignUp ? "signup" : "signin"}
       />
     </>
   );

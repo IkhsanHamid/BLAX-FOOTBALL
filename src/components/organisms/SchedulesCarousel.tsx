@@ -21,6 +21,7 @@ import { useNotifications } from "./NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
 import { formatDate } from "@/utils/helpers";
 import BookModal from "../molecules/BookModal";
+import { useSchedule } from "@/contexts/ScheduleContext";
 
 // Skeleton Card Component
 const SkeletonCard = () => (
@@ -150,9 +151,7 @@ export default function SchedulesCarousel() {
   const [isLoading, setIsLoading] = useState(true);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const { showSuccess, showError } = useNotifications();
-  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
-    null
-  );
+  const { setSelectedSchedule } = useSchedule();
 
   // Move matchesData inside useEffect or create it as a useMemo
   const matchesData = schedules.map((schedule) => ({
@@ -237,8 +236,9 @@ export default function SchedulesCarousel() {
   };
 
   const handleBooking = (schedule: any) => {
-    setIsBookModalOpen(true);
+    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
+    router.push(`/checkout`);
   };
 
   // Show message if no schedules available
@@ -262,7 +262,10 @@ export default function SchedulesCarousel() {
 
   return (
     <>
-      <section className="py-16 bg-gradient-to-br from-green-50 to-emerald-50 border-b border-green-100">
+      <section
+        id="schedule-carousel"
+        className="py-16 bg-gradient-to-br from-green-50 to-emerald-50 border-b border-green-100"
+      >
         <div className="container mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-12">
@@ -425,7 +428,7 @@ export default function SchedulesCarousel() {
                                   >
                                     {Number(match.openSlots) === 0
                                       ? "Penuh"
-                                      : "Book Now"}
+                                      : "Book Sekarang"}
                                   </Button>
                                 </div>
                               </div>
@@ -501,17 +504,6 @@ export default function SchedulesCarousel() {
           </div>
         </div>
       </section>
-
-      {/* Book Modal */}
-      <BookModal
-        isOpen={isBookModalOpen}
-        onClose={() => {
-          setIsBookModalOpen(false);
-          setSelectedSchedule(null);
-        }}
-        schedule={selectedSchedule}
-        scheduleId={selectedSchedule?.id || null}
-      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Mail,
@@ -20,14 +20,24 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: any, session: any) => void;
+  mode?: "signin" | "signup"; // optional (default signin)
 }
 
 export default function AuthModal({
   isOpen,
   onClose,
   onAuthSuccess,
+  mode: initialMode = "signin",
 }: AuthModalProps) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // ---- FLEXIBLE MODE ----
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
+
+  useEffect(() => {
+    setAuthMode(initialMode);
+    resetForm();
+  }, [initialMode]);
+
+  // ---- FORM DATA ----
   const [formData, setFormData] = useState({
     phone: "",
     email: "",
@@ -35,12 +45,14 @@ export default function AuthModal({
     name: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const { showSuccess, showError } = useNotifications();
+
+  const { showSuccess } = useNotifications();
 
   const resetForm = () => {
     setFormData({
@@ -57,7 +69,7 @@ export default function AuthModal({
   };
 
   const handleModeSwitch = (newMode: "signin" | "signup") => {
-    setMode(newMode);
+    setAuthMode(newMode);
     resetForm();
   };
 
@@ -66,50 +78,51 @@ export default function AuthModal({
     onClose();
   };
 
+  // ---- VALIDATION ----
   const validateForm = () => {
     if (!formData.phone.trim()) {
-      setError("Phone number is required");
+      setError("No HP wajib di isi");
       return false;
     } else if (formData.phone.length < 9) {
-      setError("Phone number must be at least 9 digits");
+      setError("No HP terlalu pendek");
       return false;
     } else if (formData.phone.length > 14) {
-      setError("Phone number is too long");
+      setError("No HP terlalu panjang");
       return false;
     } else if (!formData.phone.startsWith("0")) {
-      setError("Phone number must start with 0");
+      setError("No HP harus diawali dengan 0");
       return false;
     }
 
     if (!formData.password) {
-      setError("Password is required");
+      setError("Password wajib di isi");
       return false;
     } else if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
+      setError("Password minimal 6 karakter");
       return false;
     }
 
-    if (mode === "signup") {
+    if (authMode === "signup") {
       if (!formData.name.trim()) {
-        setError("Name is required");
+        setError("Name wajib di isi");
         return false;
       } else if (/[^a-zA-Z0-9\s]/.test(formData.name)) {
-        setError("Names must not include special characters");
+        setError("Names tidak boleh mengandung spesial karakter");
         return false;
       }
 
       if (formData.password !== formData.confirmPassword) {
-        setError("Passwords do not match");
+        setError("Password konfirmasi tidak sesuai");
         return false;
       }
 
       if (!formData.email.trim()) {
-        setError("Email is required");
+        setError("Email wajib di isi");
         return false;
       } else {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email)) {
-          setError("Invalid email format");
+          setError("Format email tidak valid");
           return false;
         }
       }
@@ -118,19 +131,18 @@ export default function AuthModal({
     return true;
   };
 
+  // ---- SUBMIT ----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      if (mode === "signup") {
+      if (authMode === "signup") {
         await AuthService.signUp({
           phone: formData.phone,
           email: formData.email,
@@ -138,9 +150,8 @@ export default function AuthModal({
           name: formData.name,
         });
 
-        setSuccess("Account created successfully! Please login.");
+        setSuccess("Akun berhasil dibuat! Silahkan login.");
 
-        // Auto-switch to signin after successful signup
         setTimeout(() => {
           handleModeSwitch("signin");
         }, 2000);
@@ -150,21 +161,24 @@ export default function AuthModal({
           password: formData.password,
         });
 
-        // Save session and notify parent component
         if (response.data) {
           const decoded = await decodeJwt(response.data.accessToken);
+
           const session = {
             access_token: response.data.accessToken,
             expires_at: Number(decoded.exp),
           };
+
           AuthService.saveSession(session);
 
           const dataUser = await AuthService.getCurrentUser(
             response.data.accessToken
           );
+
           onAuthSuccess(dataUser, session);
         }
-        showSuccess("Success Login!");
+
+        showSuccess("Berhasil Login!");
         handleClose();
       }
     } catch (err: any) {
@@ -179,7 +193,7 @@ export default function AuthModal({
       ...prev,
       [field]: value,
     }));
-    setError(""); // Clear error when user starts typing
+    setError("");
   };
 
   if (!isOpen) return null;
@@ -194,10 +208,10 @@ export default function AuthModal({
 
       {/* Modal */}
       <div className="relative bg-white rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
-        {/* Close Button */}
+        {/* Close */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
         >
           <X className="h-5 w-5" />
         </button>
@@ -205,39 +219,39 @@ export default function AuthModal({
         {/* Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {mode === "signin" ? "Welcome Back" : "Create Account"}
+            {authMode === "signin" ? "Selamat Datang" : "Buat Akun"}
           </h2>
           <p className="text-gray-600">
-            {mode === "signin"
-              ? "Sign in to your Blax Football account"
-              : "Join the blax community today"}
+            {authMode === "signin"
+              ? "Masuk ke akun blax kamu"
+              : "Join blax sekarang!"}
           </p>
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
             <p className="text-red-700 text-sm">{error}</p>
           </div>
         )}
 
-        {/* Success Message */}
+        {/* Success */}
         {success && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
             <p className="text-green-700 text-sm">{success}</p>
           </div>
         )}
 
-        {/* Form */}
+        {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name Field (Sign Up Only) */}
-          {mode === "signup" && (
+          {/* Name & Email (Signup Only) */}
+          {authMode === "signup" && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  Nama lengkap
                 </label>
                 <Input
                   type="text"
@@ -248,6 +262,7 @@ export default function AuthModal({
                   className="w-full"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -264,17 +279,16 @@ export default function AuthModal({
             </>
           )}
 
-          {/* Phone Field */}
+          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
+              No HP
             </label>
             <Input
               type="tel"
               placeholder="Masukkan no hp anda"
               value={formData.phone}
               onChange={(e) => {
-                // hanya ambil angka (0-9)
                 const onlyNums = e.target.value.replace(/\D/g, "");
                 handleInputChange("phone", onlyNums);
               }}
@@ -283,7 +297,7 @@ export default function AuthModal({
             />
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
@@ -292,7 +306,7 @@ export default function AuthModal({
               <Input
                 type={showPassword ? "text" : "password"}
                 placeholder={
-                  mode === "signin" ? "Masukkan password" : "Buat password"
+                  authMode === "signin" ? "Masukkan password" : "Buat password"
                 }
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
@@ -302,7 +316,7 @@ export default function AuthModal({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -313,11 +327,11 @@ export default function AuthModal({
             </div>
           </div>
 
-          {/* Confirm Password Field (Sign Up Only) */}
-          {mode === "signup" && (
+          {/* Confirm Password */}
+          {authMode === "signup" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
+                Konfirmasi Password
               </label>
               <div className="relative">
                 <Input
@@ -333,7 +347,7 @@ export default function AuthModal({
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -345,42 +359,46 @@ export default function AuthModal({
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Submit */}
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl"
           >
             {loading ? (
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                {mode === "signin" ? "Signing In..." : "Creating Account..."}
+                <div className="animate-spin h-5 w-5 border-b-2 border-white mr-2"></div>
+                {authMode === "signin"
+                  ? "Signing In..."
+                  : "Creating Account..."}
               </div>
-            ) : mode === "signin" ? (
-              "Sign In"
+            ) : authMode === "signin" ? (
+              "Login"
             ) : (
               "Buat Akun"
             )}
           </Button>
         </form>
 
-        {/* Mode Switch */}
+        {/* Switch Auth Mode */}
         <div className="mt-8 text-center">
           <p className="text-gray-600">
-            {mode === "signin" ? "Tidak punya akun? " : "Sudah punya akun? "}
+            {authMode === "signin"
+              ? "Tidak punya akun? "
+              : "Sudah punya akun? "}
             <button
               onClick={() =>
-                handleModeSwitch(mode === "signin" ? "signup" : "signin")
+                handleModeSwitch(authMode === "signin" ? "signup" : "signin")
               }
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              className="text-blue-600 hover:text-blue-700 font-medium"
             >
-              {mode === "signin" ? "Buat akun" : "Masuk"}
+              {authMode === "signin" ? "Buat akun" : "Masuk"}
             </button>
           </p>
         </div>
 
-        {/* Terms and Privacy */}
-        {mode === "signup" && (
+        {/* Terms */}
+        {authMode === "signup" && (
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               By creating an account, you agree to our{" "}

@@ -207,38 +207,13 @@ export default function SchedulePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent mb-4">
-              Jadwal Pertandingan
-            </h1>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Temukan dan daftar untuk pertandingan futsal dan mini soccer yang
-              tersedia. Pilih jadwal yang sesuai dengan waktu dan preferensi
-              Anda.
-            </p>
-          </div>
-
-          {/* Skeleton Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-emerald-100 animate-pulse"
-              >
-                <div className="flex items-center">
-                  <div className="p-3 bg-gray-200 rounded-lg w-12 h-12"></div>
-                  <div className="ml-4">
-                    <div className="bg-gray-200 h-4 w-20 rounded mb-2"></div>
-                    <div className="bg-gray-300 h-6 w-8 rounded"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Skeleton Filter */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-100 p-6 mb-8 animate-pulse">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -267,99 +242,13 @@ export default function SchedulePage() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          {/* Header */}
-          <div className="text-center mb-8 bg-white/80 backdrop-blur-sm border border-emerald-100 p-8 rounded-2xl shadow-lg">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent mb-4">
-              Jadwal Pertandingan
-            </h1>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Temukan dan daftar untuk pertandingan futsal dan mini soccer yang
-              tersedia. Pilih jadwal yang sesuai dengan waktu dan preferensi
-              Anda.
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-emerald-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg shadow-md">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-600">
-                    Total Schedules
-                  </p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {schedules.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-teal-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-lg shadow-md">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-600">
-                    Available Slots
-                  </p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {matchesData.reduce(
-                      (sum, schedule) => sum + Number(schedule.openSlots),
-                      0
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg shadow-md">
-                  <MapPin className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-600">
-                    Active Venues
-                  </p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {new Set(schedules.map((s) => s.venue)).size}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-violet-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-gradient-to-r from-violet-500 to-purple-500 rounded-lg shadow-md">
-                  <Clock className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-600">This Week</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {
-                      schedules.filter((s) => {
-                        const scheduleDate = new Date(s.date);
-                        const now = new Date();
-                        const weekFromNow = new Date(
-                          now.getTime() + 7 * 24 * 60 * 60 * 1000
-                        );
-                        return (
-                          scheduleDate >= now && scheduleDate <= weekFromNow
-                        );
-                      }).length
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 mt-10">
           {/* Filters */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-100 p-6 mb-8">
             <div className="flex flex-col lg:flex-row gap-4">
