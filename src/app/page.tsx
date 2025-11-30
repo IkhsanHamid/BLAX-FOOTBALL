@@ -28,10 +28,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Check Your Payment Status
+              Check Status Pembayaran Anda
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Enter your booking ID to check the current status of your payment
+              Masukkan booking ID anda untuk memeriksa status pembayaran saat
+              ini.
             </p>
           </div>
           <PaymentChecker />

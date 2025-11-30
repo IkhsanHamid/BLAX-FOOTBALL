@@ -6,6 +6,7 @@ import { useSchedule } from "@/contexts/ScheduleContext";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/organisms/Navbar";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
+import { formatMatchDate } from "@/lib/helper";
 // import { QRISModal } from "../molecules/QRISModal";
 export default function CheckoutPage() {
   const [bookingType, setBookingType] = useState<"individual" | "team">(
@@ -68,10 +69,13 @@ export default function CheckoutPage() {
   };
 
   const getPrice = () => {
+    if (!selectedSchedule) return 0;
     if (bookingType === "individual") {
-      return selectedRole === "goalkeeper" ? 75000 : 125000;
+      return selectedRole === "goalkeeper"
+        ? selectedSchedule?.feeGk
+        : selectedSchedule?.feePlayer;
     }
-    return 1250000; // Team price
+    return Number(selectedSchedule?.feePlayer) * 10;
   };
 
   const handlePaymentSuccess = () => {
@@ -121,9 +125,16 @@ export default function CheckoutPage() {
           transition={{ duration: 0.5 }}
           className="mb-12 text-center"
         >
-          <h1 className="mb-4 text-blue-600">Selesaikan booking anda</h1>
-          <p className="text-gray-600">
-            Hanya beberapa step saja untuk menyelesaikan booking anda
+          <h1 className="text-2xl md:text-3xl font-bold text-blue-600 mb-4">
+            Selesaikan Booking Anda
+          </h1>
+
+          <p className="text-gray-700 text-sm md:text-base">
+            Hanya beberapa langkah lagi untuk menyelesaikan proses booking Anda.
+          </p>
+
+          <p className="text-gray-700 text-sm md:text-base mt-1">
+            Data yang Anda masukkan akan kami jaga kerahasiaannya.
           </p>
         </motion.div>
 
@@ -174,7 +185,9 @@ export default function CheckoutPage() {
                 <h3 className="text-blue-600">Personal Information</h3>
 
                 <div>
-                  <label className="block text-gray-600 mb-2">Full Name</label>
+                  <label className="block text-gray-600 mb-2">
+                    Name lengkap
+                  </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
@@ -211,7 +224,7 @@ export default function CheckoutPage() {
                       type="tel"
                       value={whatsapp}
                       onChange={(e) => setWhatsapp(e.target.value)}
-                      placeholder="+62 812 3456 7890"
+                      placeholder="0812 3456 7890"
                       className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                     />
                   </div>
@@ -231,7 +244,9 @@ export default function CheckoutPage() {
                     >
                       <Shield className="w-8 h-8 mb-3 text-blue-600" />
                       <h4 className="mb-2 text-blue-600">Goalkeeper</h4>
-                      <div className="text-gray-600">IDR 75,000</div>
+                      <div className="text-gray-600">
+                        IDR {selectedSchedule?.feeGk}
+                      </div>
                     </motion.div>
 
                     <motion.div
@@ -244,8 +259,10 @@ export default function CheckoutPage() {
                       }`}
                     >
                       <User className="w-8 h-8 mb-3 text-blue-600" />
-                      <h4 className="mb-2 text-blue-600">Field Player</h4>
-                      <div className="text-gray-600">IDR 125,000</div>
+                      <h4 className="mb-2 text-blue-600">Player</h4>
+                      <div className="text-gray-600">
+                        IDR {selectedSchedule?.feePlayer}
+                      </div>
                     </motion.div>
                   </div>
                 </div>
@@ -285,6 +302,22 @@ export default function CheckoutPage() {
                       value={picEmail}
                       onChange={(e) => setPicEmail(e.target.value)}
                       placeholder="pic@email.com"
+                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-600 mb-2">
+                    PIC WhatsApp Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="0812 3456 7890"
                       className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                     />
                   </div>
@@ -338,18 +371,19 @@ export default function CheckoutPage() {
               <div className="space-y-4 pb-6 border-b border-blue-200">
                 <div>
                   <div className="text-gray-600 mb-1">Match Details</div>
-                  <div className="text-gray-900">{selectedSchedule?.venue}</div>
+                  {/* <div className="text-gray-900">{selectedSchedule?.venue}</div> */}
                 </div>
 
                 <div className="flex items-start gap-3 text-gray-600">
                   <MapPin className="w-4 h-4 mt-1 flex-shrink-0 text-blue-600" />
-                  <span>{selectedSchedule?.address}</span>
+                  <span>{selectedSchedule?.venue}</span>
                 </div>
 
                 <div className="flex items-start gap-3 text-gray-600">
                   <Clock className="w-4 h-4 mt-1 flex-shrink-0 text-blue-600" />
                   <span>
-                    {selectedSchedule?.time}, {selectedSchedule?.date}
+                    {formatMatchDate(selectedSchedule?.date)} • PKL{" "}
+                    {selectedSchedule?.time}
                   </span>
                 </div>
               </div>

@@ -4,7 +4,7 @@ import Button from "@/components/atoms/Button";
 import SearchBar from "@/components/atoms/SearchBar";
 import Navbar from "@/components/organisms/Navbar";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
-import { formatCurrency } from "@/lib/helper";
+import { formatCurrency, formatMatchDate } from "@/lib/helper";
 import { Schedule } from "@/types/schedule";
 import { formatDate } from "@/utils/helpers";
 import { scheduleService } from "@/utils/schedule";
@@ -43,7 +43,6 @@ export default function SchedulePage() {
         type: schedule.typeEvent,
         typeMatch: schedule.typeMatch,
         facilities: schedule.facilities,
-        description: `Pertandingan ${schedule.typeMatch.toLowerCase()} untuk semua level pemain`,
         image: schedule.imageUrl,
       })),
     [schedules]
@@ -66,8 +65,7 @@ export default function SchedulePage() {
         !searchQuery ||
         match.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         match.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        match.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        match.description.toLowerCase().includes(searchQuery.toLowerCase());
+        match.type.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesVenue =
         selectedVenue === "All Venues" || match.venue === selectedVenue;
@@ -142,7 +140,7 @@ export default function SchedulePage() {
 
   // Loading skeleton
   const SkeletonCard = () => (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-green-200 h-full animate-pulse">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-blue-200 h-full animate-pulse">
       <div className="flex flex-col h-full">
         <div className="relative h-48 overflow-hidden bg-gray-200">
           <div className="absolute top-4 right-4">
@@ -206,7 +204,7 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50">
         <Navbar
           currentPage={""}
           navigateTo={function (page: string): void {
@@ -215,7 +213,7 @@ export default function SchedulePage() {
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           {/* Skeleton Filter */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-100 p-6 mb-8 animate-pulse">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 p-6 mb-8 animate-pulse">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1">
                 <div className="bg-gray-200 h-10 rounded-lg"></div>
@@ -241,7 +239,7 @@ export default function SchedulePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50">
         <Navbar
           currentPage={""}
           navigateTo={function (page: string): void {
@@ -250,7 +248,7 @@ export default function SchedulePage() {
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 mt-10">
           {/* Filters */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-100 p-6 mb-8">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 p-6 mb-8">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1">
                 <SearchBar
@@ -265,7 +263,7 @@ export default function SchedulePage() {
                   <select
                     value={selectedVenue}
                     onChange={(e) => setSelectedVenue(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
                   >
                     {venues.map((venue) => (
                       <option key={venue} value={venue}>
@@ -280,7 +278,7 @@ export default function SchedulePage() {
                   <select
                     value={selectedType}
                     onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
                   >
                     {types.map((type) => (
                       <option key={type} value={type}>
@@ -295,7 +293,7 @@ export default function SchedulePage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
                   >
                     <option value="date">Sort by Date</option>
                     <option value="venue">Sort by Venue</option>
@@ -313,33 +311,33 @@ export default function SchedulePage() {
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600 mr-2">Active filters:</p>
                 {searchQuery && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                     Search: {searchQuery}
                     <button
                       onClick={() => clearFilter("search")}
-                      className="ml-1 hover:text-emerald-600"
+                      className="ml-1 hover:text-blue-600"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </span>
                 )}
                 {selectedVenue !== "All Venues" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                     Venue: {selectedVenue}
                     <button
                       onClick={() => clearFilter("venue")}
-                      className="ml-1 hover:text-emerald-600"
+                      className="ml-1 hover:text-blue-600"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </span>
                 )}
                 {selectedType !== "All Types" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                     Type: {selectedType}
                     <button
                       onClick={() => clearFilter("type")}
-                      className="ml-1 hover:text-emerald-600"
+                      className="ml-1 hover:text-blue-600"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -350,7 +348,7 @@ export default function SchedulePage() {
           </div>
 
           <div className="mb-6">
-            <p className="text-slate-600 bg-white/70 backdrop-blur-sm border border-emerald-100 p-4 rounded-2xl shadow-md">
+            <p className="text-slate-600 bg-white/70 backdrop-blur-sm border border-blue-100 p-4 rounded-2xl shadow-md">
               Showing {filteredAndSortedMatches.length} of {matchesData.length}{" "}
               schedules
             </p>
@@ -361,7 +359,7 @@ export default function SchedulePage() {
             {filteredAndSortedMatches.map((match) => (
               <div
                 key={match.id}
-                className="bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl border border-emerald-200 h-full hover:shadow-2xl hover:border-emerald-300 transition-all duration-300 transform hover:-translate-y-2"
+                className="bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl border border-blue-200 h-full hover:shadow-2xl hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-2"
               >
                 <div className="flex flex-col h-full">
                   {/* Image Section */}
@@ -375,7 +373,7 @@ export default function SchedulePage() {
                     <div className="absolute top-4 right-4">
                       <Badge
                         variant="default"
-                        className="flex items-center bg-white/95 backdrop-blur-sm text-emerald-700 border border-emerald-200 shadow-md"
+                        className="flex items-center bg-white/95 backdrop-blur-sm text-blue-700 border border-blue-200 shadow-md"
                       >
                         <Users className="h-3 w-3 mr-1" />
                         {match.openSlots}/{match.totalSlots}
@@ -398,11 +396,11 @@ export default function SchedulePage() {
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mr-3 shadow-sm">
-                          <Calendar className="h-6 w-6 text-emerald-600" />
+                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3 shadow-sm">
+                          <Calendar className="h-6 w-6 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-emerald-700 transition-colors">
+                          <h3 className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-blue-700 transition-colors">
                             {match.name}
                           </h3>
                           <p className="text-slate-600 text-sm line-clamp-1">
@@ -414,18 +412,14 @@ export default function SchedulePage() {
 
                     {/* Content */}
                     <div className="flex-1 flex flex-col">
-                      <p className="text-slate-700 leading-relaxed mb-4 line-clamp-3 flex-1">
-                        {match.description}
-                      </p>
-
                       {/* Match Details */}
                       <div className="space-y-2 mb-4">
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Clock className="h-4 w-4 mr-2 text-emerald-500" />
-                          {formatDate(match.date)} • {match.time}
+                        <div className="flex items-center text-sm font-bold text-black">
+                          <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                          {formatMatchDate(match.date)} • PKL {match.time}
                         </div>
-                        <div className="flex items-center text-sm text-slate-600">
-                          <MapPin className="h-4 w-4 mr-2 text-emerald-500" />
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2 text-blue-500" />
                           {match.venue}
                         </div>
                       </div>
@@ -435,7 +429,7 @@ export default function SchedulePage() {
                         {match.facilities.slice(0, 3).map((facility, index) => (
                           <span
                             key={index}
-                            className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs border border-emerald-200"
+                            className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-200"
                           >
                             {facility.name}
                           </span>
@@ -451,7 +445,7 @@ export default function SchedulePage() {
                       <div className="mt-4">
                         <div className="w-full bg-slate-200 rounded-full h-2">
                           <div
-                            className="bg-gradient-to-r from-emerald-400 to-teal-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-blue-400 to-blue-500 h-2 rounded-full transition-all duration-300"
                             style={{
                               width: `${
                                 (Number(match.bookedSlots) /
@@ -477,7 +471,7 @@ export default function SchedulePage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDetailClick(match.id)}
-                          className="flex-1 hover:bg-emerald-50 hover:border-emerald-300 text-emerald-600 border-emerald-200"
+                          className="flex-1 hover:bg-sky-50 hover:border-sky-300"
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           Detail
@@ -487,9 +481,11 @@ export default function SchedulePage() {
                           size="sm"
                           onClick={() => handleBooking(match)}
                           disabled={Number(match.openSlots) === 0}
-                          className="flex-1 shadow-md hover:shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                          className="flex-1 shadow-md hover:shadow-lg"
                         >
-                          {Number(match.openSlots) === 0 ? "Penuh" : "Book Now"}
+                          {Number(match.openSlots) === 0
+                            ? "Penuh"
+                            : "Book Sekarang"}
                         </Button>
                       </div>
                     </div>
@@ -502,7 +498,7 @@ export default function SchedulePage() {
           {/* No Results */}
           {filteredAndSortedMatches.length === 0 && (
             <div className="text-center py-12">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-emerald-100 shadow-lg">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100 shadow-lg">
                 <Calendar className="h-16 w-16 text-slate-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">
                   No schedules found
@@ -517,7 +513,7 @@ export default function SchedulePage() {
                     setSelectedVenue("All Venues");
                     setSelectedType("All Types");
                   }}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 hover:from-emerald-600 hover:to-teal-600 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                  className="bg-blue-500 text-white border-0 hover:blue-600  shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300"
                 >
                   Clear All Filters
                 </Button>

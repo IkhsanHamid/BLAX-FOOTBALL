@@ -106,7 +106,7 @@ export default function PaymentChecker() {
         <CardHeader>
           <CardTitle className="flex items-center text-center justify-center">
             <CreditCard className="w-6 h-6 mr-2" />
-            Check Payment Status
+            Check Status Pembayaran
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -114,7 +114,7 @@ export default function PaymentChecker() {
           <form onSubmit={handleCheck} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Enter your Booking ID
+                Masukkan Booking ID Anda
               </label>
               <div className="relative">
                 <Input
@@ -125,7 +125,7 @@ export default function PaymentChecker() {
                     setError("");
                     setPaymentStatus(null);
                   }}
-                  placeholder="e.g., BK-2025-001"
+                  placeholder="contoh., BK-2025-001"
                   className={error ? "border-red-500" : ""}
                   icon={<Search className="h-5 w-5 text-gray-400" />}
                 />
@@ -152,7 +152,7 @@ export default function PaymentChecker() {
               ) : (
                 <>
                   <Search className="w-4 h-4 mr-2" />
-                  Check Payment Status
+                  Check Status Pembayaran
                 </>
               )}
             </Button>
@@ -161,12 +161,12 @@ export default function PaymentChecker() {
           {/* Help Text */}
           <div className="text-center text-sm text-gray-500">
             <p>
-              Don't have a booking ID?{" "}
+              Tidak punya booking ID?{" "}
               <a
                 href="/schedule"
                 className="text-blue-600 hover:text-blue-700 font-medium"
               >
-                Create a new booking
+                Buat booking baru sekarang!
               </a>
             </p>
           </div>

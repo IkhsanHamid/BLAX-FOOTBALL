@@ -18,7 +18,7 @@ import Button from "../atoms/Button";
 import { Schedule } from "@/types/schedule";
 import { scheduleService } from "@/utils/schedule";
 import { useNotifications } from "./NotificationContainer";
-import { formatCurrency } from "@/lib/helper";
+import { formatCurrency, formatMatchDate } from "@/lib/helper";
 import { formatDate } from "@/utils/helpers";
 import BookModal from "../molecules/BookModal";
 import { useSchedule } from "@/contexts/ScheduleContext";
@@ -168,7 +168,6 @@ export default function SchedulesCarousel() {
     type: schedule.typeEvent,
     typeMatch: schedule.typeMatch,
     facilities: schedule.facilities,
-    description: `Pertandingan ${schedule.typeMatch.toLowerCase()} untuk semua level pemain`,
     image: schedule.imageUrl,
   }));
 
@@ -270,7 +269,7 @@ export default function SchedulesCarousel() {
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4">
-              <div className="bg-gradient-to-r from-blue-500 to-teal-500 p-3 rounded-xl mr-3">
+              <div className="bg-blue-500 p-3 rounded-xl mr-3">
                 <Calendar className="h-6 w-6 text-white" />
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
@@ -309,7 +308,7 @@ export default function SchedulesCarousel() {
                               <div className="absolute top-4 right-4">
                                 <Badge
                                   variant="default"
-                                  className="flex items-center bg-white/90 text-green-700"
+                                  className="flex items-center bg-white/90 text-blue-600"
                                 >
                                   <Users className="h-3 w-3 mr-1" />
                                   {match.openSlots}/{match.totalSlots}
@@ -335,7 +334,7 @@ export default function SchedulesCarousel() {
                               <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center">
                                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
-                                    <Calendar className="h-6 w-6 text-green-600" />
+                                    <Calendar className="h-6 w-6 text-blue-600" />
                                   </div>
                                   <div>
                                     <h3 className="text-xl font-bold text-gray-900 line-clamp-1">
@@ -350,18 +349,15 @@ export default function SchedulesCarousel() {
 
                               {/* Content */}
                               <div className="flex-1 flex flex-col">
-                                <p className="text-gray-700 leading-relaxed mb-4 line-clamp-3 flex-1">
-                                  {match.description}
-                                </p>
-
                                 {/* Match Details */}
                                 <div className="space-y-2 mb-4">
-                                  <div className="flex items-center text-sm text-gray-600">
-                                    <Clock className="h-4 w-4 mr-2 text-green-500" />
-                                    {formatDate(match.date)} • {match.time}
+                                  <div className="flex items-center text-sm font-bold text-black">
+                                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                                    {formatMatchDate(match.date)} • PKL{" "}
+                                    {match.time}
                                   </div>
                                   <div className="flex items-center text-sm text-gray-600">
-                                    <MapPin className="h-4 w-4 mr-2 text-green-500" />
+                                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
                                     {match.venue}
                                   </div>
                                 </div>
@@ -373,7 +369,7 @@ export default function SchedulesCarousel() {
                                     .map((facility, index) => (
                                       <span
                                         key={index}
-                                        className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-200"
+                                        className="px-2 py-1 bg-green-50 text-blue-700 rounded-full text-xs border border-green-200"
                                       >
                                         {facility.name}
                                       </span>
