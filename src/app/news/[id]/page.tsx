@@ -12,7 +12,12 @@ import Navbar from "@/components/organisms/Navbar";
 function NewsDetailSkeleton() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 to-blue-500">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Back Button Skeleton */}
         <div className="mb-6">
@@ -134,7 +139,12 @@ export default function NewsDetailPage() {
   if (!article) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-sky-400 to-blue-500">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center bg-white rounded-xl shadow-lg p-12">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -157,7 +167,12 @@ export default function NewsDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Back Button */}
         <button

@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Newspaper, Filter, Calendar, Share2, Eye, Clock, User } from "lucide-react";
+import {
+  Newspaper,
+  Filter,
+  Calendar,
+  Share2,
+  Eye,
+  Clock,
+  User,
+} from "lucide-react";
 import { News } from "@/types/news";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { newsService } from "@/utils/news";
@@ -34,7 +42,12 @@ function SkeletonCard() {
 function SkeletonLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Header Skeleton */}
         <div className="text-center mb-8">
@@ -205,7 +218,12 @@ export default function NewsPage() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           {/* Header */}
           <div className="text-center mb-8 bg-white/80 backdrop-blur-sm border border-blue-100 p-8 rounded-2xl shadow-lg">
@@ -371,14 +389,20 @@ export default function NewsPage() {
 
                   {/* Excerpt */}
                   <p className="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-                    <span dangerouslySetInnerHTML={{ __html: article.excerpt }} />
+                    <span
+                      dangerouslySetInnerHTML={{ __html: article.excerpt }}
+                    />
                   </p>
 
                   {/* Meta Info */}
                   <div className="flex items-center space-x-4 text-xs text-slate-500 mb-4">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>{new Date(article.publishAt).toLocaleDateString("id-ID")}</span>
+                      <span>
+                        {new Date(article.publishAt).toLocaleDateString(
+                          "id-ID"
+                        )}
+                      </span>
                     </div>
                     {article.readTime && (
                       <div className="flex items-center space-x-1">
@@ -423,20 +447,20 @@ export default function NewsPage() {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100 shadow-lg">
                 <Newspaper className="h-16 w-16 text-slate-400 mx-auto mb-4" />
                 <h3 className="text-xl font-medium text-slate-900 mb-2">
-                No articles found
-              </h3>
+                  No articles found
+                </h3>
                 <p className="text-slate-500 mb-6">
-                Try adjusting your search criteria or filters
-              </p>
-              <button
+                  Try adjusting your search criteria or filters
+                </p>
+                <button
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedCategory("All Categories");
-                }}
-              >
-                Clear Filters
-              </button>
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("All Categories");
+                  }}
+                >
+                  Clear Filters
+                </button>
               </div>
             </div>
           )}

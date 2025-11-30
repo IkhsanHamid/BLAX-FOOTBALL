@@ -51,7 +51,12 @@ function SessionSkeleton() {
 function SkeletonLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Header Skeleton */}
         <div className="text-center mb-8">
@@ -207,7 +212,12 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Header */}
         <div className="text-center mb-8 bg-white/80 backdrop-blur-sm border border-blue-100 p-8 rounded-2xl shadow-lg">

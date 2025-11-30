@@ -303,7 +303,12 @@ export default function PaymentPage() {
   if (loading) {
     return (
       <>
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <LoadingScreen message="Loading payment information..." />
       </>
     );
@@ -312,7 +317,12 @@ export default function PaymentPage() {
   if (!paymentData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -349,7 +359,12 @@ export default function PaymentPage() {
   if (paymentData.status === "expire") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           {/* Header */}
           <div className="mb-8">
@@ -404,7 +419,12 @@ export default function PaymentPage() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <Navbar />
+        <Navbar
+          currentPage={""}
+          navigateTo={function (page: string): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">

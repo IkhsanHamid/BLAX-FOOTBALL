@@ -314,7 +314,12 @@ export default function PlayerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-      <Navbar />
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
 
       {/* Show skeleton when refreshing or data loading */}
       {refreshing || dataLoading ? (

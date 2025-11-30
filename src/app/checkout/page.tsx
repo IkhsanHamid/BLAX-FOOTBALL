@@ -5,19 +5,9 @@ import { useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/organisms/Navbar";
+import { useNotifications } from "@/components/organisms/NotificationContainer";
 // import { QRISModal } from "../molecules/QRISModal";
-
-interface CheckoutPageProps {
-  navigateTo: (page: string) => void;
-  showToast: (type: "success" | "error", message: string) => void;
-  matchData: any;
-}
-
-export default function CheckoutPage({
-  navigateTo,
-  showToast,
-  matchData,
-}: CheckoutPageProps) {
+export default function CheckoutPage() {
   const [bookingType, setBookingType] = useState<"individual" | "team">(
     "individual"
   );
@@ -25,6 +15,7 @@ export default function CheckoutPage({
     "goalkeeper" | "player" | null
   >(null);
   const [showQRIS, setShowQRIS] = useState(false);
+  const { showSuccess, showError } = useNotifications();
 
   // Individual Form
   const [name, setName] = useState("");
@@ -53,23 +44,23 @@ export default function CheckoutPage({
   const validateAndProceed = () => {
     if (bookingType === "individual") {
       if (!name.trim() || !email.trim() || !whatsapp.trim()) {
-        showToast("error", "Please fill all fields");
+        showError("error", "Please fill all fields");
         return;
       }
       if (!selectedRole) {
-        showToast("error", "Please select a role");
+        showError("error", "Please select a role");
         return;
       }
     } else {
       if (!picName.trim() || !picEmail.trim()) {
-        showToast("error", "Please fill PIC details");
+        showError("error", "Please fill PIC details");
         return;
       }
       const hasEmptyFields = players.some(
         (player) => !player.name.trim() || !player.phone.trim()
       );
       if (hasEmptyFields) {
-        showToast("error", "Please fill all player details");
+        showError("error", "Please fill all player details");
         return;
       }
     }
@@ -84,10 +75,10 @@ export default function CheckoutPage({
   };
 
   const handlePaymentSuccess = () => {
-    showToast("success", "Booking Confirmed");
+    showSuccess("success", "Booking Confirmed");
     setShowQRIS(false);
     setTimeout(() => {
-      navigateTo("gallery");
+      router.push("/gallery");
     }, 1500);
   };
 
