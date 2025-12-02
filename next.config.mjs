@@ -11,10 +11,10 @@ const nextConfig = {
     ],
   },
   devIndicators: false,
-  compiler: {
-    // Remove all console logs
-    removeConsole: true,
-  },
+  // compiler: {
+  //   // Remove all console logs
+  //   removeConsole: true,
+  // },
 };
 
 export default nextConfig;

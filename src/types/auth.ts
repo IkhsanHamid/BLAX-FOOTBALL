@@ -32,3 +32,11 @@ export interface AuthResponse {
 export interface AuthError {
   error: string;
 }
+
+export interface FormSignup {
+  phone: string;
+  email: string;
+  password: string;
+  name: string;
+  membership?: boolean;
+}

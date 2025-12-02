@@ -19,8 +19,6 @@ import { Schedule } from "@/types/schedule";
 import { scheduleService } from "@/utils/schedule";
 import { useNotifications } from "./NotificationContainer";
 import { formatCurrency, formatMatchDate } from "@/lib/helper";
-import { formatDate } from "@/utils/helpers";
-import BookModal from "../molecules/BookModal";
 import { useSchedule } from "@/contexts/ScheduleContext";
 
 // Skeleton Card Component

@@ -7,6 +7,7 @@ import LoadingScreen from "@/components/atoms/LoadingScreen";
 import GlobalLoadingScreen from "@/components/molecules/GlobalLoadingScreen";
 import { Suspense } from "react";
 import { ScheduleProvider } from "@/contexts/ScheduleContext";
+import { SignupProvider } from "@/contexts/FormSignupContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -50,8 +51,10 @@ export default function RootLayout({
           <AuthProvider>
             <NotificationProvider>
               <ScheduleProvider>
-                <GlobalLoadingScreen />
-                {children}
+                <SignupProvider>
+                  <GlobalLoadingScreen />
+                  {children}
+                </SignupProvider>
               </ScheduleProvider>
             </NotificationProvider>
           </AuthProvider>

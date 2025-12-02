@@ -9,12 +9,17 @@ import {
   AlertCircle,
   CheckCircle,
   Phone,
+  Crown,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import Input from "../atoms/Input";
 import { AuthService } from "@/utils/auth";
 import { useNotifications } from "../organisms/NotificationContainer";
 import { decodeJwt } from "@/lib/helper";
+import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { FormSignup } from "@/types/auth";
+import { useFormSignup } from "@/contexts/FormSignupContext";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -45,14 +50,16 @@ export default function AuthModal({
     name: "",
     confirmPassword: "",
   });
-
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [includeMembership, setIncludeMembership] = useState(false);
 
   const { showSuccess } = useNotifications();
+  const { setSelectedSignup } = useFormSignup();
 
   const resetForm = () => {
     setFormData({
@@ -80,6 +87,34 @@ export default function AuthModal({
 
   // ---- VALIDATION ----
   const validateForm = () => {
+    if (authMode === "signup") {
+      if (!formData.name.trim()) {
+        setError("Nama wajib di isi");
+        return false;
+      } else if (/[^a-zA-Z0-9\s]/.test(formData.name)) {
+        setError("Nama tidak boleh mengandung spesial karakter");
+        return false;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        setError("Password konfirmasi tidak sesuai");
+        return false;
+      }
+    }
+
+    // email
+    if (!formData.email.trim()) {
+      setError("Email wajib di isi");
+      return false;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError("Format email tidak valid");
+        return false;
+      }
+    }
+
+    //  no hp
     if (!formData.phone.trim()) {
       setError("No HP wajib di isi");
       return false;
@@ -102,35 +137,10 @@ export default function AuthModal({
       return false;
     }
 
-    if (authMode === "signup") {
-      if (!formData.name.trim()) {
-        setError("Name wajib di isi");
-        return false;
-      } else if (/[^a-zA-Z0-9\s]/.test(formData.name)) {
-        setError("Names tidak boleh mengandung spesial karakter");
-        return false;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        setError("Password konfirmasi tidak sesuai");
-        return false;
-      }
-
-      if (!formData.email.trim()) {
-        setError("Email wajib di isi");
-        return false;
-      } else {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
-          setError("Format email tidak valid");
-          return false;
-        }
-      }
-    }
-
     return true;
   };
 
+  console.log("includemembership", includeMembership);
   // ---- SUBMIT ----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,12 +153,20 @@ export default function AuthModal({
 
     try {
       if (authMode === "signup") {
-        await AuthService.signUp({
+        const formSignup: FormSignup = {
           phone: formData.phone,
           email: formData.email,
           password: formData.password,
           name: formData.name,
-        });
+        };
+
+        if (includeMembership) {
+          formSignup.membership = true;
+          setSelectedSignup(formSignup);
+          router.push("/signup/membership");
+        } else {
+          await AuthService.signUp(formSignup);
+        }
 
         setSuccess("Akun berhasil dibuat! Silahkan login.");
 
@@ -199,167 +217,258 @@ export default function AuthModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-white rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
-        {/* Close */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-foreground mb-1">
             {authMode === "signin" ? "Selamat Datang" : "Buat Akun"}
           </h2>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground text-sm">
             {authMode === "signin"
               ? "Masuk ke akun blax kamu"
               : "Join blax sekarang!"}
           </p>
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-700 text-sm">{error}</p>
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded-lg flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
-        {/* Success */}
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-            <p className="text-green-700 text-sm">{success}</p>
+          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <p className="text-green-600 text-sm">{success}</p>
           </div>
         )}
 
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name & Email (Signup Only) */}
+        <form onSubmit={handleSubmit} className="space-y-4">
           {authMode === "signup" && (
-            <>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-foreground mb-1.5">
                   Nama lengkap
                 </label>
                 <Input
                   type="text"
-                  placeholder="Masukkan nama anda"
+                  placeholder="Nama anda"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                  icon={<User className="h-5 w-5 text-gray-400" />}
-                  className="w-full"
+                  icon={<User className="h-4 w-4 text-muted-foreground" />}
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-foreground mb-1.5">
                   Email
                 </label>
                 <Input
                   type="email"
-                  placeholder="Masukkan email anda"
+                  placeholder="Email anda"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  icon={<Mail className="h-5 w-5 text-gray-400" />}
-                  className="w-full"
+                  icon={<Mail className="h-4 w-4 text-muted-foreground" />}
                 />
               </div>
-            </>
+            </div>
           )}
 
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              No HP
-            </label>
-            <Input
-              type="tel"
-              placeholder="Masukkan no hp anda"
-              value={formData.phone}
-              onChange={(e) => {
-                const onlyNums = e.target.value.replace(/\D/g, "");
-                handleInputChange("phone", onlyNums);
-              }}
-              icon={<Phone className="h-5 w-5 text-gray-400" />}
-              className="w-full"
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                placeholder={
-                  authMode === "signin" ? "Masukkan password" : "Buat password"
-                }
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                icon={<Lock className="h-5 w-5 text-gray-400" />}
-                className="w-full pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Confirm Password */}
-          {authMode === "signup" && (
+          <div
+            className={authMode === "signup" ? "grid grid-cols-2 gap-3" : ""}
+          >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Konfirmasi Password
+              <label className="block text-xs font-medium text-foreground mb-1.5">
+                No HP
+              </label>
+              <Input
+                type="tel"
+                placeholder="08xxxxxxxxxx"
+                value={formData.phone}
+                onChange={(e) => {
+                  const onlyNums = e.target.value.replace(/\D/g, "");
+                  handleInputChange("phone", onlyNums);
+                }}
+                icon={<Phone className="h-4 w-4 text-muted-foreground" />}
+              />
+            </div>
+
+            {authMode === "signup" && (
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min. 6 karakter"
+                    value={formData.password}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
+                    icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {authMode === "signin" && (
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1.5">
+                Password
               </label>
               <div className="relative">
                 <Input
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm password"
-                  value={formData.confirmPassword}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Masukkan password"
+                  value={formData.password}
                   onChange={(e) =>
-                    handleInputChange("confirmPassword", e.target.value)
+                    handleInputChange("password", e.target.value)
                   }
-                  icon={<Lock className="h-5 w-5 text-gray-400" />}
-                  className="w-full pr-12"
+                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                  className="pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5" />
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Eye className="h-5 w-5" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Submit */}
+          {authMode === "signup" && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1.5">
+                  Konfirmasi Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Ulangi password"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      handleInputChange("confirmPassword", e.target.value)
+                    }
+                    icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Compact Membership Card */}
+              <div
+                onClick={() => setIncludeMembership(!includeMembership)}
+                className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                  includeMembership
+                    ? "bg-amber-50 border-amber-300"
+                    : "bg-muted/30 border-border hover:border-primary/30"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center transition-all ${
+                      includeMembership
+                        ? "bg-amber-500"
+                        : "bg-background border-2 border-muted-foreground/30"
+                    }`}
+                  >
+                    {includeMembership && (
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Crown className="w-4 h-4 text-amber-600" />
+                      <span className="font-medium text-sm text-foreground">
+                        Membership Program
+                      </span>
+                      <span className="text-xs text-amber-600 font-semibold">
+                        IDR 100K
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Jersey eksklusif, diskon 10%, akses live lineup
+                    </p>
+                    {includeMembership && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-2 rounded-lg"
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span className="text-[10px] leading-tight">
+                          Membership checkout akan muncul setelah klik tombol
+                          dibawah ini
+                        </span>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           <Button
             type="submit"
             disabled={loading}
@@ -380,7 +489,6 @@ export default function AuthModal({
           </Button>
         </form>
 
-        {/* Switch Auth Mode */}
         <div className="mt-8 text-center">
           <p className="text-gray-600">
             {authMode === "signin"
@@ -397,22 +505,19 @@ export default function AuthModal({
           </p>
         </div>
 
-        {/* Terms */}
         {authMode === "signup" && (
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              By creating an account, you agree to our{" "}
-              <a href="#" className="text-blue-600 hover:text-blue-700">
-                Terms of Service
-              </a>{" "}
-              and{" "}
-              <a href="#" className="text-blue-600 hover:text-blue-700">
-                Privacy Policy
-              </a>
-            </p>
-          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Dengan membuat akun, anda setuju dengan{" "}
+            <a href="#" className="text-primary hover:underline">
+              Terms
+            </a>{" "}
+            &{" "}
+            <a href="#" className="text-primary hover:underline">
+              Privacy
+            </a>
+          </p>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
