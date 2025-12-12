@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { FormSignup } from "@/types/auth";
 import { useFormSignup } from "@/contexts/FormSignupContext";
+import { paymentService } from "@/utils/payment";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export default function AuthModal({
     password: "",
     name: "",
     confirmPassword: "",
+    type: "",
   });
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -68,6 +70,7 @@ export default function AuthModal({
       password: "",
       name: "",
       confirmPassword: "",
+      type: "",
     });
     setError("");
     setSuccess("");
@@ -100,17 +103,16 @@ export default function AuthModal({
         setError("Password konfirmasi tidak sesuai");
         return false;
       }
-    }
-
-    // email
-    if (!formData.email.trim()) {
-      setError("Email wajib di isi");
-      return false;
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError("Format email tidak valid");
+      // email
+      if (!formData.email.trim()) {
+        setError("Email wajib di isi");
         return false;
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          setError("Format email tidak valid");
+          return false;
+        }
       }
     }
 
@@ -162,17 +164,28 @@ export default function AuthModal({
 
         if (includeMembership) {
           formSignup.membership = true;
+          formSignup.type = "member";
           setSelectedSignup(formSignup);
-          router.push("/signup/membership");
+          const response = await AuthService.signUp(formSignup);
+
+          if (response.data) {
+            const setupPayment = await paymentService.setupMemberPayment(
+              response.data!
+            );
+            setSuccess(
+              "Akun berhasil dibuat! Mohon tunggu untuk melakukan pembayaran."
+            );
+            router.push(`/signup/membership?paymentId=${setupPayment}`);
+          }
         } else {
+          formSignup.type = "non member";
           await AuthService.signUp(formSignup);
+          setSuccess("Akun berhasil dibuat! Silahkan login.");
+          setTimeout(() => {
+            handleModeSwitch("signin");
+          }, 2000);
         }
-
-        setSuccess("Akun berhasil dibuat! Silahkan login.");
-
-        setTimeout(() => {
-          handleModeSwitch("signin");
-        }, 2000);
+        setTimeout(() => {}, 2000);
       } else {
         const response = await AuthService.signIn({
           phone: formData.phone,
@@ -263,7 +276,7 @@ export default function AuthModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {authMode === "signup" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div>
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1.5">
                   Nama lengkap
@@ -284,16 +297,17 @@ export default function AuthModal({
                   type="email"
                   placeholder="Email anda"
                   value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  onChange={(e) => {
+                    const noSpaces = e.target.value.replace(/\s/g, "");
+                    handleInputChange("email", noSpaces);
+                  }}
                   icon={<Mail className="h-4 w-4 text-muted-foreground" />}
                 />
               </div>
             </div>
           )}
 
-          <div
-            className={authMode === "signup" ? "grid grid-cols-2 gap-3" : ""}
-          >
+          <div>
             <div>
               <label className="block text-xs font-medium text-foreground mb-1.5">
                 No HP
@@ -320,9 +334,10 @@ export default function AuthModal({
                     type={showPassword ? "text" : "password"}
                     placeholder="Min. 6 karakter"
                     value={formData.password}
-                    onChange={(e) =>
-                      handleInputChange("password", e.target.value)
-                    }
+                    onChange={(e) => {
+                      const noSpaces = e.target.value.replace(/\s/g, "");
+                      handleInputChange("password", noSpaces);
+                    }}
                     icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     className="pr-10"
                   />
@@ -352,9 +367,10 @@ export default function AuthModal({
                   type={showPassword ? "text" : "password"}
                   placeholder="Masukkan password"
                   value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const noSpaces = e.target.value.replace(/\s/g, "");
+                    handleInputChange("password", noSpaces);
+                  }}
                   icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                   className="pr-10"
                 />
@@ -384,9 +400,10 @@ export default function AuthModal({
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Ulangi password"
                     value={formData.confirmPassword}
-                    onChange={(e) =>
-                      handleInputChange("confirmPassword", e.target.value)
-                    }
+                    onChange={(e) => {
+                      const noSpaces = e.target.value.replace(/\s/g, "");
+                      handleInputChange("confirmPassword", noSpaces);
+                    }}
                     icon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     className="pr-10"
                   />

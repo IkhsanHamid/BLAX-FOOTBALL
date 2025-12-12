@@ -18,6 +18,7 @@ import {
   XCircle,
   AlertCircle,
   Camera,
+  Crown,
 } from "lucide-react";
 import {
   Card,
@@ -33,6 +34,10 @@ import { formatCurrency, formatDate } from "@/lib/helper";
 import LoadingScreen from "@/components/atoms/LoadingScreen";
 import Navbar from "@/components/organisms/Navbar";
 import { bookingService } from "@/utils/booking";
+import MembershipBanner from "@/components/molecules/MembershipBanner";
+import BookingHistoryBlur from "@/components/molecules/MembershipBlur";
+import VouchersBlur from "@/components/molecules/VoucherBlur";
+import MembershipModal from "@/components/molecules/MembershipModal";
 
 // Updated UserVoucher interface to match the API response
 export interface UserVoucher {
@@ -208,6 +213,7 @@ export default function PlayerDashboardPage() {
   const [bookingHistory, setBookingHistory] = useState<BookingHistory[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const { showSuccess, showError } = useNotifications();
+  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
 
   useEffect(() => {
     checkAccess();
@@ -312,6 +318,16 @@ export default function PlayerDashboardPage() {
     return <LoadingScreen message="Redirecting..." />;
   }
 
+  const visibleBookings = user.isMember
+    ? bookingHistory
+    : bookingHistory.slice(0, 1);
+  const hiddenBookingsCount = user.isMember ? 0 : bookingHistory.length - 1;
+
+  const handleUpgradeMembership = () => {
+    // Handle membership upgrade logic here
+    console.log("Upgrading membership...");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       <Navbar
@@ -326,7 +342,13 @@ export default function PlayerDashboardPage() {
         <DashboardContentSkeleton />
       ) : (
         <div className="pt-24 pb-8 px-4">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto mt-10">
+            {!user.isMember && (
+              <MembershipBanner
+                onUpgradeClick={() => setMembershipModalOpen(true)}
+                className="mb-8"
+              />
+            )}
             {/* Header */}
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 mb-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -335,10 +357,19 @@ export default function PlayerDashboardPage() {
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                      Player Dashboard
+                    <div className="flex items-center space-x-2">
+                      <p className="text-gray-600">Player Dashboard</p>
+
+                      {user.isMember && (
+                        <div className="flex items-center bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
+                          <Crown className="w-4 h-4 mr-1 fill-purple-700 text-purple-700" />
+                          Membership
+                        </div>
+                      )}
+                    </div>
+                    <h1 className="text-xl md:text-3xl font-bold text-gray-900">
+                      Welcome back, {user.name}!
                     </h1>
-                    <p className="text-gray-600">Welcome back, {user.name}!</p>
                     <Badge className="bg-blue-100 text-blue-800 mt-1">
                       {user.role}
                     </Badge>
@@ -373,7 +404,7 @@ export default function PlayerDashboardPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <Card className="bg-white/95 backdrop-blur-sm border border-blue-100 hover:shadow-lg transition-shadow duration-200">
                 <CardContent className="p-6">
                   <div className="pt-4 flex items-center justify-between">
@@ -445,7 +476,7 @@ export default function PlayerDashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div> */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Vouchers */}
@@ -458,11 +489,17 @@ export default function PlayerDashboardPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {userVouchers.length === 0 ? (
+                    {!user.isMember ? (
+                      <VouchersBlur
+                        onUpgradeClick={() => setMembershipModalOpen(true)}
+                      />
+                    ) : userVouchers.length === 0 ? (
                       <div className="text-center py-8">
-                        <Gift className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">No vouchers available</p>
-                        <p className="text-sm text-gray-400">
+                        <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">
+                          No vouchers available
+                        </p>
+                        <p className="text-sm text-muted-foreground">
                           Check back later for new offers!
                         </p>
                       </div>
@@ -536,75 +573,84 @@ export default function PlayerDashboardPage() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4 max-h-96 overflow-y-auto">
-                        {bookingHistory.map((booking, index) => (
-                          <div
-                            key={`${booking.bookingId}-${index}`}
-                            className="p-4 border border-purple-200 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="font-semibold text-purple-800">
-                                  {booking.scheduleName}
-                                </h4>
-                                <p className="text-sm text-purple-600">
-                                  ID: {booking.bookingId}
-                                </p>
+                      <>
+                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                          {visibleBookings.map((booking, index) => (
+                            <div
+                              key={`${booking.bookingId}-${index}`}
+                              className="p-4 border border-purple-200 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <h4 className="font-semibold text-purple-800">
+                                    {booking.scheduleName}
+                                  </h4>
+                                  <p className="text-sm text-purple-600">
+                                    ID: {booking.bookingId}
+                                  </p>
+                                </div>
+                                <Badge
+                                  className={`flex items-center space-x-1 ${getStatusColor(
+                                    booking.statusPayment
+                                  )}`}
+                                >
+                                  {getStatusIcon(booking.statusPayment)}
+                                  <span>{booking.statusPayment}</span>
+                                </Badge>
                               </div>
-                              <Badge
-                                className={`flex items-center space-x-1 ${getStatusColor(
-                                  booking.statusPayment
-                                )}`}
-                              >
-                                {getStatusIcon(booking.statusPayment)}
-                                <span>{booking.statusPayment}</span>
-                              </Badge>
-                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-purple-700 mb-3">
-                              <div className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                {booking.venue}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-purple-700 mb-3">
+                                <div className="flex items-center">
+                                  <MapPin className="w-4 h-4 mr-1" />
+                                  {booking.venue}
+                                </div>
+                                <div className="flex items-center">
+                                  <Calendar className="w-4 h-4 mr-1" />
+                                  {formatDate(booking.date)} • {booking.time}
+                                </div>
+                                <div className="flex items-center">
+                                  <CreditCard className="w-4 h-4 mr-1" />
+                                  {formatCurrency(booking.amount)}
+                                </div>
                               </div>
-                              <div className="flex items-center">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                {formatDate(booking.date)} • {booking.time}
-                              </div>
-                              <div className="flex items-center">
-                                <CreditCard className="w-4 h-4 mr-1" />
-                                {formatCurrency(booking.amount)}
-                              </div>
-                            </div>
 
-                            <div className="flex items-center justify-between pt-3 border-t border-purple-200">
-                              <div className="text-xs text-purple-600">
-                                Booked:{" "}
-                                {new Date(booking.bookedAt).toLocaleDateString(
-                                  "id-ID",
-                                  {
+                              <div className="flex items-center justify-between pt-3 border-t border-purple-200">
+                                <div className="text-xs text-purple-600">
+                                  Booked:{" "}
+                                  {new Date(
+                                    booking.bookedAt
+                                  ).toLocaleDateString("id-ID", {
                                     year: "numeric",
                                     month: "short",
                                     day: "numeric",
                                     hour: "2-digit",
                                     minute: "2-digit",
+                                  })}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleViewPaymentDetails(booking.bookingId)
                                   }
-                                )}
+                                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View Details
+                                </Button>
                               </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewPaymentDetails(booking.bookingId)
-                                }
-                                className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View Details
-                              </Button>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+
+                        {/* Blurred section for non-members */}
+                        {!user.isMember && hiddenBookingsCount > 0 && (
+                          <BookingHistoryBlur
+                            onUpgradeClick={() => setMembershipModalOpen(true)}
+                            blurredCount={hiddenBookingsCount}
+                          />
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -648,6 +694,13 @@ export default function PlayerDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Membership Modal */}
+      <MembershipModal
+        open={membershipModalOpen}
+        onOpenChange={setMembershipModalOpen}
+        onUpgrade={handleUpgradeMembership}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ export interface User {
   name: string;
   phone: string;
   role: string;
+  isMember: boolean;
 }
 
 export interface AuthSession {
@@ -15,6 +16,7 @@ export interface SignUpRequest {
   password: string;
   name: string;
   email: string;
+  type?: string;
 }
 
 export interface SignInRequest {
@@ -29,6 +31,11 @@ export interface AuthResponse {
   data: AuthSession;
 }
 
+export interface SignUpResponse {
+  message: string;
+  data: string | null;
+}
+
 export interface AuthError {
   error: string;
 }
@@ -39,4 +46,5 @@ export interface FormSignup {
   password: string;
   name: string;
   membership?: boolean;
+  type?: string;
 }

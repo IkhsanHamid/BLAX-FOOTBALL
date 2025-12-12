@@ -1,21 +1,24 @@
 "use client";
 import { motion } from "motion/react";
 import { MapPin, Clock, User, Mail, Phone, Shield } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/organisms/Navbar";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatMatchDate } from "@/lib/helper";
-// import { QRISModal } from "../molecules/QRISModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { bookingService } from "@/utils/booking";
+import PaymentComponent from "@/components/organisms/Payment";
+
 export default function CheckoutPage() {
+  const searchParams = useSearchParams();
   const [bookingType, setBookingType] = useState<"individual" | "team">(
     "individual"
   );
   const [selectedRole, setSelectedRole] = useState<
     "goalkeeper" | "player" | null
   >(null);
-  const [showQRIS, setShowQRIS] = useState(false);
   const { showSuccess, showError } = useNotifications();
 
   // Individual Form
@@ -29,8 +32,32 @@ export default function CheckoutPage() {
   const [players, setPlayers] = useState(
     Array.from({ length: 11 }, () => ({ name: "", phone: "" }))
   );
+
   const { selectedSchedule } = useSchedule();
+  const { user } = useAuth();
   const router = useRouter();
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
+
+  // State untuk payment component
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+
+  // Auto-fill form data when user is available
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setEmail(user.email || "");
+      setWhatsapp(user.phone || "");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const paymentIdFromQuery = searchParams.get("paymentId");
+    if (paymentIdFromQuery) {
+      setPaymentId(paymentIdFromQuery);
+      setShowPayment(true);
+    }
+  }, [searchParams]);
 
   const handlePlayerChange = (
     index: number,
@@ -40,32 +67,6 @@ export default function CheckoutPage() {
     const newPlayers = [...players];
     newPlayers[index] = { ...newPlayers[index], [field]: value };
     setPlayers(newPlayers);
-  };
-
-  const validateAndProceed = () => {
-    if (bookingType === "individual") {
-      if (!name.trim() || !email.trim() || !whatsapp.trim()) {
-        showError("error", "Please fill all fields");
-        return;
-      }
-      if (!selectedRole) {
-        showError("error", "Please select a role");
-        return;
-      }
-    } else {
-      if (!picName.trim() || !picEmail.trim()) {
-        showError("error", "Please fill PIC details");
-        return;
-      }
-      const hasEmptyFields = players.some(
-        (player) => !player.name.trim() || !player.phone.trim()
-      );
-      if (hasEmptyFields) {
-        showError("error", "Please fill all player details");
-        return;
-      }
-    }
-    setShowQRIS(true);
   };
 
   const getPrice = () => {
@@ -78,13 +79,83 @@ export default function CheckoutPage() {
     return Number(selectedSchedule?.feePlayer) * 10;
   };
 
-  const handlePaymentSuccess = () => {
-    showSuccess("success", "Booking Confirmed");
-    setShowQRIS(false);
-    setTimeout(() => {
-      router.push("/gallery");
-    }, 1500);
+  // Create booking payload
+  const createBookingPayload = () => {
+    return {
+      scheduleId: String(selectedSchedule?.id),
+      bookingType: bookingType.toUpperCase(),
+      isGuest: !user,
+      name: user ? user.name : name,
+      email: user ? user.email : email,
+      phoneNumber: user ? user.phone : whatsapp,
+      isPlayer: selectedRole === "player" || bookingType === "team",
+      isGk: selectedRole === "goalkeeper" || bookingType === "team",
+    };
   };
+
+  // Handle back from payment component
+  const handleBackFromPayment = () => {
+    setShowPayment(false);
+    setPaymentId(null);
+  };
+
+  // Validate and handle booking confirmation
+  const handleBookingConfirmation = async () => {
+    // Validation
+    if (bookingType === "individual") {
+      if (!name.trim() || !email.trim() || !whatsapp.trim()) {
+        showError("Please fill all fields");
+        return;
+      }
+      if (!selectedRole) {
+        showError("Please select a role");
+        return;
+      }
+    } else {
+      if (!picName.trim() || !picEmail.trim() || !whatsapp.trim()) {
+        showError("Please fill PIC details");
+        return;
+      }
+      const hasEmptyFields = players.some(
+        (player) => !player.name.trim() || !player.phone.trim()
+      );
+      if (hasEmptyFields) {
+        showError("Please fill all player details");
+        return;
+      }
+    }
+
+    setIsBookingLoading(true);
+
+    try {
+      const payload = createBookingPayload();
+      const response = await bookingService.bookSlot(payload);
+
+      if (response) {
+        showSuccess("Booking berhasil! Silakan lakukan pembayaran.");
+        // Set payment ID and show payment component
+        setPaymentId(response);
+        setShowPayment(true);
+      } else {
+        showSuccess("Booking berhasil dikonfirmasi!");
+        setTimeout(() => {
+          router.push("/gallery");
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Booking error:", error);
+      showError("Terjadi kesalahan saat booking. Silakan coba lagi.");
+    } finally {
+      setIsBookingLoading(false);
+    }
+  };
+
+  // Jika showPayment true, tampilkan PaymentComponent
+  if (showPayment && paymentId) {
+    return (
+      <PaymentComponent paymentId={paymentId} onBack={handleBackFromPayment} />
+    );
+  }
 
   if (!selectedSchedule) {
     return (
@@ -96,7 +167,7 @@ export default function CheckoutPage() {
           }}
         />
         <div className="text-center">
-          <h2 className="mb-4 text-blue-600">No match selected</h2>
+          <h2 className="mb-4 text-blue-600">No found payment</h2>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -128,11 +199,9 @@ export default function CheckoutPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-blue-600 mb-4">
             Selesaikan Booking Anda
           </h1>
-
           <p className="text-gray-700 text-sm md:text-base">
             Hanya beberapa langkah lagi untuk menyelesaikan proses booking Anda.
           </p>
-
           <p className="text-gray-700 text-sm md:text-base mt-1">
             Data yang Anda masukkan akan kami jaga kerahasiaannya.
           </p>
@@ -193,10 +262,20 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       value={name}
+                      disabled={!!user}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter your name"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {user && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Data diambil dari profil akun Anda
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -207,10 +286,20 @@ export default function CheckoutPage() {
                     <input
                       type="email"
                       value={email}
+                      disabled={!!user}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="your@email.com"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      } `}
                     />
+                    {user && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Data diambil dari profil akun Anda
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -223,10 +312,20 @@ export default function CheckoutPage() {
                     <input
                       type="tel"
                       value={whatsapp}
+                      disabled={!!user}
                       onChange={(e) => setWhatsapp(e.target.value)}
                       placeholder="0812 3456 7890"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {user && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Data diambil dari profil akun Anda
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -371,7 +470,6 @@ export default function CheckoutPage() {
               <div className="space-y-4 pb-6 border-b border-blue-200">
                 <div>
                   <div className="text-gray-600 mb-1">Match Details</div>
-                  {/* <div className="text-gray-900">{selectedSchedule?.venue}</div> */}
                 </div>
 
                 <div className="flex items-start gap-3 text-gray-600">
@@ -419,10 +517,13 @@ export default function CheckoutPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={validateAndProceed}
-                className="w-full px-6 py-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md"
+                onClick={handleBookingConfirmation}
+                disabled={isBookingLoading}
+                className={`w-full px-6 py-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md ${
+                  isBookingLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Proceed to Pay
+                {isBookingLoading ? "Processing..." : "Proceed to Pay"}
               </motion.button>
 
               <p className="text-gray-500 text-center">
@@ -432,14 +533,6 @@ export default function CheckoutPage() {
           </motion.div>
         </div>
       </div>
-
-      {/* {showQRIS && (
-        <QRISModal
-          amount={getPrice()}
-          onClose={() => setShowQRIS(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )} */}
     </div>
   );
 }

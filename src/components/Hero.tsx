@@ -5,7 +5,6 @@ import AuthModal from "./molecules/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroActions } from "./molecules/HeroActions";
 import Image from "next/image";
-import BlaxLogo from "@/assets/blax-1.png";
 
 export default function Hero() {
   const router = useRouter();
@@ -17,7 +16,6 @@ export default function Hero() {
     router.push("/player-dashboard");
   };
 
-  // Dummy data merchant
   const merchants = [
     {
       name: "KFC",
@@ -29,7 +27,7 @@ export default function Hero() {
     },
     {
       name: "Kopi Kenangan",
-      logo: "https://raw.githubusercontent.com/dwyl/english-words/master/img/kopi-kenangan-logo.pnghttps://images.squarespace-cdn.com/content/v1/5fa1095912d2fc6dfc63ac9c/dd9b911d-7295-43fc-9452-17a585607187/logo.png",
+      logo: "https://images.squarespace-cdn.com/content/v1/5fa1095912d2fc6dfc63ac9c/dd9b911d-7295-43fc-9452-17a585607187/logo.png",
     },
     {
       name: "Burger King",
@@ -40,7 +38,7 @@ export default function Hero() {
   return (
     <>
       {/* HERO */}
-      <section className="min-h-[75vh] relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 text-white overflow-hidden">
+      <section className="min-h-[70vh] relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 text-white overflow-hidden">
         <div className="absolute inset-0">
           <img
             src="https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg"
@@ -49,27 +47,30 @@ export default function Hero() {
           />
         </div>
 
-        <div className="relative container mx-auto px-6 py-20 pt-24 flex items-center min-h-[75vh]">
-          <div className="max-w-4xl text-center md:text-left mx-auto md:mx-0">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+        <div className="relative container mx-auto px-4 sm:px-6 py-20 pt-36 sm:pt-28 md:pt-24 flex items-center min-h-[70vh]">
+          <div className="max-w-3xl text-center md:text-left mx-auto md:mx-0">
+            {/* HEADING */}
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-5 sm:mb-6 leading-tight">
               Fun game. Good vibes
               <span className="block bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
                 Great community
               </span>
             </h2>
 
+            {/* ACTION BUTTONS */}
             <div className="flex justify-center md:justify-start">
               <HeroActions />
             </div>
 
+            {/* USER GREETING */}
             {user && (
-              <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 inline-block">
-                <p className="text-sm text-slate-300">
+              <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 inline-block max-w-xs sm:max-w-lg">
+                <p className="text-xs sm:text-sm text-slate-300 text-center md:text-left">
                   Selamat datang kembali,{" "}
                   <span className="font-semibold text-white">
                     {user.name ? user.name : user.phone}
                   </span>
-                  ! Ready bermain bersama di weekday atau weekend nih ?
+                  ! Ready bermain bersama?
                 </p>
               </div>
             )}
@@ -77,27 +78,31 @@ export default function Hero() {
         </div>
       </section>
 
-      {/* MERCHANT PARTNERS SECTION */}
-      <section className="bg-white py-5">
-        <div className="container mx-auto px-6">
-          <h3 className="text-2xl md:text-3xl font-semibold text-center text-black mb-10">
+      {/* MERCHANT PARTNERS */}
+      <section className="bg-white py-10">
+        <div className="container mx-auto px-4 sm:px-6">
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold text-center text-black mb-8 sm:mb-10">
             Merchant Partner Kami
           </h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-6 sm:gap-8 items-center justify-center">
             {merchants.map((m, index) => (
               <div
                 key={index}
                 className="flex justify-center grayscale hover:grayscale-0 transition"
               >
-                <img src={m.logo} alt={m.name} className="h-16 md:h-20" />
+                <img
+                  src={m.logo}
+                  alt={m.name}
+                  className="h-10 sm:h-14 md:h-20 object-contain"
+                />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Auth Modal */}
+      {/* AUTH MODAL */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}

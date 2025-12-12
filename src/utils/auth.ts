@@ -4,24 +4,34 @@ import {
   SignUpRequest,
   SignInRequest,
   User,
+  SignUpResponse,
 } from "@/types/auth";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_BE}/api/v1/auth`;
 
 export class AuthService {
-  static async signUp(data: SignUpRequest): Promise<AuthResponse> {
+  static async signUp(data: SignUpRequest): Promise<SignUpResponse> {
+    const payload = {
+      phone: data.phone,
+      password: data.password,
+      name: data.name,
+      email: data.email,
+      type: data.type,
+    };
     const response = await fetch(`${API_BASE_URL}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.error || "Sign up failed");
+      console.log("response", response);
+      console.log("result", result);
+      throw new Error(result.message || "Sign up failed");
     }
 
     return result;

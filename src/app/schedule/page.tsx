@@ -12,6 +12,7 @@ import BookModal from "@/components/molecules/BookModal";
 import { Calendar, Clock, Eye, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useSchedule } from "@/contexts/ScheduleContext";
 
 export default function SchedulePage() {
   const router = useRouter();
@@ -23,9 +24,7 @@ export default function SchedulePage() {
   const [selectedType, setSelectedType] = useState("All Types");
   const [sortBy, setSortBy] = useState("date");
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
-    null
-  );
+  const { setSelectedSchedule } = useSchedule();
 
   const matchesData = useMemo(
     () =>
@@ -134,8 +133,9 @@ export default function SchedulePage() {
   };
 
   const handleBooking = (schedule: any) => {
-    setIsBookModalOpen(true);
+    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
+    router.push(`/checkout`);
   };
 
   // Loading skeleton
@@ -524,7 +524,7 @@ export default function SchedulePage() {
       </div>
 
       {/* Book Modal */}
-      <BookModal
+      {/* <BookModal
         isOpen={isBookModalOpen}
         onClose={() => {
           setIsBookModalOpen(false);
@@ -532,7 +532,7 @@ export default function SchedulePage() {
         }}
         schedule={selectedSchedule}
         scheduleId={selectedSchedule?.id || null}
-      />
+      /> */}
     </>
   );
 }

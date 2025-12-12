@@ -23,3 +23,9 @@ export interface PaymentCheckResponse {
 export interface PaymentCheckRequest {
   bookingId: string;
 }
+
+export interface PaymentDataMember {
+  total: number;
+  imageBase64: string;
+  expired_at: string;
+}
