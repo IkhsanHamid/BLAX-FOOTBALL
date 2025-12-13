@@ -64,23 +64,6 @@ function SkeletonLoading() {
           <div className="h-6 bg-gray-200 rounded-lg w-80 mx-auto animate-pulse"></div>
         </div>
 
-        {/* Stats Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="pt-4 flex items-center justify-between">
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    <div className="h-8 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Filters Skeleton */}
         <Card className="mb-8 animate-pulse">
           <CardContent className="p-6">
@@ -218,9 +201,9 @@ export default function GalleryPage() {
           throw new Error("Function not implemented.");
         }}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 mt-10">
         {/* Header */}
-        <div className="text-center mb-8 bg-white/80 backdrop-blur-sm border border-blue-100 p-8 rounded-2xl shadow-lg">
+        {/* <div className="text-center mb-8 bg-white/80 backdrop-blur-sm border border-blue-100 p-8 rounded-2xl shadow-lg">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent mb-4">
             Galeri Foto & Video
           </h1>
@@ -228,10 +211,10 @@ export default function GalleryPage() {
             Jelajahi sesi foto dan video komunitas sepak bola kami. Akses
             koleksi lengkap dari setiap pertandingan dan acara.
           </p>
-        </div>
+        </div> */}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border border-blue-100">
             <CardContent className="p-6">
               <div className="pt-4 flex items-center justify-between">
@@ -273,7 +256,7 @@ export default function GalleryPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Filters */}
         <Card className="mb-8">
@@ -354,14 +337,14 @@ export default function GalleryPage() {
         {filteredPhotos.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
-              <FolderOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <FolderOpen className="h-16 w-16 text-gray-400 mx-auto mb-4 mt-10" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                No gallery sessions found
+                Tidak ada foto atau video ditemukan
               </h3>
               <p className="text-gray-600">
                 {searchQuery || selectedVenue !== "all"
-                  ? "Try adjusting your search criteria"
-                  : "No gallery sessions available at the moment"}
+                  ? "Coba cari lagi venue lainnya"
+                  : "Tidak tersedia foto atau video untuk saat ini"}
               </p>
             </CardContent>
           </Card>
@@ -411,7 +394,7 @@ export default function GalleryPage() {
                               variant="outline"
                               className="bg-green-50 text-green-700 border-green-200"
                             >
-                              Photos Available
+                              Foto tersedia
                             </Badge>
                           )}
                           {photo.linkVideo && (
@@ -419,7 +402,7 @@ export default function GalleryPage() {
                               variant="outline"
                               className="bg-purple-50 text-purple-700 border-purple-200"
                             >
-                              Videos Available
+                              Video tersedia
                             </Badge>
                           )}
                         </div>
