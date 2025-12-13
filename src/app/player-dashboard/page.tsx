@@ -323,11 +323,6 @@ export default function PlayerDashboardPage() {
     : bookingHistory.slice(0, 1);
   const hiddenBookingsCount = user.isMember ? 0 : bookingHistory.length - 1;
 
-  const handleUpgradeMembership = () => {
-    // Handle membership upgrade logic here
-    console.log("Upgrading membership...");
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       <Navbar
@@ -699,7 +694,6 @@ export default function PlayerDashboardPage() {
       <MembershipModal
         open={membershipModalOpen}
         onOpenChange={setMembershipModalOpen}
-        onUpgrade={handleUpgradeMembership}
         code={user.code}
       />
     </div>

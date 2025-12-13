@@ -22,7 +22,6 @@ import { useRouter } from "next/navigation";
 interface MembershipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpgrade?: () => void;
   code: string;
 }
 
@@ -47,7 +46,6 @@ const benefits = [
 const MembershipModal = ({
   open,
   onOpenChange,
-  onUpgrade,
   code,
 }: MembershipModalProps) => {
   const router = useRouter();

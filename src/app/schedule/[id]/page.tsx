@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -9,7 +9,6 @@ import {
   Users,
   Clock,
   Star,
-  Trophy,
   Shield,
   AlertCircle,
   Wallet,
@@ -22,86 +21,71 @@ import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
 import { Rules, Schedule, ScheduleDetail } from "@/types/schedule";
 import BookModal from "@/components/molecules/BookModal";
-
-const positionColors = {
-  GK: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  PLAYER: "bg-blue-100 text-blue-800 border-blue-200",
-};
+import { useSchedule } from "@/contexts/ScheduleContext";
+import { useAuth } from "@/contexts/AuthContext";
+import LineupBlur from "@/components/molecules/LineupBlur";
+import MembershipModal from "@/components/molecules/MembershipModal";
+import AuthModal from "@/components/molecules/AuthModal";
 
 // Skeleton Loading Component
-function SkeletonLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar
-        currentPage={""}
-        navigateTo={function (page: string): void {
-          throw new Error("Function not implemented.");
-        }}
-      />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        {/* Back Button Skeleton */}
-        <div className="w-20 h-10 bg-white/20 rounded-lg mb-6 animate-pulse"></div>
-
-        {/* Hero Section Skeleton */}
-        <div className="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-80 bg-white/20 animate-pulse">
-          <div className="absolute bottom-6 left-6 right-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-20 h-6 bg-white/30 rounded-full"></div>
-              <div className="w-32 h-6 bg-white/30 rounded-full"></div>
-            </div>
-            <div className="w-3/4 h-8 bg-white/30 rounded-lg mb-4"></div>
-            <div className="flex flex-wrap gap-4">
-              <div className="w-32 h-5 bg-white/30 rounded"></div>
-              <div className="w-24 h-5 bg-white/30 rounded"></div>
-              <div className="w-40 h-5 bg-white/30 rounded"></div>
-            </div>
+const SkeletonLoading = () => (
+  <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50">
+    <Navbar currentPage="" navigateTo={() => {}} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="w-20 h-10 bg-white/20 rounded-lg mb-6 animate-pulse" />
+      <div className="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-80 bg-white/20 animate-pulse">
+        <div className="absolute bottom-6 left-6 right-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-20 h-6 bg-white/30 rounded-full" />
+            <div className="w-32 h-6 bg-white/30 rounded-full" />
           </div>
-        </div>
-
-        {/* Quick Stats Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="w-8 h-8 bg-gray-200 rounded mx-auto mb-2 animate-pulse"></div>
-              <div className="w-16 h-6 bg-gray-200 rounded mx-auto mb-1 animate-pulse"></div>
-              <div className="w-20 h-4 bg-gray-200 rounded mx-auto animate-pulse"></div>
-            </div>
-          ))}
-        </div>
-
-        {/* Content Skeleton */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="flex space-x-4 border-b mb-6">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="w-24 h-10 bg-gray-200 rounded animate-pulse"
-              ></div>
+          <div className="w-3/4 h-8 bg-white/30 rounded-lg mb-4" />
+          <div className="flex flex-wrap gap-4">
+            {[32, 24, 40].map((w, i) => (
+              <div key={i} className={`w-${w} h-5 bg-white/30 rounded`} />
             ))}
-          </div>
-          <div className="space-y-4">
-            <div className="w-full h-6 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-3/4 h-6 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-1/2 h-6 bg-gray-200 rounded animate-pulse"></div>
           </div>
         </div>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="w-8 h-8 bg-gray-200 rounded mx-auto mb-2 animate-pulse" />
+            <div className="w-16 h-6 bg-gray-200 rounded mx-auto mb-1 animate-pulse" />
+            <div className="w-20 h-4 bg-gray-200 rounded mx-auto animate-pulse" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="flex space-x-4 border-b mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="w-24 h-10 bg-gray-200 rounded animate-pulse"
+            />
+          ))}
+        </div>
+        <div className="space-y-4">
+          {[100, 75, 50].map((w, i) => (
+            <div
+              key={i}
+              className={`w-${
+                w === 100 ? "full" : w === 75 ? "3/4" : "1/2"
+              } h-6 bg-gray-200 rounded animate-pulse`}
+            />
+          ))}
+        </div>
+      </div>
     </div>
-  );
-}
+  </div>
+);
 
 // Not Found Component
-function NotFoundDisplay() {
+const NotFoundDisplay = () => {
   const router = useRouter();
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar
-        currentPage={""}
-        navigateTo={function (page: string): void {
-          throw new Error("Function not implemented.");
-        }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50">
+      <Navbar currentPage="" navigateTo={() => {}} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <Button
           variant="ghost"
@@ -111,7 +95,6 @@ function NotFoundDisplay() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
-
         <div className="bg-white rounded-2xl p-12 text-center shadow-lg">
           <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -133,81 +116,116 @@ function NotFoundDisplay() {
       </div>
     </div>
   );
-}
+};
 
 // Progress Bar Component
-function Progress({ value, className }: { value: number; className?: string }) {
-  return (
+const Progress = ({
+  value,
+  className = "",
+}: {
+  value: number;
+  className?: string;
+}) => (
+  <div
+    className={`w-full bg-gray-200 rounded-full overflow-hidden ${className}`}
+  >
     <div
-      className={`w-full bg-gray-200 rounded-full overflow-hidden ${className}`}
-    >
-      <div
-        className="bg-sky-500 h-full transition-all duration-300"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-  );
-}
+      className="bg-sky-500 h-full transition-all duration-300"
+      style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+    />
+  </div>
+);
 
-// Avatar Component
-function Avatar({
+// Avatar Components
+const Avatar = ({
   children,
-  className,
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
-  return (
-    <div
-      className={`rounded-full flex items-center justify-center ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
+}) => (
+  <div className={`rounded-full flex items-center justify-center ${className}`}>
+    {children}
+  </div>
+);
 
-function AvatarFallback({
+const AvatarFallback = ({
   children,
-  className,
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
-  return <div className={className}>{children}</div>;
-}
+}) => <div className={className}>{children}</div>;
 
 // Tabs Components
-function Tabs({ value, onValueChange, className, children }: any) {
-  return <div className={className}>{children}</div>;
-}
+const TabsTrigger = ({ value, children, onClick, isActive }: any) => (
+  <button
+    onClick={() => onClick(value)}
+    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+      isActive
+        ? "bg-white text-sky-600 shadow-sm"
+        : "text-gray-600 hover:text-gray-900"
+    }`}
+  >
+    {children}
+  </button>
+);
 
-function TabsList({ className, children }: any) {
-  return (
-    <div className={`flex bg-gray-100 rounded-lg p-1 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function TabsTrigger({ value, children, onClick, isActive }: any) {
-  return (
-    <button
-      onClick={() => onClick(value)}
-      className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-        isActive
-          ? "bg-white text-sky-600 shadow-sm"
-          : "text-gray-600 hover:text-gray-900"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TabsContent({ value, activeTab, children, className }: any) {
+const TabsContent = ({ value, activeTab, children, className = "" }: any) => {
   if (value !== activeTab) return null;
   return <div className={className}>{children}</div>;
-}
+};
+
+// Stats Card Component
+const StatsCard = ({ icon: Icon, value, label, colorClass }: any) => (
+  <div
+    className={`bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border ${colorClass} hover:shadow-xl transition-all duration-300`}
+  >
+    <div className="p-4 text-center">
+      <Icon
+        className={`h-8 w-8 mx-auto mb-2 ${colorClass
+          .replace("border-", "text-")
+          .replace("100", "500")}`}
+      />
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-sm text-slate-600">{label}</div>
+    </div>
+  </div>
+);
+
+// Player Card Component
+const PlayerCard = ({ player, isGK }: { player: any; isGK: boolean }) => {
+  const bgClass = isGK
+    ? "bg-amber-50 hover:bg-amber-100 border-amber-200"
+    : "bg-blue-50 hover:bg-blue-100 border-blue-200";
+  const badgeClass = isGK
+    ? "bg-amber-100 text-amber-800 border-amber-200"
+    : "bg-blue-100 text-blue-800 border-blue-200";
+  const avatarClass = isGK
+    ? "bg-gradient-to-r from-amber-400 to-orange-500"
+    : "bg-gradient-to-r from-blue-400 to-blue-500";
+
+  return (
+    <div
+      className={`flex items-center space-x-3 p-3 rounded-lg transition-colors border ${bgClass}`}
+    >
+      <Avatar className="h-10 w-10">
+        <AvatarFallback className={`${avatarClass} text-white text-sm`}>
+          {player.name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-slate-900 truncate">{player.name}</p>
+        <div className="flex items-center space-x-2">
+          <Badge className={`${badgeClass} text-xs`} variant="outline">
+            {isGK ? "GK" : "PLAYER"}
+          </Badge>
+          <span className="text-xs text-slate-500">{player.phone}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function ScheduleDetailPage() {
   const params = useParams();
@@ -215,10 +233,32 @@ export default function ScheduleDetailPage() {
   const [schedule, setSchedule] = useState<ScheduleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const { showError } = useNotifications();
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
-    null
+  const { showError } = useNotifications();
+  const { setSelectedSchedule } = useSchedule();
+  const { user, setUser } = useAuth();
+  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const occupancyPercentage = useMemo(
+    () =>
+      schedule
+        ? (Number(schedule.bookedSlots) / Number(schedule.totalSlots)) * 100
+        : 0,
+    [schedule]
+  );
+
+  const formattedDate = useMemo(
+    () =>
+      schedule
+        ? new Date(schedule.date).toLocaleDateString("id-ID", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })
+        : "",
+    [schedule]
   );
 
   useEffect(() => {
@@ -229,11 +269,7 @@ export default function ScheduleDetailPage() {
         const result = await scheduleService.scheduleDetail(
           params.id as string
         );
-        if (result) {
-          setSchedule(result);
-        } else {
-          setSchedule(null);
-        }
+        setSchedule(result || null);
       } catch (error) {
         console.error("Error fetching schedule:", error);
         showError("Failed to load schedule", "Please try refreshing the page");
@@ -242,37 +278,83 @@ export default function ScheduleDetailPage() {
         setLoading(false);
       }
     };
-
     fetchScheduleDetail();
   }, [params.id, showError]);
 
   const handleBooking = (schedule: any) => {
-    setIsBookModalOpen(true);
+    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
+    router.push(`/checkout`);
   };
 
-  if (loading) {
-    return <SkeletonLoading />;
-  }
+  const closeModal = useCallback(() => {
+    setIsBookModalOpen(false);
+  }, []);
 
-  if (!schedule) {
-    return <NotFoundDisplay />;
-  }
+  if (loading) return <SkeletonLoading />;
+  if (!schedule) return <NotFoundDisplay />;
 
-  const occupancyPercentage =
-    (Number(schedule.bookedSlots) / Number(schedule.totalSlots)) * 100;
+  const handleAuthSuccess = (userData: any, session: any) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    router.push("/schedule");
+  };
+
+  const handleClickMembership = () => {
+    if (user) {
+      setMembershipModalOpen(true);
+    } else if (!user) {
+      setIsAuthModalOpen(true);
+    }
+  };
+
+  const statsData = [
+    {
+      icon: Users,
+      value: `${schedule.bookedSlots}/${schedule.totalSlots}`,
+      label: "Players Joined",
+      colorClass: "border-blue-100",
+    },
+    {
+      icon: Wallet,
+      value: (
+        <div className="space-y-2">
+          <div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(Number(schedule.feePlayer))}
+            </div>
+            <div className="text-sm text-slate-600">Per Player</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(Number(schedule.feeGk))}
+            </div>
+            <div className="text-sm text-slate-600">Per Goalkeeper</div>
+          </div>
+        </div>
+      ),
+      label: "",
+      colorClass: "border-emerald-100",
+    },
+    {
+      icon: Shield,
+      value: schedule.facilities.length,
+      label: "Facilities",
+      colorClass: "border-teal-100",
+    },
+    {
+      icon: Star,
+      value: `${Math.round(occupancyPercentage)}%`,
+      label: "Occupancy",
+      colorClass: "border-orange-100",
+    },
+  ];
 
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <Navbar
-          currentPage={""}
-          navigateTo={function (page: string): void {
-            throw new Error("Function not implemented.");
-          }}
-        />
+        <Navbar currentPage="" navigateTo={() => {}} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          {/* Back Button */}
           <Button
             variant="ghost"
             onClick={() => router.back()}
@@ -305,12 +387,7 @@ export default function ScheduleDetailPage() {
               <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1" />
-                  {new Date(schedule.date).toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {formattedDate}
                 </div>
                 <div className="flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
@@ -326,97 +403,26 @@ export default function ScheduleDetailPage() {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 hover:shadow-xl transition-all duration-300">
-              <div className="p-4 text-center">
-                <Users className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">
-                  {schedule.bookedSlots}/{schedule.totalSlots}
-                </div>
-                <div className="text-sm text-slate-600">Players Joined</div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-100 hover:shadow-xl transition-all duration-300">
-              <div className="p-4 text-center space-y-2">
-                <Wallet className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
-
-                <div>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(Number(schedule.feePlayer))}
-                  </div>
-                  <div className="text-sm text-slate-600">Per Player</div>
-                </div>
-
-                <div>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(Number(schedule.feeGk))}
-                  </div>
-                  <div className="text-sm text-slate-600">Per Goalkeeper</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-teal-100 hover:shadow-xl transition-all duration-300">
-              <div className="p-4 text-center">
-                <Shield className="h-8 w-8 text-teal-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">
-                  {schedule.facilities.length}
-                </div>
-                <div className="text-sm text-slate-600">Facilities</div>
-              </div>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-orange-100 hover:shadow-xl transition-all duration-300">
-              <div className="p-4 text-center">
-                <Star className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold">
-                  {Math.round(occupancyPercentage)}%
-                </div>
-                <div className="text-sm text-slate-600">Occupancy</div>
-              </div>
-            </div>
+            {statsData.map((stat, idx) => (
+              <StatsCard key={idx} {...stat} />
+            ))}
           </div>
 
           {/* Main Content Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="space-y-6"
-          >
-            <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-lg">
-              <TabsTrigger
-                value="overview"
-                onClick={setActiveTab}
-                isActive={activeTab === "overview"}
-                className="data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger
-                value="lineup"
-                onClick={setActiveTab}
-                isActive={activeTab === "lineup"}
-                className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700"
-              >
-                Live Lineup
-              </TabsTrigger>
-              <TabsTrigger
-                value="facilities"
-                onClick={setActiveTab}
-                isActive={activeTab === "facilities"}
-                className="data-[state=active]:bg-teal-100 data-[state=active]:text-teal-700"
-              >
-                Facilities
-              </TabsTrigger>
-              <TabsTrigger
-                value="rules"
-                onClick={setActiveTab}
-                isActive={activeTab === "rules"}
-                className="data-[state=active]:bg-violet-100 data-[state=active]:text-violet-700"
-              >
-                Match Rules
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-6">
+            <div className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-lg rounded-lg p-1">
+              {["overview", "lineup", "facilities", "rules"].map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  onClick={setActiveTab}
+                  isActive={activeTab === tab}
+                >
+                  {tab.charAt(0).toUpperCase() +
+                    tab.slice(1).replace(/([A-Z])/g, " $1")}
+                </TabsTrigger>
+              ))}
+            </div>
 
             <TabsContent
               value="overview"
@@ -450,15 +456,8 @@ export default function ScheduleDetailPage() {
                                 {schedule.typeEvent}
                               </span>
                             </div>
-                            {/* <div className="flex justify-between">
-                              <span className="text-gray-600">Teams:</span>
-                              <span className="font-medium">
-                                {schedule.team} teams
-                              </span>
-                            </div> */}
                           </div>
                         </div>
-
                         <div className="space-y-2">
                           <h4 className="font-semibold text-slate-900">
                             Booking Status
@@ -493,18 +492,20 @@ export default function ScheduleDetailPage() {
                     </div>
                     <div className="p-6 space-y-3">
                       <Button
-                        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md hover:shadow-lg"
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
                         variant="primary"
                         size="lg"
-                        onClick={() => handleBooking(schedule)}
+                        onClick={handleBooking}
                         disabled={Number(schedule.openSlots) === 0}
                       >
-                        Book Now
+                        {Number(schedule.openSlots) === 0
+                          ? "Penuh"
+                          : "Book Sekarang"}
                       </Button>
                     </div>
                   </div>
 
-                  <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-teal-100">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100">
                     <div className="p-6 border-b border-slate-200">
                       <h3 className="text-lg font-semibold text-slate-900">
                         Venue Information
@@ -512,7 +513,7 @@ export default function ScheduleDetailPage() {
                     </div>
                     <div className="p-6 space-y-3">
                       <div className="flex items-start space-x-2">
-                        <MapPin className="w-4 h-4 text-teal-500 mt-0.5" />
+                        <MapPin className="w-4 h-4 text-blue-500 mt-0.5" />
                         <div>
                           <p className="font-sm font-bold text-slate-900">
                             {schedule.venue}
@@ -526,7 +527,7 @@ export default function ScheduleDetailPage() {
                         href={schedule.gmapLink}
                         variant="outline"
                         size="sm"
-                        className="w-full border-teal-200 text-teal-600 hover:bg-teal-50"
+                        className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
                       >
                         View on Map
                       </Button>
@@ -541,7 +542,10 @@ export default function ScheduleDetailPage() {
               activeTab={activeTab}
               className="space-y-6"
             >
-              {schedule.lineUp && Object.keys(schedule.lineUp).length > 0 ? (
+              {!user?.isMember ? (
+                <LineupBlur onUpgradeClick={() => handleClickMembership()} />
+              ) : schedule.lineUp && Object.keys(schedule.lineUp).length > 0 ? (
+                /* ✅ MEMBER → LINEUP ASLI */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {Object.entries(schedule.lineUp).map(
                     ([teamKey, team]: [string, any]) => (
@@ -563,63 +567,16 @@ export default function ScheduleDetailPage() {
                             </Badge>
                           </div>
                         </div>
+
                         <div className="p-6">
                           <div className="space-y-3">
-                            {/* Goalkeeper */}
-                            {team.GK && (
-                              <div className="flex items-center space-x-3 p-3 rounded-lg bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200">
-                                <Avatar className="h-10 w-10">
-                                  <AvatarFallback className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm">
-                                    {team.GK.name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-slate-900 truncate">
-                                    {team.GK.name}
-                                  </p>
-                                  <div className="flex items-center space-x-2">
-                                    <Badge
-                                      className="bg-amber-100 text-amber-800 border-amber-200 text-xs"
-                                      variant="outline"
-                                    >
-                                      GK
-                                    </Badge>
-                                    <span className="text-xs text-slate-500">
-                                      {team.GK.phone}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Players */}
+                            {team.GK && <PlayerCard player={team.GK} isGK />}
                             {team.PLAYERS?.map((player: any, index: number) => (
-                              <div
+                              <PlayerCard
                                 key={index}
-                                className="flex items-center space-x-3 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-200"
-                              >
-                                <Avatar className="h-10 w-10">
-                                  <AvatarFallback className="bg-gradient-to-r from-blue-400 to-blue-500 text-white text-sm">
-                                    {player.name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-slate-900 truncate">
-                                    {player.name}
-                                  </p>
-                                  <div className="flex items-center space-x-2">
-                                    <Badge
-                                      className="bg-blue-100 text-blue-800 border-blue-200 text-xs"
-                                      variant="outline"
-                                    >
-                                      PLAYER
-                                    </Badge>
-                                    <span className="text-xs text-slate-500">
-                                      {player.phone}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
+                                player={player}
+                                isGK={false}
+                              />
                             ))}
                           </div>
                         </div>
@@ -628,6 +585,7 @@ export default function ScheduleDetailPage() {
                   )}
                 </div>
               ) : (
+                /* EMPTY STATE */
                 <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-100 p-12 text-center">
                   <Users className="w-16 h-16 text-slate-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-slate-900 mb-2">
@@ -658,7 +616,7 @@ export default function ScheduleDetailPage() {
                         key={index}
                         className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
                       >
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                         <span className="text-sm font-medium text-emerald-800">
                           {facility.name}
                         </span>
@@ -708,19 +666,21 @@ export default function ScheduleDetailPage() {
                 </div>
               </div>
             </TabsContent>
-          </Tabs>
+          </div>
         </div>
       </div>
 
-      {/* Book Modal */}
-      <BookModal
-        isOpen={isBookModalOpen}
-        onClose={() => {
-          setIsBookModalOpen(false);
-          setSelectedSchedule(null);
-        }}
-        schedule={selectedSchedule}
-        scheduleId={selectedSchedule?.id || null}
+      <MembershipModal
+        open={membershipModalOpen}
+        onOpenChange={setMembershipModalOpen}
+        code={user?.code!}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        mode={"signup"}
       />
     </>
   );
