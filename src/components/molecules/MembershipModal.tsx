@@ -1,4 +1,12 @@
-import { Crown, Sparkles, Gift, Percent, History, Check } from "lucide-react";
+import {
+  Crown,
+  Sparkles,
+  Gift,
+  Percent,
+  History,
+  Check,
+  Loader2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -6,11 +14,16 @@ import {
   DialogTitle,
 } from "../atoms/Dialog";
 import Button from "../atoms/Button";
+import { paymentService } from "@/utils/payment";
+import { useState } from "react";
+import { useNotifications } from "../organisms/NotificationContainer";
+import { useRouter } from "next/navigation";
 
 interface MembershipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpgrade?: () => void;
+  code: string;
 }
 
 const benefits = [
@@ -27,7 +40,7 @@ const benefits = [
   {
     icon: Percent,
     title: "Diskon Khusus Booking",
-    description: "Nikmati diskon spesial untuk setiap pemesanan lapangan",
+    description: "Nikmati diskon spesial untuk setiap booking",
   },
 ];
 
@@ -35,10 +48,22 @@ const MembershipModal = ({
   open,
   onOpenChange,
   onUpgrade,
+  code,
 }: MembershipModalProps) => {
-  const handleUpgrade = () => {
-    onUpgrade?.();
-    onOpenChange(false);
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const { showSuccess, showError } = useNotifications();
+  const handleUpgrade = async () => {
+    setLoading(true);
+    try {
+      const setupPayment = await paymentService.setupMemberPayment(code);
+      showSuccess("Silahkan selesaikan pembayaran anda");
+      router.push(`/signup/membership?paymentId=${setupPayment}`);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,15 +127,26 @@ const MembershipModal = ({
         <div className="p-6 pt-0 space-y-3">
           <Button
             onClick={handleUpgrade}
+            disabled={loading}
             className="
-              w-full py-6 text-lg font-bold rounded-xl
-              bg-gradient-to-r from-blue-600 to-cyan-400
-              hover:opacity-90 transition-opacity
-              shadow-lg
-            "
+    w-full py-6 text-lg font-bold rounded-xl
+    bg-gradient-to-r from-blue-600 to-cyan-400
+    hover:opacity-90 transition-opacity
+    shadow-lg
+    disabled:opacity-60 disabled:cursor-not-allowed
+  "
           >
-            <Crown className="w-5 h-5 mr-2" />
-            Upgrade Membership Sekarang
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <Crown className="w-5 h-5 mr-2" />
+                Upgrade Membership Sekarang
+              </>
+            )}
           </Button>
 
           <Button

@@ -41,6 +41,7 @@ export default function CheckoutPage() {
   // State untuk payment component
   const [showPayment, setShowPayment] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [isMember, setIsMember] = useState<boolean>(false);
 
   // Auto-fill form data when user is available
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function CheckoutPage() {
       setName(user.name || "");
       setEmail(user.email || "");
       setWhatsapp(user.phone || "");
+      if (user.isMember) setIsMember(true);
     }
   }, [user]);
 
@@ -503,12 +505,32 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* Biaya Admin */}
+                {!isMember && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-gray-700">Biaya Admin</span>
+                    <span className="text-gray-900">IDR 1,000</span>
+                  </div>
+                )}
+
+                {/* Fee */}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-gray-700">Fee</span>
+                  <span className="text-gray-900">
+                    {selectedRole || bookingType === "team"
+                      ? `IDR ${getPrice().toLocaleString("id-ID")}`
+                      : "-"}
+                  </span>
+                </div>
+
+                {/* Total */}
                 <div className="flex items-center justify-between pt-4 border-t border-blue-200">
-                  <span className="text-gray-900">Total</span>
-                  <div className="text-gray-900">
+                  <span className="text-gray-900 font-medium">Total</span>
+                  <div className="text-gray-900 font-medium">
                     IDR{" "}
                     {selectedRole || bookingType === "team"
-                      ? getPrice().toLocaleString("id-ID")
+                      ? (Number(getPrice()) + (isMember ? 0 : 1000)) // <-- tambahkan 1000 jika bukan member
+                          .toLocaleString("id-ID")
                       : "-"}
                   </div>
                 </div>

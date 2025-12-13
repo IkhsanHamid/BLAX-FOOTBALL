@@ -365,16 +365,14 @@ export default function PaymentPage() {
             throw new Error("Function not implemented.");
           }}
         />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 mt-10">
           {/* Header */}
           <div className="mb-8">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Payment Information
               </h1>
-              <p className="text-gray-600">
-                Complete your booking payment securely
-              </p>
+              <p className="text-gray-600">Selesaikan pembayaran anda</p>
             </div>
           </div>
 
@@ -387,8 +385,8 @@ export default function PaymentPage() {
                   Payment Expired
                 </h3>
                 <p className="text-red-700 mb-6">
-                  This payment link has expired. Please create a new booking to
-                  continue.
+                  Link pembayaran ini sudah expired. Silahkan buat booking baru
+                  untuk melanjutkannya
                 </p>
                 <div className="flex space-x-3">
                   <Button

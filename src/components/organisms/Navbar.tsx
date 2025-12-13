@@ -38,8 +38,6 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
   const [isSignIn, setIsSignIn] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  console.log("isSignIn", isSignIn);
-
   const { user, loading, signOut, setUser } = useAuth();
 
   const toggleMenu = () => {
@@ -47,11 +45,8 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
   };
 
   const handleAuthSuccess = (userData: any, session: any) => {
-    // Immediately update the user state in context
     setUser(userData);
     setIsAuthModalOpen(false);
-
-    // Redirect to dashboard after successful login
     router.push("/player-dashboard");
   };
 
@@ -62,11 +57,9 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
     try {
       await signOut();
       router.push("/");
-      // Show success message
       showSuccess("Success Logout!");
     } catch (error) {
       console.error("Sign out error:", error);
-      // You could show an error toast here
       showError("Error!");
     } finally {
       setIsSigningOut(false);
@@ -85,7 +78,6 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
     }
   }, [useScrollEffect]);
 
-  // Close user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setIsUserMenuOpen(false);
@@ -97,20 +89,24 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
     }
   }, [isUserMenuOpen]);
 
-  // Dynamic styles based on useScrollEffect and isScrolled
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMenuOpen]);
+
   const getNavbarStyles = () => {
     return "bg-white/95 backdrop-blur-md shadow-lg border border-gray-200/20";
   };
 
   const getTextStyles = () => {
     return "text-gray-700 hover:text-blue-600";
-  };
-
-  const getLogoStyles = () => {
-    if (!useScrollEffect) {
-      return "bg-clip-text text-transparent";
-    }
-    return isScrolled ? "text-blue-600 bg-clip-text" : "text-white";
   };
 
   const getButtonStyles = () => {
@@ -144,41 +140,45 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
   return (
     <>
       {/* Running Text Banner */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-400 overflow-hidden">
-        <motion.div
-          animate={{ x: [0, -1000] }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="whitespace-nowrap py-2 text-white flex items-center gap-8"
-        >
-          {/* Repeat the content multiple times for seamless loop */}
-          {[...Array(10)].map((_, i) => (
-            <div key={i} className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                <span>Membership program hanya Rp 100.000 per tahun</span>
+      {!user?.isMember && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-400 overflow-hidden">
+          <motion.div
+            animate={{ x: [0, -1000] }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+            className="whitespace-nowrap py-2 text-white flex items-center gap-8"
+          >
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                  <span>Membership program hanya Rp 100.000 per tahun</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-300">•</span>
+                  <span>Dapatkan 15% diskon untuk semua produk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-300">•</span>
+                  <span>10% diskon semua pertandingan</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-300">•</span>
+                  <span>Exclusive Member Benefits</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-300">•</span>
-                <span>Dapatkan 15% diskon untuk semua produk</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-300">•</span>
-                <span>10% diskon semua pertandingan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-300">•</span>
-                <span>Exclusive Member Benefits</span>
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </div>
+            ))}
+          </motion.div>
+        </div>
+      )}
+
       <nav
-        className={`fixed top-10 left-0 px-4 right-0 z-50 transition-all duration-300 ${getNavbarStyles()}`}
+        className={`fixed ${
+          !user?.isMember ? "top-10" : "top-0"
+        } left-0 px-4 right-0 z-50 transition-all duration-300 ${getNavbarStyles()}`}
       >
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
@@ -238,20 +238,16 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   ></span>
                 </Link>
               )}
-              {user && (
-                <>
-                  {user.role === "Admin" && (
-                    <Link
-                      href="/admin"
-                      className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
-                    >
-                      Admin
-                      <span
-                        className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
-                      ></span>
-                    </Link>
-                  )}
-                </>
+              {user?.role === "Admin" && (
+                <Link
+                  href="/admin"
+                  className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
+                >
+                  Admin
+                  <span
+                    className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
+                  ></span>
+                </Link>
               )}
             </div>
 
@@ -263,9 +259,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   <div className="w-20 h-4 animate-pulse bg-gray-200 rounded"></div>
                 </div>
               ) : user ? (
-                /* User Buttons */
                 <div className="flex items-center space-x-3">
-                  {/* Profile Button */}
                   <div className="relative">
                     <Button
                       variant="primary"
@@ -282,7 +276,6 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                       Profile
                     </Button>
 
-                    {/* Profile Dropdown */}
                     {isUserMenuOpen && !isSigningOut && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
                         <div className="px-4 py-2 border-b border-gray-100">
@@ -301,15 +294,14 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                           <User className="h-4 w-4 mr-2" />
                           Dashboard
                         </Link>
-                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors">
+                        {/* <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors">
                           <Settings className="h-4 w-4 mr-2" />
                           Account Settings
-                        </button>
+                        </button> */}
                       </div>
                     )}
                   </div>
 
-                  {/* Sign Out Button */}
                   <button
                     onClick={handleSignOut}
                     disabled={isSigningOut}
@@ -329,7 +321,6 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   </button>
                 </div>
               ) : (
-                /* Auth Buttons */
                 <>
                   <Button
                     variant="primary"
@@ -370,11 +361,11 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
             </button>
           </div>
 
-          {/* Mobile Menu */}
+          {/* Mobile Menu - FIXED */}
           <div
             className={`md:hidden transition-all duration-300 ease-in-out ${
               isMenuOpen
-                ? "max-h-96 opacity-100 pb-6"
+                ? "max-h-[80vh] opacity-100 pb-6 overflow-y-auto"
                 : "max-h-0 opacity-0 overflow-hidden"
             }`}
           >
@@ -399,19 +390,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Galeri
-                <span
-                  className={`absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300 ${getGradientStyles()}`}
-                ></span>
               </Link>
-              {user && (
-                <Link
-                  href="/admin"
-                  className={`block font-medium py-2 px-4 rounded-lg transition-all duration-300 ${getMobileTextStyles()}`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Admin
-                </Link>
-              )}
 
               {/* Mobile Auth Section */}
               <div
@@ -442,7 +421,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                       </div>
                     </div>
 
-                    {/* Profile Button */}
+                    {/* Dashboard Button */}
                     <Link
                       href="/player-dashboard"
                       className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}
@@ -452,23 +431,25 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                       Dashboard
                     </Link>
 
-                    {/* Admin Button */}
-                    <Link
-                      href="/admin"
-                      className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Admin
-                    </Link>
+                    {/* Admin Button - Only show for Admin role */}
+                    {user.role === "Admin" && (
+                      <Link
+                        href="/admin"
+                        className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Admin
+                      </Link>
+                    )}
 
                     {/* Settings Button */}
-                    <button
+                    {/* <button
                       className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Account Settings
-                    </button>
+                    </button> */}
 
                     {/* Sign Out Button */}
                     <button
@@ -492,14 +473,16 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                     </button>
                   </>
                 ) : (
-                  <>
+                  <div className="flex flex-col gap-2 px-4">
                     <Button
                       variant="primary"
                       size="sm"
+                      className="w-full"
                       onClick={() => {
                         setIsAuthModalOpen(true);
                         setIsSignIn(true);
                         setIsSignUp(false);
+                        setIsMenuOpen(false);
                       }}
                     >
                       Login
@@ -507,15 +490,17 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="w-full"
                       onClick={() => {
                         setIsAuthModalOpen(true);
                         setIsSignUp(true);
                         setIsSignIn(false);
+                        setIsMenuOpen(false);
                       }}
                     >
                       Daftar
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

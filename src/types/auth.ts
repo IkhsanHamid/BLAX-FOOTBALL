@@ -5,6 +5,7 @@ export interface User {
   phone: string;
   role: string;
   isMember: boolean;
+  code: string;
 }
 
 export interface AuthSession {

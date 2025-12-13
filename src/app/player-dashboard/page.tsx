@@ -485,7 +485,7 @@ export default function PlayerDashboardPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center text-green-800">
                       <Gift className="w-5 h-5 mr-2" />
-                      Available Vouchers
+                      Voucher Tersedia
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -497,10 +497,10 @@ export default function PlayerDashboardPage() {
                       <div className="text-center py-8">
                         <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground">
-                          No vouchers available
+                          Tidak ada voucher tersedia
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Check back later for new offers!
+                          Silahkan cek kembali secara berkala
                         </p>
                       </div>
                     ) : (
@@ -553,14 +553,14 @@ export default function PlayerDashboardPage() {
                         <Clock className="w-5 h-5 mr-2" />
                         Booking History
                       </div>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
                         className="border-purple-300 text-purple-700 hover:bg-purple-100"
                       >
                         <Download className="w-4 h-4 mr-1" />
                         Export
-                      </Button>
+                      </Button> */}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -627,7 +627,7 @@ export default function PlayerDashboardPage() {
                                     minute: "2-digit",
                                   })}
                                 </div>
-                                <Button
+                                {/* <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() =>
@@ -637,7 +637,7 @@ export default function PlayerDashboardPage() {
                                 >
                                   <Eye className="w-4 h-4 mr-1" />
                                   View Details
-                                </Button>
+                                </Button> */}
                               </div>
                             </div>
                           ))}
@@ -700,6 +700,7 @@ export default function PlayerDashboardPage() {
         open={membershipModalOpen}
         onOpenChange={setMembershipModalOpen}
         onUpgrade={handleUpgradeMembership}
+        code={user.code}
       />
     </div>
   );
