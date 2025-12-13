@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar,
   Search,
-  Filter,
-  Eye,
-  Download,
   RefreshCw,
-  Users,
-  DollarSign,
-  Clock,
   CheckCircle,
   XCircle,
+  Clock,
   AlertCircle,
 } from "lucide-react";
 import Button from "../atoms/Button";
@@ -29,11 +24,9 @@ import Badge from "../atoms/Badge";
 import { useNotifications } from "./NotificationContainer";
 import { formatCurrency, formatDate, getDateRange } from "@/lib/helper";
 import BookingHistoryDetail from "./BookingHistoryDetail";
-
 import { BookingHistory } from "@/types/admin";
 import { adminService } from "@/utils/admin";
 
-// Response type from API
 interface BookingHistoryResponse {
   status: boolean;
   statusCode: number;
@@ -49,79 +42,43 @@ function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
 
   return debouncedValue;
 }
 
-// Table skeleton component for partial loading
+// Skeleton components
 const TableSkeleton = () => (
   <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow className="bg-gray-50">
-          <TableHead className="font-semibold text-gray-900">
-            Booking ID
-          </TableHead>
-          <TableHead className="font-semibold text-gray-900">
-            Customer
-          </TableHead>
-          <TableHead className="font-semibold text-gray-900">
-            Schedule
-          </TableHead>
-          <TableHead className="font-semibold text-gray-900">Type</TableHead>
-          <TableHead className="font-semibold text-gray-900">Amount</TableHead>
-          <TableHead className="font-semibold text-gray-900">Status</TableHead>
-          <TableHead className="font-semibold text-gray-900">
-            Booked At
-          </TableHead>
-          <TableHead className="font-semibold text-gray-900">Pay At</TableHead>
+          {[
+            "Booking ID",
+            "Customer",
+            "Schedule",
+            "Type",
+            "Amount",
+            "Status",
+            "Booked At",
+            "Pay At",
+          ].map((h) => (
+            <TableHead key={h} className="font-semibold text-gray-900">
+              {h}
+            </TableHead>
+          ))}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {Array.from({ length: 10 }).map((_, index) => (
-          <TableRow key={index}>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-28"></div>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-40"></div>
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-36"></div>
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-32"></div>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-2">
-                <div className="h-6 bg-gray-200 rounded animate-pulse w-20"></div>
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-16"></div>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-6 bg-gray-200 rounded animate-pulse w-16"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
-            </TableCell>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <TableRow key={i}>
+            {Array.from({ length: 8 }).map((_, j) => (
+              <TableCell key={j}>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+              </TableCell>
+            ))}
           </TableRow>
         ))}
       </TableBody>
@@ -129,11 +86,10 @@ const TableSkeleton = () => (
   </div>
 );
 
-// Stats skeleton component
 const StatsSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-    {Array.from({ length: 4 }).map((_, index) => (
-      <Card key={index} className="border-gray-200">
+    {Array.from({ length: 4 }).map((_, i) => (
+      <Card key={i} className="border-gray-200">
         <CardContent className="p-6">
           <div className="pt-4 flex items-center justify-between">
             <div className="space-y-2">
@@ -152,8 +108,7 @@ const StatsSkeleton = () => (
 
 export default function BookingHistoryTab() {
   const [bookings, setBookings] = useState<BookingHistory[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [filterLoading, setFilterLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -162,14 +117,8 @@ export default function BookingHistoryTab() {
     null
   );
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
-
-  // API-based pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const itemsPerPage = 5; // Static limit per page
-
-  // Stats state
   const [stats, setStats] = useState({
     total: 0,
     confirmed: 0,
@@ -177,44 +126,48 @@ export default function BookingHistoryTab() {
     failed: 0,
   });
 
-  // Loading state for UI
-  const loading = initialLoading || filterLoading;
-
+  const itemsPerPage = 5;
   const { showSuccess, showError } = useNotifications();
-
-  // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Fetch stats separately (with first page data to get totalData count)
-  const fetchStats = useCallback(async () => {
+  // Prevent multiple simultaneous API calls
+  const isFetchingRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  // Single unified fetch function
+  const fetchData = useCallback(async () => {
+    // Prevent duplicate calls
+    if (isFetchingRef.current) return;
+
+    isFetchingRef.current = true;
+    setLoading(true);
+
     try {
       const { startDate, endDate } = getDateRange(dateFilter);
+      const skip = (currentPage - 1) * itemsPerPage;
 
-      // Fetch first page to get total count and calculate stats from it
-      // The API should return totalData which represents filtered total
       const response = (await adminService.historyRecentBooking(
         startDate,
         endDate,
         statusFilter || undefined,
         debouncedSearchTerm || undefined,
-        0,
+        skip,
         itemsPerPage
       )) as unknown as BookingHistoryResponse;
 
       if (response.status && response.data) {
-        // Use the totalData from API response for actual count
-        // Calculate stats from current page data as sample
-        const pageData = response.data;
+        setBookings(response.data);
+        setTotalCount(response.totalData);
 
-        const successCount = pageData.filter(
-          (b: BookingHistory) => b.paymentStatus === "PAID"
+        // Calculate stats from current page data
+        const successCount = response.data.filter(
+          (b) => b.paymentStatus === "PAID"
         ).length;
-        const pendingCount = pageData.filter(
-          (b: BookingHistory) => b.paymentStatus === "PENDING"
+        const pendingCount = response.data.filter(
+          (b) => b.paymentStatus === "PENDING"
         ).length;
-        const failedCount = pageData.filter(
-          (b: BookingHistory) =>
-            b.paymentStatus === "FAILED" || b.paymentStatus === "EXPIRED"
+        const failedCount = response.data.filter(
+          (b) => b.paymentStatus === "FAILED" || b.paymentStatus === "EXPIRED"
         ).length;
 
         setStats({
@@ -223,125 +176,57 @@ export default function BookingHistoryTab() {
           pending: pendingCount,
           failed: failedCount,
         });
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
-  }, [debouncedSearchTerm, statusFilter, dateFilter, itemsPerPage]);
-
-  // Fetch paginated booking history
-  const fetchBookingHistory = useCallback(
-    async (isSearch = false) => {
-      try {
-        // Determine loading state
-        if (isFirstLoad) {
-          setInitialLoading(true);
-        } else if (isSearch) {
-          setFilterLoading(true);
-        } else {
-          setFilterLoading(true);
-        }
-
-        const { startDate, endDate } = getDateRange(dateFilter);
-
-        // Calculate skip based on current page
-        // Page 1: skip = 0
-        // Page 2: skip = 10
-        // Page 3: skip = 20
-        // etc.
-        const skip = (currentPage - 1) * itemsPerPage;
-
-        // Call API with query parameters
-        const response = (await adminService.historyRecentBooking(
-          startDate,
-          endDate,
-          statusFilter || undefined,
-          debouncedSearchTerm || undefined,
-          skip,
-          itemsPerPage
-        )) as unknown as BookingHistoryResponse;
-
-        // Handle response based on API structure
-        if (response.status && response.data) {
-          setBookings(response.data);
-          setTotalCount(response.totalData);
-        } else {
-          setBookings([]);
-          setTotalCount(0);
-        }
-      } catch (error) {
-        console.error("Error fetching booking history:", error);
-        showError("Error", "Failed to load booking history");
+      } else {
         setBookings([]);
         setTotalCount(0);
-      } finally {
-        setInitialLoading(false);
-        setFilterLoading(false);
-        setIsFirstLoad(false);
+        setStats({ total: 0, confirmed: 0, pending: 0, failed: 0 });
       }
-    },
-    [
-      debouncedSearchTerm,
-      statusFilter,
-      dateFilter,
-      currentPage,
-      itemsPerPage,
-      showError,
-      isFirstLoad,
-    ]
-  );
-
-  // Initial load
-  useEffect(() => {
-    fetchBookingHistory();
-    fetchStats();
-  }, []);
-
-  // Handle filter changes and pagination
-  useEffect(() => {
-    if (!isFirstLoad) {
-      const isSearchOnly =
-        !!debouncedSearchTerm && !statusFilter && dateFilter === "all";
-      fetchBookingHistory(isSearchOnly);
+    } catch (error) {
+      console.error("Error fetching booking history:", error);
+      showError("Error", "Failed to load booking history");
+      setBookings([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [
     debouncedSearchTerm,
     statusFilter,
     dateFilter,
     currentPage,
-    isFirstLoad,
-    fetchBookingHistory,
+    itemsPerPage,
+    showError,
   ]);
 
-  // Fetch stats when filters change (but not on page change)
+  // Single effect to handle all data fetching
   useEffect(() => {
-    if (!isFirstLoad) {
-      fetchStats();
+    // Skip first render, only fetch after component is mounted
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
     }
-  }, [debouncedSearchTerm, statusFilter, dateFilter, isFirstLoad, fetchStats]);
+
+    fetchData();
+  }, [fetchData]);
+
+  // Initial load only
+  useEffect(() => {
+    fetchData();
+  }, []); // Empty dependency - runs once on mount
 
   // Reset to first page when filters change
   useEffect(() => {
-    if (!isFirstLoad) {
+    if (mountedRef.current) {
       setCurrentPage(1);
     }
   }, [debouncedSearchTerm, statusFilter, dateFilter]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchBookingHistory(), fetchStats()]);
+    await fetchData();
     setRefreshing(false);
     showSuccess("Booking history refreshed successfully");
-  };
-
-  const handleViewDetail = (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-    setShowDetailModal(true);
-  };
-
-  const handleCloseDetail = () => {
-    setShowDetailModal(false);
-    setSelectedBookingId(null);
   };
 
   const clearFilters = () => {
@@ -352,42 +237,32 @@ export default function BookingHistoryTab() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "SUCCESS":
-      case "PAID":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "FAILED":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "EXPIRED":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
+    const colors: Record<string, string> = {
+      SUCCESS: "bg-green-100 text-green-800 border-green-200",
+      PAID: "bg-green-100 text-green-800 border-green-200",
+      PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      FAILED: "bg-red-100 text-red-800 border-red-200",
+      EXPIRED: "bg-gray-100 text-gray-800 border-gray-200",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "SUCCESS":
-      case "PAID":
-        return <CheckCircle className="w-3 h-3" />;
-      case "PENDING":
-        return <Clock className="w-3 h-3" />;
-      case "FAILED":
-      case "EXPIRED":
-        return <XCircle className="w-3 h-3" />;
-      default:
-        return <AlertCircle className="w-3 h-3" />;
-    }
+    const icons: Record<string, JSX.Element> = {
+      SUCCESS: <CheckCircle className="w-3 h-3" />,
+      PAID: <CheckCircle className="w-3 h-3" />,
+      PENDING: <Clock className="w-3 h-3" />,
+      FAILED: <XCircle className="w-3 h-3" />,
+      EXPIRED: <XCircle className="w-3 h-3" />,
+    };
+    return icons[status] || <AlertCircle className="w-3 h-3" />;
   };
 
-  // Pagination calculations
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const hasNextPage = currentPage < totalPages;
   const hasPreviousPage = currentPage > 1;
+  const hasActiveFilters = searchTerm || statusFilter || dateFilter !== "all";
 
-  // Calculate visible page numbers for pagination
   const getVisiblePages = () => {
     const delta = 2;
     const range = [];
@@ -418,8 +293,22 @@ export default function BookingHistoryTab() {
     return rangeWithDots;
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = searchTerm || statusFilter || dateFilter !== "all";
+  const statsConfig = [
+    {
+      label: "Total Bookings",
+      value: stats.total,
+      color: "blue",
+      icon: Calendar,
+    },
+    {
+      label: "Confirmed",
+      value: stats.confirmed,
+      color: "green",
+      icon: CheckCircle,
+    },
+    { label: "Pending", value: stats.pending, color: "yellow", icon: Clock },
+    { label: "Failed", value: stats.failed, color: "red", icon: XCircle },
+  ];
 
   return (
     <>
@@ -431,100 +320,50 @@ export default function BookingHistoryTab() {
               Booking History
             </h2>
             <p className="text-gray-600 mt-1">
-              Comprehensive view of all booking transactions
+              Tampilan komprehensif dari semua transaksi pemesanan
             </p>
           </div>
-
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center"
-            >
-              <RefreshCw
-                className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Cards */}
-        {loading && isFirstLoad ? (
+        {loading && !mountedRef.current ? (
           <StatsSkeleton />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="border-blue-200 bg-blue-50/50">
-              <CardContent className="p-6">
-                <div className="pt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600">
-                      Total Bookings
-                    </p>
-                    <p className="text-3xl font-bold text-blue-900">
-                      {stats.total}
-                    </p>
+            {statsConfig.map(({ label, value, color, icon: Icon }) => (
+              <Card
+                key={label}
+                className={`border-${color}-200 bg-${color}-50/50`}
+              >
+                <CardContent className="p-6">
+                  <div className="pt-4 flex items-center justify-between">
+                    <div>
+                      <p className={`text-sm font-medium text-${color}-600`}>
+                        {label}
+                      </p>
+                      <p className={`text-3xl font-bold text-${color}-900`}>
+                        {value}
+                      </p>
+                    </div>
+                    <div className={`p-3 bg-${color}-100 rounded-lg`}>
+                      <Icon className={`w-6 h-6 text-${color}-600`} />
+                    </div>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-green-200 bg-green-50/50">
-              <CardContent className="p-6">
-                <div className="pt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-600">
-                      Confirmed
-                    </p>
-                    <p className="text-3xl font-bold text-green-900">
-                      {stats.confirmed}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-yellow-200 bg-yellow-50/50">
-              <CardContent className="p-6">
-                <div className="pt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-yellow-600">
-                      Pending
-                    </p>
-                    <p className="text-3xl font-bold text-yellow-900">
-                      {stats.pending}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <Clock className="w-6 h-6 text-yellow-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-red-200 bg-red-50/50">
-              <CardContent className="p-6">
-                <div className="pt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-red-600">Failed</p>
-                    <p className="text-3xl font-bold text-red-900">
-                      {stats.failed}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    <XCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
@@ -641,30 +480,23 @@ export default function BookingHistoryTab() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead className="font-semibold text-gray-900">
-                        Booking ID
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Customer
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Schedule
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Type
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Amount
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Status
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Booked At
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
-                        Pay At
-                      </TableHead>
+                      {[
+                        "Booking ID",
+                        "Customer",
+                        "Schedule",
+                        "Type",
+                        "Amount",
+                        "Status",
+                        "Booked At",
+                        "Pay At",
+                      ].map((h) => (
+                        <TableHead
+                          key={h}
+                          className="font-semibold text-gray-900"
+                        >
+                          {h}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -684,7 +516,21 @@ export default function BookingHistoryTab() {
                               {booking.customerName}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {booking.customerPhone}
+                              {booking.paymentStatus === "FAILED" ? (
+                                <a
+                                  href={`https://wa.me/${booking.customerPhone.replace(
+                                    /^0/,
+                                    "62"
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 underline hover:text-blue-700"
+                                >
+                                  {booking.customerPhone}
+                                </a>
+                              ) : (
+                                booking.customerPhone
+                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -783,11 +629,10 @@ export default function BookingHistoryTab() {
           </CardContent>
         </Card>
 
-        {/* API-based Pagination - Always Visible */}
+        {/* Pagination */}
         <Card className="border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-              {/* Left: Summary Info */}
               <div className="text-sm text-gray-700 font-medium">
                 <span className="text-gray-600">Showing</span>
                 <span className="mx-2 text-gray-900 font-semibold">
@@ -821,29 +666,21 @@ export default function BookingHistoryTab() {
                 )}
               </div>
 
-              {/* Right: Pagination Controls */}
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(1)}
-                  disabled={
-                    !hasPreviousPage || filterLoading || totalCount === 0
-                  }
-                  // title="Go to first page"
+                  disabled={!hasPreviousPage || loading || totalCount === 0}
                   className="px-2"
                 >
                   ⟨⟨
                 </Button>
-
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={
-                    !hasPreviousPage || filterLoading || totalCount === 0
-                  }
-                  // title="Previous page"
+                  disabled={!hasPreviousPage || loading || totalCount === 0}
                 >
                   ⟨
                 </Button>
@@ -864,7 +701,7 @@ export default function BookingHistoryTab() {
                           variant={page === currentPage ? "primary" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(page as number)}
-                          disabled={filterLoading}
+                          disabled={loading}
                           className={`w-9 h-9 p-0 ${
                             page === currentPage
                               ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
@@ -882,18 +719,15 @@ export default function BookingHistoryTab() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={!hasNextPage || filterLoading || totalCount === 0}
-                  // title="Next page"
+                  disabled={!hasNextPage || loading || totalCount === 0}
                 >
                   ⟩
                 </Button>
-
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(totalPages)}
-                  disabled={!hasNextPage || filterLoading || totalCount === 0}
-                  // title="Go to last page"
+                  disabled={!hasNextPage || loading || totalCount === 0}
                   className="px-2"
                 >
                   ⟩⟩
@@ -901,7 +735,6 @@ export default function BookingHistoryTab() {
               </div>
             </div>
 
-            {/* Quick Page Jump */}
             {totalPages > 10 && (
               <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center gap-3">
                 <label className="text-sm text-gray-600 font-medium">
@@ -934,11 +767,13 @@ export default function BookingHistoryTab() {
         </Card>
       </div>
 
-      {/* Booking Detail Modal */}
       <BookingHistoryDetail
         bookingId={selectedBookingId || ""}
         open={showDetailModal}
-        onClose={handleCloseDetail}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedBookingId(null);
+        }}
         onRefresh={handleRefresh}
       />
     </>

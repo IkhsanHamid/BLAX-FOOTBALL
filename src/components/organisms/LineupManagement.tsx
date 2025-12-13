@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Users,
   Trophy,
@@ -27,6 +27,8 @@ import { lineupService, LineupMatch, LineupPlayer } from "@/utils/lineup";
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
+  MouseSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -52,7 +54,6 @@ interface SortablePlayerCardProps {
 
 interface TeamDropzoneProps {
   teamKey: string;
-  onDrop: (teamKey: string) => void;
   isActive: boolean;
   children: React.ReactNode;
 }
@@ -106,24 +107,20 @@ const STATUS_COLORS = {
   CONFIRMED: "bg-green-50 text-green-700 border-green-200",
   DRAFT: "bg-amber-50 text-amber-700 border-amber-200",
   COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
-};
+} as const;
 
-// ========== HELPER FUNCTIONS ==========
+// ========== UTILITY FUNCTIONS ==========
 const getTeamLetter = (index: number): string =>
   String.fromCharCode(65 + index);
-
 const getTeamColor = (index: number): TeamColors =>
   TEAM_COLORS[index % TEAM_COLORS.length];
-
 const getStatusColor = (status: string) =>
   STATUS_COLORS[status as keyof typeof STATUS_COLORS] ||
   "bg-gray-50 text-gray-700 border-gray-200";
-
 const getPlayersPerTeam = (lineup: LineupMatch): number => {
   if (!lineup.totalSlots || !lineup.totalTeams) return 0;
   return Math.floor(lineup.totalSlots / lineup.totalTeams);
 };
-
 const getAllPlayers = (lineup: LineupMatch): LineupPlayer[] => {
   if (!lineup.teams) return [];
   return Object.values(lineup.teams).flat();
@@ -132,62 +129,109 @@ const getAllPlayers = (lineup: LineupMatch): LineupPlayer[] => {
 // ========== COMPONENTS ==========
 
 // Sortable Player Card
-function SortablePlayerCard({
-  player,
-  index,
-  teamKey,
-  canAcceptPlayer,
-}: SortablePlayerCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: player.id });
-  const isGK = player.position === "GK";
+const SortablePlayerCard = React.memo(
+  ({ player, index, teamKey, canAcceptPlayer }: SortablePlayerCardProps) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: player.id });
+    const isGK = player.position === "GK";
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-white border-2 rounded-xl shadow-sm hover:shadow-md transition-all ${
-        isDragging ? "opacity-50 scale-105" : "border-gray-200"
-      }`}
-    >
-      <div className="p-3 sm:p-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            {...attributes}
-            {...listeners}
-            className={`cursor-grab active:cursor-grabbing p-1.5 rounded flex-shrink-0 ${
-              isGK
-                ? "hover:bg-amber-100 text-amber-600"
-                : "hover:bg-blue-100 text-blue-600"
-            }`}
-          >
-            <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`bg-white border-2 rounded-xl shadow-sm hover:shadow-md transition-all ${
+          isDragging ? "opacity-50 scale-105" : "border-gray-200"
+        }`}
+      >
+        <div className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              {...attributes}
+              {...listeners}
+              className={`cursor-grab active:cursor-grabbing p-1.5 rounded flex-shrink-0 touch-none ${
+                isGK
+                  ? "hover:bg-amber-100 text-amber-600"
+                  : "hover:bg-blue-100 text-blue-600"
+              }`}
+            >
+              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
 
-          <div
-            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 ${
-              isGK
-                ? "bg-gradient-to-br from-amber-400 to-orange-500"
-                : "bg-gradient-to-br from-sky-400 to-blue-500"
-            }`}
-          >
-            {player.name.charAt(0).toUpperCase()}
+            <div
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 ${
+                isGK
+                  ? "bg-gradient-to-br from-amber-400 to-orange-500"
+                  : "bg-gradient-to-br from-sky-400 to-blue-500"
+              }`}
+            >
+              {player.name.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h4 className="font-semibold text-sm sm:text-base text-gray-900 truncate">
+                  {player.name}
+                </h4>
+                <Badge
+                  className={`text-xs ${
+                    isGK
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-sky-100 text-sky-800"
+                  }`}
+                >
+                  {isGK ? "GK" : "PLAYER"}
+                </Badge>
+              </div>
+              <div className="flex flex-col gap-1 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{player.phone}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Target className="w-3 h-3 flex-shrink-0" />
+                  <span>Team {teamKey}</span>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+);
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h4 className="font-semibold text-sm sm:text-base text-gray-900 truncate">
+SortablePlayerCard.displayName = "SortablePlayerCard";
+
+// Player Card for Drag Overlay
+const PlayerCard = React.memo(
+  ({ player }: { player: LineupPlayer; index: number }) => {
+    const isGK = player.position === "GK";
+
+    return (
+      <div className="bg-white border-2 border-gray-200 rounded-xl shadow-lg opacity-90">
+        <div className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <div
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold ${
+                isGK ? "bg-amber-500" : "bg-sky-500"
+              }`}
+            >
+              {player.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm sm:text-base text-gray-900">
                 {player.name}
               </h4>
               <Badge
@@ -200,85 +244,36 @@ function SortablePlayerCard({
                 {isGK ? "GK" : "PLAYER"}
               </Badge>
             </div>
-            <div className="flex flex-col gap-1 text-xs text-gray-600">
-              <div className="flex items-center gap-1">
-                <Phone className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{player.phone}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Target className="w-3 h-3 flex-shrink-0" />
-                <span>Team {teamKey}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+);
 
-// Player Card for Drag Overlay
-function PlayerCard({
-  player,
-  index,
-}: {
-  player: LineupPlayer;
-  index: number;
-}) {
-  const isGK = player.position === "GK";
-
-  return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl shadow-lg opacity-90">
-      <div className="p-3 sm:p-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <GripVertical className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-          <div
-            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold ${
-              isGK ? "bg-amber-500" : "bg-sky-500"
-            }`}
-          >
-            {player.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h4 className="font-semibold text-sm sm:text-base text-gray-900">
-              {player.name}
-            </h4>
-            <Badge
-              className={`text-xs ${
-                isGK ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"
-              }`}
-            >
-              {isGK ? "GK" : "PLAYER"}
-            </Badge>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+PlayerCard.displayName = "PlayerCard";
 
 // Team Dropzone
-function TeamDropzone({
-  teamKey,
-  onDrop,
-  isActive,
-  children,
-}: TeamDropzoneProps) {
-  const { setNodeRef, isOver } = useSortable({
-    id: `team-${teamKey}-container`,
-  });
+const TeamDropzone = React.memo(
+  ({ teamKey, isActive, children }: TeamDropzoneProps) => {
+    const { setNodeRef, isOver } = useSortable({
+      id: `team-${teamKey}-container`,
+    });
 
-  return (
-    <div
-      ref={setNodeRef}
-      className={`transition-all ${
-        isOver ? "ring-2 ring-blue-400 ring-offset-2" : ""
-      } ${isActive ? "opacity-100" : ""}`}
-    >
-      {children}
-    </div>
-  );
-}
+    return (
+      <div
+        ref={setNodeRef}
+        className={`transition-all ${
+          isOver ? "ring-2 ring-blue-400 ring-offset-2" : ""
+        }`}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+TeamDropzone.displayName = "TeamDropzone";
 
 // ========== MAIN COMPONENT ==========
 export default function LineupManagement() {
@@ -297,8 +292,18 @@ export default function LineupManagement() {
   const [showSidebar, setShowSidebar] = useState(false);
 
   const { showError, showSuccess, showWarning } = useNotifications();
+
+  // FIXED: Add TouchSensor for mobile support
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
   );
 
   // ========== EFFECTS ==========
@@ -309,7 +314,6 @@ export default function LineupManagement() {
   useEffect(() => {
     if (selectedLineup) {
       const initialExpanded: Record<string, boolean> = {};
-      // FIXED: Use letter-based keys (A, B, C...)
       for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
         initialExpanded[getTeamLetter(i)] = true;
       }
@@ -320,7 +324,6 @@ export default function LineupManagement() {
         Object.keys(selectedLineup.teams).length === 0
       ) {
         const teams: Record<string, LineupPlayer[]> = {};
-        // FIXED: Use letter-based keys (A, B, C...)
         for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
           teams[getTeamLetter(i)] = [];
         }
@@ -337,7 +340,6 @@ export default function LineupManagement() {
       const processedData = data.map((lineup) => {
         if (!lineup.teams || Object.keys(lineup.teams).length === 0) {
           const teams: Record<string, LineupPlayer[]> = {};
-          // FIXED: Use letter-based keys (A, B, C...)
           for (let i = 0; i < (lineup.totalTeams || 2); i++) {
             teams[getTeamLetter(i)] = [];
           }
@@ -355,317 +357,343 @@ export default function LineupManagement() {
   };
 
   // ========== VALIDATION ==========
-  const canAcceptPlayer = (
-    teamKey: string,
-    player: LineupPlayer,
-    lineup: LineupMatch
-  ): { canAccept: boolean; reason?: string } => {
-    if (!lineup.teams || !lineup.teams[teamKey]) {
-      return { canAccept: false, reason: "Invalid team" };
-    }
+  const canAcceptPlayer = useCallback(
+    (
+      teamKey: string,
+      player: LineupPlayer,
+      lineup: LineupMatch
+    ): { canAccept: boolean; reason?: string } => {
+      if (!lineup.teams || !lineup.teams[teamKey]) {
+        return { canAccept: false, reason: "Invalid team" };
+      }
 
-    const teamPlayers = lineup.teams[teamKey];
-    const maxPlayersPerTeam = getPlayersPerTeam(lineup);
-    const hasGK = teamPlayers.some((p) => p.position === "GK");
-    const isGK = player.position === "GK";
+      const teamPlayers = lineup.teams[teamKey];
+      const maxPlayersPerTeam = getPlayersPerTeam(lineup);
+      const hasGK = teamPlayers.some((p) => p.position === "GK");
+      const isGK = player.position === "GK";
 
-    if (isGK && hasGK && !teamPlayers.find((p) => p.id === player.id)) {
-      return { canAccept: false, reason: "Team already has a goalkeeper" };
-    }
+      if (isGK && hasGK && !teamPlayers.find((p) => p.id === player.id)) {
+        return { canAccept: false, reason: "Team already has a goalkeeper" };
+      }
 
-    const currentCount = teamPlayers.filter((p) => p.id !== player.id).length;
-    if (currentCount >= maxPlayersPerTeam) {
-      return {
-        canAccept: false,
-        reason: `Team is full (max ${maxPlayersPerTeam} players)`,
-      };
-    }
+      const currentCount = teamPlayers.filter((p) => p.id !== player.id).length;
+      if (currentCount >= maxPlayersPerTeam) {
+        return {
+          canAccept: false,
+          reason: `Team is full (max ${maxPlayersPerTeam} players)`,
+        };
+      }
 
-    return { canAccept: true };
-  };
+      return { canAccept: true };
+    },
+    []
+  );
 
   // ========== DRAG HANDLERS ==========
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     setOverId(event.over?.id as string | null);
-  };
+  }, []);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    setOverId(null);
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+      setOverId(null);
 
-    if (!over || !selectedLineup || active.id === over.id) return;
+      if (!over || !selectedLineup || active.id === over.id) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const allPlayers = getAllPlayers(selectedLineup);
-    const activePlayer = allPlayers.find((p) => p.id === activeId);
+      const activeId = active.id as string;
+      const overId = over.id as string;
+      const allPlayers = getAllPlayers(selectedLineup);
+      const activePlayer = allPlayers.find((p) => p.id === activeId);
 
-    if (!activePlayer) return;
+      if (!activePlayer) return;
 
-    let targetTeam: string | null = null;
-    let targetIndex = -1;
+      let targetTeam: string | null = null;
+      let targetIndex = -1;
 
-    // FIXED: Check if dropped on container using letter-based keys
-    for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-      const teamKey = getTeamLetter(i);
-      if (overId === `team-${teamKey}-container`) {
-        targetTeam = teamKey;
-        targetIndex = selectedLineup.teams[teamKey]?.length || 0;
-        break;
+      // Check if dropped on container
+      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
+        const teamKey = getTeamLetter(i);
+        if (overId === `team-${teamKey}-container`) {
+          targetTeam = teamKey;
+          targetIndex = selectedLineup.teams[teamKey]?.length || 0;
+          break;
+        }
       }
-    }
 
-    // Check if dropped on player
-    if (!targetTeam) {
-      const overPlayer = allPlayers.find((p) => p.id === overId);
-      if (overPlayer) {
-        targetTeam = overPlayer.team;
-        targetIndex =
-          selectedLineup.teams[targetTeam]?.findIndex((p) => p.id === overId) ??
-          -1;
+      // Check if dropped on player
+      if (!targetTeam) {
+        const overPlayer = allPlayers.find((p) => p.id === overId);
+        if (overPlayer) {
+          targetTeam = overPlayer.team;
+          targetIndex =
+            selectedLineup.teams[targetTeam]?.findIndex(
+              (p) => p.id === overId
+            ) ?? -1;
+        }
       }
-    }
 
-    if (!targetTeam || targetIndex === -1) return;
+      if (!targetTeam || targetIndex === -1) return;
 
-    // Reorder within same team
-    if (activePlayer.team === targetTeam) {
-      const teamPlayers = [...selectedLineup.teams[targetTeam]];
-      const oldIndex = teamPlayers.findIndex((p) => p.id === activeId);
+      // Reorder within same team
+      if (activePlayer.team === targetTeam) {
+        const teamPlayers = [...selectedLineup.teams[targetTeam]];
+        const oldIndex = teamPlayers.findIndex((p) => p.id === activeId);
 
-      if (oldIndex !== targetIndex) {
-        teamPlayers.splice(oldIndex, 1);
-        teamPlayers.splice(targetIndex, 0, activePlayer);
+        if (oldIndex !== targetIndex) {
+          teamPlayers.splice(oldIndex, 1);
+          teamPlayers.splice(targetIndex, 0, activePlayer);
 
-        const updatedTeams = {
-          ...selectedLineup.teams,
-          [targetTeam]: teamPlayers.map((p, idx) => ({ ...p, order: idx + 1 })),
-        };
+          const updatedTeams = {
+            ...selectedLineup.teams,
+            [targetTeam]: teamPlayers.map((p, idx) => ({
+              ...p,
+              order: idx + 1,
+            })),
+          };
 
-        const updatedLineup = { ...selectedLineup, teams: updatedTeams };
-        setSelectedLineup(updatedLineup);
-        setLineups((prev) =>
-          prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l))
-        );
+          const updatedLineup = { ...selectedLineup, teams: updatedTeams };
+          setSelectedLineup(updatedLineup);
+          setLineups((prev) =>
+            prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l))
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    // Move to different team
-
-    const { canAccept, reason } = canAcceptPlayer(
-      targetTeam,
-      activePlayer,
-      selectedLineup
-    );
-    if (!canAccept) {
-      showWarning(
-        "Cannot move player",
-        reason || "Team constraints prevent this move"
+      // Move to different team
+      const { canAccept, reason } = canAcceptPlayer(
+        targetTeam,
+        activePlayer,
+        selectedLineup
       );
-      return;
-    }
+      if (!canAccept) {
+        showWarning(
+          "Cannot move player",
+          reason || "Team constraints prevent this move"
+        );
+        return;
+      }
 
-    const updatedTeams = { ...selectedLineup.teams };
-    updatedTeams[activePlayer.team] = updatedTeams[activePlayer.team].filter(
-      (p) => p.id !== activeId
-    );
+      const updatedTeams = { ...selectedLineup.teams };
+      updatedTeams[activePlayer.team] = updatedTeams[activePlayer.team].filter(
+        (p) => p.id !== activeId
+      );
 
-    const updatedPlayer = { ...activePlayer, team: targetTeam };
-    updatedTeams[targetTeam] = [...(updatedTeams[targetTeam] || [])];
-    updatedTeams[targetTeam].splice(targetIndex, 0, updatedPlayer);
+      const updatedPlayer = { ...activePlayer, team: targetTeam };
+      updatedTeams[targetTeam] = [...(updatedTeams[targetTeam] || [])];
+      updatedTeams[targetTeam].splice(targetIndex, 0, updatedPlayer);
 
-    Object.keys(updatedTeams).forEach((teamKey) => {
-      updatedTeams[teamKey] = updatedTeams[teamKey].map((player, idx) => ({
-        ...player,
-        order: idx + 1,
-      }));
-    });
+      Object.keys(updatedTeams).forEach((teamKey) => {
+        updatedTeams[teamKey] = updatedTeams[teamKey].map((player, idx) => ({
+          ...player,
+          order: idx + 1,
+        }));
+      });
 
-    const updatedLineup = {
-      ...selectedLineup,
-      teams: updatedTeams,
-      totalPlayers: getAllPlayers({ ...selectedLineup, teams: updatedTeams })
-        .length,
-    };
+      const updatedLineup = {
+        ...selectedLineup,
+        teams: updatedTeams,
+        totalPlayers: getAllPlayers({ ...selectedLineup, teams: updatedTeams })
+          .length,
+      };
 
-    setSelectedLineup(updatedLineup);
-    setLineups((prev) =>
-      prev.map((lineup) =>
-        lineup.id === selectedLineup.id ? updatedLineup : lineup
-      )
-    );
-
-    try {
-      await lineupService.updatePlayerTeam(activePlayer.id, targetTeam);
-      showSuccess(`Player moved to Team ${targetTeam}`);
-    } catch (error) {
-      showError("Error", "Failed to update player team");
-      setSelectedLineup(selectedLineup);
+      setSelectedLineup(updatedLineup);
       setLineups((prev) =>
         prev.map((lineup) =>
-          lineup.id === selectedLineup.id ? selectedLineup : lineup
+          lineup.id === selectedLineup.id ? updatedLineup : lineup
         )
       );
-    }
-  };
+
+      try {
+        await lineupService.updatePlayerTeam(activePlayer.id, targetTeam);
+        showSuccess(`Player moved to Team ${targetTeam}`);
+      } catch (error) {
+        showError("Error", "Failed to update player team");
+        setSelectedLineup(selectedLineup);
+        setLineups((prev) =>
+          prev.map((lineup) =>
+            lineup.id === selectedLineup.id ? selectedLineup : lineup
+          )
+        );
+      }
+    },
+    [selectedLineup, canAcceptPlayer, showWarning, showSuccess, showError]
+  );
+
+  // ========== MEMOIZED VALUES ==========
+  const activeDragPlayer = useMemo(
+    () =>
+      selectedLineup
+        ? getAllPlayers(selectedLineup).find((p) => p.id === activeId)
+        : null,
+    [selectedLineup, activeId]
+  );
+
+  const filteredLineups = useMemo(
+    () =>
+      lineups.filter((lineup) => {
+        const matchesSearch =
+          !searchTerm ||
+          lineup.scheduleName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          lineup.venue.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || lineup.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [lineups, searchTerm, statusFilter]
+  );
 
   // ========== RENDER HELPERS ==========
-  const activeDragPlayer = selectedLineup
-    ? getAllPlayers(selectedLineup).find((p) => p.id === activeId)
-    : null;
+  const toggleTeamExpansion = useCallback((teamKey: string) => {
+    setExpandedTeams((prev) => ({ ...prev, [teamKey]: !prev[teamKey] }));
+  }, []);
 
-  const filteredLineups = lineups.filter((lineup) => {
-    const matchesSearch =
-      !searchTerm ||
-      lineup.scheduleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lineup.venue.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || lineup.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const renderTeamCards = () => {
+  const renderTeamCards = useMemo(() => {
     if (!selectedLineup) return null;
 
     const totalTeams = selectedLineup.totalTeams || 2;
-    const teams = [];
     const maxPlayersPerTeam = getPlayersPerTeam(selectedLineup);
 
-    let gridCols = "grid-cols-1 xl:grid-cols-2";
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+        {Array.from({ length: totalTeams }, (_, i) => {
+          const teamKey = getTeamLetter(i);
+          const teamColor = getTeamColor(i);
+          const teamPlayers = selectedLineup.teams[teamKey] || [];
+          const isExpanded = expandedTeams[teamKey] ?? true;
+          const hasGK = teamPlayers.some((p) => p.position === "GK");
+          const isFull = teamPlayers.length >= maxPlayersPerTeam;
+          const canAccept = activeDragPlayer
+            ? canAcceptPlayer(teamKey, activeDragPlayer, selectedLineup)
+                .canAccept
+            : true;
+          const isDragOver = overId === `team-${teamKey}-container`;
 
-    // FIXED: Use letter-based keys (A, B, C...)
-    for (let i = 0; i < totalTeams; i++) {
-      const teamKey = getTeamLetter(i);
-      const teamLetter = getTeamLetter(i);
-      const teamColor = getTeamColor(i);
-      const teamPlayers = selectedLineup.teams[teamKey] || [];
-      const isExpanded = expandedTeams[teamKey] ?? true;
-      const hasGK = teamPlayers.some((p) => p.position === "GK");
-      const isFull = teamPlayers.length >= maxPlayersPerTeam;
-      const canAccept = activeDragPlayer
-        ? canAcceptPlayer(teamKey, activeDragPlayer, selectedLineup).canAccept
-        : true;
-      const isDragOver = overId === `team-${teamKey}-container`;
-
-      teams.push(
-        <TeamDropzone
-          key={teamKey}
-          teamKey={teamKey}
-          onDrop={() => {}}
-          isActive={!!activeId && canAccept}
-        >
-          <Card
-            className={`shadow-lg border-2 bg-gradient-to-br transition-all ${
-              teamColor.gradient
-            } ${
-              isDragOver && canAccept ? teamColor.dragOver : teamColor.border
-            } ${!canAccept && activeId ? "opacity-50" : ""}`}
-          >
-            <CardHeader className={`border-b ${teamColor.bg} p-3 sm:p-4`}>
-              <button
-                onClick={() =>
-                  setExpandedTeams((prev) => ({
-                    ...prev,
-                    [teamKey]: !prev[teamKey],
-                  }))
-                }
-                className="w-full"
+          return (
+            <TeamDropzone
+              key={teamKey}
+              teamKey={teamKey}
+              isActive={!!activeId && canAccept}
+            >
+              <Card
+                className={`shadow-lg border-2 bg-gradient-to-br transition-all ${
+                  teamColor.gradient
+                } ${
+                  isDragOver && canAccept
+                    ? teamColor.dragOver
+                    : teamColor.border
+                } ${!canAccept && activeId ? "opacity-50" : ""}`}
               >
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div
-                      className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${teamColor.icon} rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0`}
-                    >
-                      <span className="text-white font-bold text-base sm:text-lg">
-                        {teamLetter}
-                      </span>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-sm sm:text-base">
-                        Team {teamLetter}
-                      </div>
-                      <div className="text-xs font-normal text-gray-600">
-                        {teamPlayers.length}/{maxPlayersPerTeam} players
-                        {hasGK && " • Has GK"}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    {isFull && (
-                      <Badge className="bg-green-100 text-green-700 hidden sm:inline-flex">
-                        <UserCheck className="w-3 h-3 mr-1" />
-                        Full
-                      </Badge>
-                    )}
-                    {!hasGK && teamPlayers.length > 0 && (
-                      <Badge className="bg-amber-100 text-amber-700 hidden sm:inline-flex">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        No GK
-                      </Badge>
-                    )}
-                    <Badge className={teamColor.badge}>
-                      {teamPlayers.length}
-                    </Badge>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
-                    )}
-                  </div>
-                </CardTitle>
-              </button>
-            </CardHeader>
-            {isExpanded && (
-              <CardContent className="p-3 sm:p-4">
-                <SortableContext
-                  items={[
-                    ...teamPlayers.map((p) => p.id),
-                    `team-${teamKey}-container`,
-                  ]}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div
-                    id={`team-${teamKey}-container`}
-                    className="space-y-2 sm:space-y-3 min-h-[150px] sm:min-h-[200px]"
+                <CardHeader className={`border-b ${teamColor.bg} p-3 sm:p-4`}>
+                  <button
+                    onClick={() => toggleTeamExpansion(teamKey)}
+                    className="w-full"
                   >
-                    {teamPlayers.length > 0 ? (
-                      teamPlayers.map((player, idx) => (
-                        <SortablePlayerCard
-                          key={player.id}
-                          player={player}
-                          index={idx}
-                          teamKey={teamLetter}
-                          canAcceptPlayer={canAccept}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-xl">
-                        <Users className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
-                        <p className="text-sm sm:text-base text-gray-500">
-                          Drop players here
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Max {maxPlayersPerTeam} players • 1 GK required
-                        </p>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div
+                          className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${teamColor.icon} rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0`}
+                        >
+                          <span className="text-white font-bold text-base sm:text-lg">
+                            {teamKey}
+                          </span>
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-sm sm:text-base">
+                            Team {teamKey}
+                          </div>
+                          <div className="text-xs font-normal text-gray-600">
+                            {teamPlayers.length}/{maxPlayersPerTeam} players
+                            {hasGK && " • Has GK"}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </SortableContext>
-              </CardContent>
-            )}
-          </Card>
-        </TeamDropzone>
-      );
-    }
-
-    return <div className={`grid ${gridCols} gap-4 sm:gap-6`}>{teams}</div>;
-  };
+                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                        {isFull && (
+                          <Badge className="bg-green-100 text-green-700 hidden sm:inline-flex">
+                            <UserCheck className="w-3 h-3 mr-1" />
+                            Full
+                          </Badge>
+                        )}
+                        {!hasGK && teamPlayers.length > 0 && (
+                          <Badge className="bg-amber-100 text-amber-700 hidden sm:inline-flex">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            No GK
+                          </Badge>
+                        )}
+                        <Badge className={teamColor.badge}>
+                          {teamPlayers.length}
+                        </Badge>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                        )}
+                      </div>
+                    </CardTitle>
+                  </button>
+                </CardHeader>
+                {isExpanded && (
+                  <CardContent className="p-3 sm:p-4">
+                    <SortableContext
+                      items={[
+                        ...teamPlayers.map((p) => p.id),
+                        `team-${teamKey}-container`,
+                      ]}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div
+                        id={`team-${teamKey}-container`}
+                        className="space-y-2 sm:space-y-3 min-h-[150px] sm:min-h-[200px]"
+                      >
+                        {teamPlayers.length > 0 ? (
+                          teamPlayers.map((player, idx) => (
+                            <SortablePlayerCard
+                              key={player.id}
+                              player={player}
+                              index={idx}
+                              teamKey={teamKey}
+                              canAcceptPlayer={canAccept}
+                            />
+                          ))
+                        ) : (
+                          <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-xl">
+                            <Users className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
+                            <p className="text-sm sm:text-base text-gray-500">
+                              Drop players here
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Max {maxPlayersPerTeam} players • 1 GK required
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </SortableContext>
+                  </CardContent>
+                )}
+              </Card>
+            </TeamDropzone>
+          );
+        })}
+      </div>
+    );
+  }, [
+    selectedLineup,
+    expandedTeams,
+    activeId,
+    activeDragPlayer,
+    overId,
+    canAcceptPlayer,
+    toggleTeamExpansion,
+  ]);
 
   // ========== LOADING STATE ==========
   if (loading) {
@@ -867,7 +895,7 @@ export default function LineupManagement() {
                   </CardContent>
                 </Card>
 
-                {renderTeamCards()}
+                {renderTeamCards}
 
                 <DragOverlay>
                   {activeId && activeDragPlayer && (

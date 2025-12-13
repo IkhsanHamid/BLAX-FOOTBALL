@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus,
   Edit,
@@ -39,14 +39,22 @@ import ConfirmationModal from "../molecules/ConfirmationModal";
 import Pagination from "../atoms/Pagination";
 import { TableLoadingSkeleton } from "./LoadingSkeleton";
 import ImageUpload from "../atoms/ImageUpload";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Constants
 const ITEMS_PER_PAGE = 10;
 const SLOTS_PER_TEAM = { FUTSAL: 5, "MINI-SOCCER": 7, FOOTBALL: 11 };
 const EVENT_TYPES = ["FUN GAME"];
-const MATCH_TYPES = ["FUTSAL", "MINI-SOCCER", "FOOTBALL"];
+const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
+const PADEL_MATCH_TYPE = "PADEL";
+
+const DATE_FILTER_LABELS = {
+  today: "Today",
+  week: "This Week",
+  month: "This Month",
+};
 
 // Types
 interface ScheduleTabProps {
@@ -99,32 +107,34 @@ const initialFormState: ScheduleForm = {
 };
 
 // Helper Components
-const StatCard = ({ title, value, icon: Icon, bgColor, iconColor }: any) => (
-  <Card className="hover:shadow-lg transition-shadow duration-200">
-    <CardContent className="p-6">
-      <div className="pt-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+const StatCard = React.memo(
+  ({ title, value, icon: Icon, bgColor, iconColor }: any) => (
+    <Card className="hover:shadow-lg transition-shadow duration-200">
+      <CardContent className="p-6">
+        <div className="pt-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+          </div>
+          <div className={`p-3 ${bgColor} rounded-lg`}>
+            <Icon className={`w-6 h-6 ${iconColor}`} />
+          </div>
         </div>
-        <div className={`p-3 ${bgColor} rounded-lg`}>
-          <Icon className={`w-6 h-6 ${iconColor}`} />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
+  )
 );
 
-const FilterBadge = ({ label, value, onRemove }: any) => (
+const FilterBadge = React.memo(({ label, value, onRemove }: any) => (
   <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
     {label}: {value}
     <button onClick={onRemove} className="ml-1 hover:text-blue-600">
       ×
     </button>
   </span>
-);
+));
 
-const EmptyState = ({ hasFilters, onAddSchedule }: any) => (
+const EmptyState = React.memo(({ hasFilters, onAddSchedule }: any) => (
   <div className="text-center py-12">
     <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
     <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -144,7 +154,7 @@ const EmptyState = ({ hasFilters, onAddSchedule }: any) => (
       </Button>
     )}
   </div>
-);
+));
 
 const formatCurrency = (value: string): string => {
   if (!value) return "";
@@ -156,11 +166,10 @@ export default function ScheduleTab({
   showError,
   showSuccess,
 }: ScheduleTabProps) {
+  const { user } = useAuth();
+
   // State Management
   const [schedules, setSchedules] = useState<ScheduleOverview[]>([]);
-  const [filteredSchedules, setFilteredSchedules] = useState<
-    ScheduleOverview[]
-  >([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -199,20 +208,6 @@ export default function ScheduleTab({
     }
   }, [dateFilter, showError]);
 
-  const handleFeeChange = (field: "feePlayer" | "feeGk", value: string) => {
-    // Remove non-numeric characters except digits
-    const numericValue = value.replace(/\D/g, "");
-
-    setScheduleForm((prev) => ({
-      ...prev,
-      [field]: numericValue,
-    }));
-
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
   const fetchMasterData = useCallback(async () => {
     try {
       const [venuesData, facilitiesData, rulesData] = await Promise.all([
@@ -236,32 +231,115 @@ export default function ScheduleTab({
     fetchScheduleOverview();
   }, [fetchScheduleOverview]);
 
-  // Filtering
-  useEffect(() => {
-    let filtered = schedules;
+  // Memoized Computed Values
+  const stats = useMemo(
+    () => ({
+      total: schedules.length,
+      active: schedules.filter((s) => s.status === "active").length,
+      completed: schedules.filter((s) => s.status === "completed").length,
+      totalRevenue: schedules.reduce((sum, s) => sum + s.revenue, 0),
+    }),
+    [schedules]
+  );
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (s) =>
-          s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.venue.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+  const uniqueVenues = useMemo(
+    () => [...new Set(schedules.map((s) => s.venue))],
+    [schedules]
+  );
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((s) => s.status === statusFilter);
-    }
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter((s) => {
+      const matchesSearch =
+        !searchTerm ||
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.venue.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (venueFilter !== "all") {
-      filtered = filtered.filter((s) => s.venue === venueFilter);
-    }
+      const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+      const matchesVenue = venueFilter === "all" || s.venue === venueFilter;
 
-    setFilteredSchedules(filtered);
-    setCurrentPage(1);
+      return matchesSearch && matchesStatus && matchesVenue;
+    });
   }, [schedules, searchTerm, statusFilter, venueFilter]);
 
+  const hasActiveFilters =
+    searchTerm || statusFilter !== "all" || venueFilter !== "all";
+
+  const { paginatedSchedules, totalPages, startIndex } = useMemo(() => {
+    const total = Math.ceil(filteredSchedules.length / ITEMS_PER_PAGE);
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginated = filteredSchedules.slice(start, start + ITEMS_PER_PAGE);
+
+    return {
+      paginatedSchedules: paginated,
+      totalPages: total,
+      startIndex: start,
+    };
+  }, [filteredSchedules, currentPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, venueFilter]);
+
+  // Form Handlers
+  const handleFeeChange = useCallback(
+    (field: "feePlayer" | "feeGk", value: string) => {
+      const numericValue = value.replace(/\D/g, "");
+      setScheduleForm((prev) => ({ ...prev, [field]: numericValue }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    },
+    []
+  );
+
+  const handleFormChange = useCallback((field: string, value: string) => {
+    setScheduleForm((prev) => {
+      const updated = { ...prev, [field]: value };
+
+      if (field === "typeMatch") {
+        const isPadel = value === PADEL_MATCH_TYPE;
+        if (isPadel) {
+          updated.totalTeams = 0;
+        } else {
+          const slots =
+            SLOTS_PER_TEAM[value as keyof typeof SLOTS_PER_TEAM] || 0;
+          updated.totalSlots = slots * prev.totalTeams;
+        }
+      } else if (
+        field === "totalTeams" &&
+        prev.typeMatch !== PADEL_MATCH_TYPE
+      ) {
+        const slots =
+          SLOTS_PER_TEAM[prev.typeMatch as keyof typeof SLOTS_PER_TEAM] || 0;
+        updated.totalSlots = slots * Number(value);
+      }
+
+      return updated;
+    });
+
+    setFormErrors((prev) => ({ ...prev, [field]: "" }));
+  }, []);
+
+  const handleArrayChange = useCallback(
+    (field: "facilityIds" | "ruleIds", id: string, checked: boolean) => {
+      setScheduleForm((prev) => ({
+        ...prev,
+        [field]: checked
+          ? [...prev[field], id]
+          : prev[field].filter((i) => i !== id),
+      }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    },
+    []
+  );
+
+  const resetForm = useCallback(() => {
+    setScheduleForm(initialFormState);
+    setFormErrors({});
+    setEditingSchedule(null);
+  }, []);
+
   // Form Validation
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
     const requiredFields = {
       name: "Schedule name is required",
@@ -289,7 +367,6 @@ export default function ScheduleTab({
       errors.ruleIds = "At least one rule must be selected";
     }
 
-    // Numeric validation
     ["feePlayer", "feeGk"].forEach((field) => {
       const value = scheduleForm[field as keyof ScheduleForm];
       if (value && (isNaN(Number(value)) || Number(value) < 0)) {
@@ -301,78 +378,30 @@ export default function ScheduleTab({
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  // Form Handlers
-  const handleFormChange = (field: string, value: string) => {
-    setScheduleForm((prev) => {
-      const updated = { ...prev, [field]: value };
-
-      // Auto-calculate slots
-      if (field === "typeMatch" || field === "totalTeams") {
-        const matchType = field === "typeMatch" ? value : prev.typeMatch;
-        const slots =
-          SLOTS_PER_TEAM[matchType as keyof typeof SLOTS_PER_TEAM] || 0;
-        const teams = Number(field === "totalTeams" ? value : prev.totalTeams);
-        updated.totalSlots = slots * teams;
-      }
-
-      return updated;
-    });
-
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const handleArrayChange = (
-    field: "facilityIds" | "ruleIds",
-    id: string,
-    checked: boolean
-  ) => {
-    setScheduleForm((prev) => ({
-      ...prev,
-      [field]: checked
-        ? [...prev[field], id]
-        : prev[field].filter((i) => i !== id),
-    }));
-
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const resetForm = () => {
-    setScheduleForm(initialFormState);
-    setFormErrors({});
-    setEditingSchedule(null);
-  };
+  }, [scheduleForm]);
 
   // CRUD Operations
-  const handleSaveSchedule = async () => {
+  const handleSaveSchedule = useCallback(async () => {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
       const formData = new FormData();
 
-      // Basic fields
       formData.append("name", scheduleForm.name);
       formData.append("date", scheduleForm.date);
       formData.append("time", scheduleForm.time);
       formData.append("venueId", scheduleForm.venueId);
-      formData.append("team", String(scheduleForm.totalTeams)); // Kirim sebagai "team"
+      formData.append("team", String(scheduleForm.totalTeams));
       formData.append("feePlayer", scheduleForm.feePlayer);
       formData.append("feeGk", scheduleForm.feeGk);
       formData.append("typeEvent", scheduleForm.typeEvent);
       formData.append("typeMatch", scheduleForm.typeMatch);
 
-      // Image
       if (scheduleForm.image) {
         formData.append("imageUrl", scheduleForm.image as File);
       }
 
-      // Arrays
       scheduleForm.facilityIds.forEach((id) =>
         formData.append("facilityIds[]", id)
       );
@@ -395,35 +424,46 @@ export default function ScheduleTab({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    scheduleForm,
+    editingSchedule,
+    validateForm,
+    showSuccess,
+    showError,
+    resetForm,
+    fetchScheduleOverview,
+  ]);
 
-  const handleEditSchedule = (schedule: ScheduleOverview) => {
-    const venue = venues.find((v) => v.name === schedule.venue);
-    setEditingSchedule(schedule);
-    setScheduleForm({
-      name: schedule.name,
-      date: schedule.date,
-      time: schedule.time,
-      venueId: venue?.id || "",
-      totalTeams: Number(schedule.team),
-      totalSlots: schedule.totalSlots,
-      feePlayer: String(schedule.feePlayer),
-      feeGk: String(schedule.feeGk),
-      typeEvent: schedule.typeEvent,
-      typeMatch: schedule.typeMatch,
-      image: String(schedule.image),
-      facilityIds:
-        schedule.facilities?.map((f: any) =>
-          typeof f === "string" ? f : f.id
-        ) || [],
-      ruleIds:
-        schedule.rules?.map((r: any) => (typeof r === "string" ? r : r.id)) ||
-        [],
-    });
-    setShowScheduleDialog(true);
-  };
+  const handleEditSchedule = useCallback(
+    (schedule: ScheduleOverview) => {
+      const venue = venues.find((v) => v.name === schedule.venue);
+      setEditingSchedule(schedule);
+      setScheduleForm({
+        name: schedule.name,
+        date: schedule.date,
+        time: schedule.time,
+        venueId: venue?.id || "",
+        totalTeams: Number(schedule.team),
+        totalSlots: schedule.totalSlots,
+        feePlayer: String(schedule.feePlayer),
+        feeGk: String(schedule.feeGk),
+        typeEvent: schedule.typeEvent,
+        typeMatch: schedule.typeMatch,
+        image: String(schedule.image),
+        facilityIds:
+          schedule.facilities?.map((f: any) =>
+            typeof f === "string" ? f : f.id
+          ) || [],
+        ruleIds:
+          schedule.rules?.map((r: any) => (typeof r === "string" ? r : r.id)) ||
+          [],
+      });
+      setShowScheduleDialog(true);
+    },
+    [venues]
+  );
 
-  const handleDeleteSchedule = async () => {
+  const handleDeleteSchedule = useCallback(async () => {
     if (!scheduleToDelete) return;
 
     setIsDeleting(true);
@@ -438,25 +478,23 @@ export default function ScheduleTab({
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, [scheduleToDelete, showSuccess, showError, fetchScheduleOverview]);
 
-  // Computed Values
-  const stats = {
-    total: schedules.length,
-    active: schedules.filter((s) => s.status === "active").length,
-    completed: schedules.filter((s) => s.status === "completed").length,
-    totalRevenue: schedules.reduce((sum, s) => sum + s.revenue, 0),
-  };
-
-  const uniqueVenues = [...new Set(schedules.map((s) => s.venue))];
-  const hasActiveFilters =
-    searchTerm || statusFilter !== "all" || venueFilter !== "all";
-
-  const totalPages = Math.ceil(filteredSchedules.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedSchedules = filteredSchedules.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
+  const removeFilter = useCallback(
+    (filterType: "search" | "status" | "venue") => {
+      switch (filterType) {
+        case "search":
+          setSearchTerm("");
+          break;
+        case "status":
+          setStatusFilter("all");
+          break;
+        case "venue":
+          setVenueFilter("all");
+          break;
+      }
+    },
+    []
   );
 
   if (isLoading) return <TableLoadingSkeleton />;
@@ -507,13 +545,15 @@ export default function ScheduleTab({
           bgColor="bg-purple-100"
           iconColor="text-purple-600"
         />
-        <StatCard
-          title="Total Revenue"
-          value={`Rp ${(stats.totalRevenue / 1000000).toFixed(1)}M`}
-          icon={DollarSign}
-          bgColor="bg-yellow-100"
-          iconColor="text-yellow-600"
-        />
+        {user?.role === "Owner" && (
+          <StatCard
+            title="Total Revenue"
+            value={`Rp ${(stats.totalRevenue / 1000000).toFixed(1)}M`}
+            icon={DollarSign}
+            bgColor="bg-yellow-100"
+            iconColor="text-yellow-600"
+          />
+        )}
       </div>
 
       {/* Filters */}
@@ -536,10 +576,9 @@ export default function ScheduleTab({
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border rounded-lg"
               >
-                <option value="all">All Status</option>
-                {STATUS_OPTIONS.slice(1).map((s) => (
+                {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {s === "all" ? "All Status" : s}
                   </option>
                 ))}
               </select>
@@ -548,14 +587,13 @@ export default function ScheduleTab({
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="px-3 py-2 border rounded-lg"
               >
-                <option value="all">All Time</option>
-                {DATE_FILTERS.slice(1).map((d) => (
+                {DATE_FILTERS.map((d) => (
                   <option key={d} value={d}>
-                    {d === "today"
-                      ? "Today"
-                      : d === "week"
-                      ? "This Week"
-                      : "This Month"}
+                    {d === "all"
+                      ? "All Time"
+                      : DATE_FILTER_LABELS[
+                          d as keyof typeof DATE_FILTER_LABELS
+                        ]}
                   </option>
                 ))}
               </select>
@@ -581,21 +619,21 @@ export default function ScheduleTab({
                 <FilterBadge
                   label="Search"
                   value={searchTerm}
-                  onRemove={() => setSearchTerm("")}
+                  onRemove={() => removeFilter("search")}
                 />
               )}
               {statusFilter !== "all" && (
                 <FilterBadge
                   label="Status"
                   value={statusFilter}
-                  onRemove={() => setStatusFilter("all")}
+                  onRemove={() => removeFilter("status")}
                 />
               )}
               {venueFilter !== "all" && (
                 <FilterBadge
                   label="Venue"
                   value={venueFilter}
-                  onRemove={() => setVenueFilter("all")}
+                  onRemove={() => removeFilter("venue")}
                 />
               )}
             </div>
@@ -628,113 +666,110 @@ export default function ScheduleTab({
                   <TableHead>Venue</TableHead>
                   <TableHead>Teams</TableHead>
                   <TableHead>Booking</TableHead>
-                  <TableHead>Revenue</TableHead>
+                  {user?.role === "Owner" && <TableHead>Revenue</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedSchedules.map((schedule) => (
-                  <TableRow key={schedule.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{schedule.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {formatDate(schedule.date)} • {schedule.time} WIB
+                {paginatedSchedules.map((schedule) => {
+                  const isDisabled =
+                    schedule.status === "CANCELLED" ||
+                    schedule.status === "COMPLETED";
+                  const bookingPercentage = Math.round(
+                    (schedule.bookedSlots / schedule.totalSlots) * 100
+                  );
+
+                  return (
+                    <TableRow key={schedule.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-lg flex items-center justify-center">
+                            <Calendar className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{schedule.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {formatDate(schedule.date)} • {schedule.time} WIB
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <MapPin className="w-4 h-4 text-gray-400 mr-1" />
-                        {schedule.venue}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 text-gray-400 mr-1" />
-                        {schedule.team} teams ({schedule.totalSlots} slots)
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">
-                          {schedule.bookedSlots}/{schedule.totalSlots}
-                        </span>
-                        <div className="w-20 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full"
-                            style={{
-                              width: `${
-                                (schedule.bookedSlots / schedule.totalSlots) *
-                                100
-                              }%`,
-                            }}
-                          />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <MapPin className="w-4 h-4 text-gray-400 mr-1" />
+                          {schedule.venue}
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {Math.round(
-                            (schedule.bookedSlots / schedule.totalSlots) * 100
-                          )}
-                          %
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium text-green-600">
-                        Rp {schedule.revenue.toLocaleString("id-ID")}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          schedule.status === "ACTIVE"
-                            ? "bg-green-100 text-green-800"
-                            : schedule.status === "CANCELLED"
-                            ? "bg-red-400 text-white"
-                            : "bg-gray-100 text-gray-800"
-                        }
-                      >
-                        {schedule.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditSchedule(schedule)}
-                          disabled={
-                            schedule.status === "CANCELLED" ||
-                            schedule.status === "COMPLETED"
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 text-gray-400 mr-1" />
+                          {schedule.team} teams ({schedule.totalSlots} slots)
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium">
+                            {schedule.bookedSlots}/{schedule.totalSlots}
+                          </span>
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-green-600 h-2 rounded-full"
+                              style={{ width: `${bookingPercentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {bookingPercentage}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      {user?.role === "Owner" && (
+                        <TableCell>
+                          <div className="text-sm font-medium text-green-600">
+                            Rp {schedule.revenue.toLocaleString("id-ID")}
+                          </div>
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <Badge
+                          className={
+                            schedule.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800"
+                              : schedule.status === "CANCELLED"
+                              ? "bg-red-400 text-white"
+                              : "bg-gray-100 text-gray-800"
                           }
                         >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setScheduleToDelete(schedule);
-                            setShowDeleteConfirm(true);
-                          }}
-                          disabled={
-                            schedule.status === "CANCELLED" ||
-                            schedule.status === "COMPLETED"
-                          }
-                          className="text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {schedule.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditSchedule(schedule)}
+                            disabled={isDisabled}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setScheduleToDelete(schedule);
+                              setShowDeleteConfirm(true);
+                            }}
+                            disabled={isDisabled}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -878,29 +913,48 @@ export default function ScheduleTab({
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
+              {scheduleForm.typeMatch !== PADEL_MATCH_TYPE && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Total Teams <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    value={String(scheduleForm.totalTeams)}
+                    onChange={(e) =>
+                      handleFormChange("totalTeams", e.target.value)
+                    }
+                    min="2"
+                    disabled={!scheduleForm.typeMatch}
+                  />
+                </div>
+              )}
+              <div
+                className={
+                  scheduleForm.typeMatch === PADEL_MATCH_TYPE
+                    ? "md:col-span-2"
+                    : ""
+                }
+              >
                 <label className="block text-sm font-medium mb-2">
-                  Total Teams <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  value={String(scheduleForm.totalTeams)}
-                  onChange={(e) =>
-                    handleFormChange("totalTeams", e.target.value)
-                  }
-                  min="2"
-                  disabled={!scheduleForm.typeMatch}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Total Slots
+                  Total Slots{" "}
+                  {scheduleForm.typeMatch === PADEL_MATCH_TYPE && (
+                    <span className="text-red-500">*</span>
+                  )}
                 </label>
                 <Input
                   type="number"
                   value={String(scheduleForm.totalSlots)}
-                  disabled
-                  className="bg-gray-100"
+                  onChange={(e) =>
+                    handleFormChange("totalSlots", e.target.value)
+                  }
+                  disabled={scheduleForm.typeMatch !== PADEL_MATCH_TYPE}
+                  className={
+                    scheduleForm.typeMatch !== PADEL_MATCH_TYPE
+                      ? "bg-gray-100"
+                      : ""
+                  }
+                  min="1"
                 />
               </div>
             </div>

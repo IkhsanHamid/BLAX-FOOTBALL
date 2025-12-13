@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Search,
   Edit,
@@ -12,6 +12,8 @@ import {
   Phone,
   Calendar,
   Trophy,
+  Crown,
+  Loader2,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -27,7 +29,6 @@ import Badge from "@/components/atoms/Badge";
 import { UserManagement, Roles } from "@/types/admin";
 import { adminService } from "@/utils/admin";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
-import { Loader2 } from "lucide-react";
 import { formatDate } from "@/lib/helper";
 import {
   Dialog,
@@ -40,6 +41,7 @@ import ConfirmationModal from "../molecules/ConfirmationModal";
 import Pagination from "../atoms/Pagination";
 import { TableLoadingSkeleton } from "./LoadingSkeleton";
 
+// --- Static Constants (Moved outside to reduce compile/render overhead) ---
 const ITEMS_PER_PAGE = 10;
 const ACTIVE_DAYS_THRESHOLD = 30;
 
@@ -50,7 +52,7 @@ const initialFormState = {
   role: "",
 };
 
-const statsConfig = [
+const STATS_CONFIG = [
   { key: "total", label: "Total Users", icon: Users, color: "blue" },
   { key: "active", label: "Active Users", icon: UserCheck, color: "green" },
   {
@@ -62,93 +64,192 @@ const statsConfig = [
   { key: "totalGames", label: "Total Games", icon: Trophy, color: "yellow" },
 ];
 
+const INPUT_FIELDS = [
+  {
+    field: "name",
+    label: "Full Name",
+    type: "text",
+    placeholder: "Enter full name",
+  },
+  {
+    field: "email",
+    label: "Email Address",
+    type: "email",
+    placeholder: "Enter email address",
+  },
+  {
+    field: "phone",
+    label: "Phone Number",
+    type: "tel",
+    placeholder: "Enter phone number",
+  },
+];
+
 export default function UsersTab() {
+  // --- State Management ---
   const [users, setUsers] = useState<UserManagement[]>([]);
   const [roles, setRoles] = useState<Roles[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserManagement[]>([]);
+  // Removed filteredUsers state to avoid double renders
   const [loading, setLoading] = useState(true);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // UI Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showUserDialog, setShowUserDialog] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserManagement | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Form & Editing
+  const [editingUser, setEditingUser] = useState<UserManagement | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserManagement | null>(null);
   const [userForm, setUserForm] = useState(initialFormState);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const { showSuccess, showError } = useNotifications();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchTerm, roleFilter, statusFilter]);
-
-  const fetchUsers = async () => {
+  // --- Data Fetching ---
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await adminService.getAllUsers(100, 0, searchTerm);
+      // Note: SearchTerm used here is from state, but intended for initial load or refresh
+      const result = await adminService.getAllUsers(100, 0, "");
       setUsers(result.users);
     } catch (error) {
       showError("Error", "Failed to load users");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const rolesData = await adminService.getRoles();
       setRoles(rolesData);
+      // Auto-set default role if form is pristine
       if (rolesData.length > 0 && !userForm.role && !editingUser) {
         setUserForm((prev) => ({ ...prev, role: rolesData[0].id }));
       }
     } catch (error) {
       showError("Error", "Failed to load roles");
     }
-  };
+  }, [showError, userForm.role, editingUser]);
 
-  const isUserActive = (lastPlayed: string | null) => {
+  useEffect(() => {
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+  // --- Optimized Helpers (Memoized) ---
+
+  // Create a lookup map for roles to avoid .find() loops in the table render (O(1) access)
+  const roleMap = useMemo(() => {
+    return roles.reduce((acc, role) => {
+      acc[role.id] = role.name;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [roles]);
+
+  const getRoleName = useCallback(
+    (roleId: string) => roleMap[roleId] || roleId,
+    [roleMap]
+  );
+
+  const isUserActive = useCallback((lastPlayed: string | null) => {
     if (!lastPlayed) return false;
     const threshold = Date.now() - ACTIVE_DAYS_THRESHOLD * 24 * 60 * 60 * 1000;
-    return new Date(lastPlayed) > new Date(threshold);
-  };
+    return new Date(lastPlayed).getTime() > threshold;
+  }, []);
 
-  const filterUsers = () => {
-    let filtered = users;
+  // --- Filtering Logic (useMemo replaces useEffect + useState) ---
+  const filteredUsers = useMemo(() => {
+    let result = users;
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
+      result = result.filter(
         (u) =>
-          u.name.toLowerCase().includes(term) ||
-          u.email.toLowerCase().includes(term) ||
-          u.phone.includes(term)
+          // Tambahkan (u.field || "") untuk mencegah error pada data null
+          (u.name || "").toLowerCase().includes(term) ||
+          (u.email || "").toLowerCase().includes(term) ||
+          (u.phone || "").includes(term)
       );
     }
 
     if (roleFilter !== "all") {
-      filtered = filtered.filter((u) => u.role === roleFilter);
+      result = result.filter((u) => u.role === roleFilter);
     }
 
-    if (statusFilter === "active") {
-      filtered = filtered.filter((u) => isUserActive(u.lastPlayed));
-    } else if (statusFilter === "inactive") {
-      filtered = filtered.filter((u) => !isUserActive(u.lastPlayed));
+    if (statusFilter !== "all") {
+      const checkActive = statusFilter === "active";
+      result = result.filter((u) => isUserActive(u.lastPlayed) === checkActive);
     }
 
-    setFilteredUsers(filtered);
+    return result;
+  }, [users, searchTerm, roleFilter, statusFilter, isUserActive]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
     setCurrentPage(1);
-  };
+  }, [searchTerm, roleFilter, statusFilter]);
+
+  // --- Stats Calculation (Memoized) ---
+  const stats = useMemo(
+    () => ({
+      total: users.length,
+      active: users.filter((u) => isUserActive(u.lastPlayed)).length,
+      newThisMonth: users.filter(
+        (u) =>
+          new Date(u.createdAt).getTime() >
+          Date.now() - 30 * 24 * 60 * 60 * 1000
+      ).length,
+      totalGames: users.reduce((sum, u) => sum + (u.gamesPlayed || 0), 0),
+    }),
+    [users, isUserActive]
+  );
+
+  // --- Handlers ---
+  const handleUserInputChange = useCallback((field: string, value: string) => {
+    setUserForm((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => (prev[field] ? { ...prev, [field]: "" } : prev));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setUserForm(
+      roles.length > 0
+        ? { ...initialFormState, role: roles[0].id }
+        : initialFormState
+    );
+    setFormErrors({});
+    setEditingUser(null);
+  }, [roles]);
+
+  const handleOpenUserDialog = useCallback(() => {
+    setShowUserDialog(true);
+    if (roles.length === 0) fetchRoles();
+  }, [roles.length, fetchRoles]);
+
+  const handleEditUser = useCallback(
+    (user: UserManagement) => {
+      setEditingUser(user);
+      setUserForm({
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      });
+      // Ensure roles are loaded if editing immediately
+      if (roles.length === 0) fetchRoles();
+      setShowUserDialog(true);
+    },
+    [roles.length, fetchRoles]
+  );
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-
     if (!userForm.name.trim()) errors.name = "Name is required";
     if (!userForm.email.trim()) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(userForm.email))
@@ -163,21 +264,12 @@ export default function UsersTab() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleUserInputChange = (field: string, value: string) => {
-    setUserForm((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
   const handleSaveUser = async () => {
     if (!validateForm()) return;
 
     try {
       setActionLoading("save");
-
       if (editingUser) {
-        // Edit existing user
         await adminService.editStaff(editingUser.id, {
           name: userForm.name,
           email: userForm.email,
@@ -185,7 +277,6 @@ export default function UsersTab() {
         });
         showSuccess("User updated successfully!");
       } else {
-        // Create new user
         await adminService.addStaff({
           name: userForm.name,
           email: userForm.email,
@@ -204,30 +295,8 @@ export default function UsersTab() {
     }
   };
 
-  const resetForm = () => {
-    setUserForm(
-      roles.length > 0
-        ? { ...initialFormState, role: roles[0].id }
-        : initialFormState
-    );
-    setFormErrors({});
-    setEditingUser(null);
-  };
-
-  const handleEditUser = (user: UserManagement) => {
-    setEditingUser(user);
-    setUserForm({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-    });
-    setShowUserDialog(true);
-  };
-
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-
     try {
       setActionLoading("delete");
       await adminService.removeUser(userToDelete.id);
@@ -242,50 +311,40 @@ export default function UsersTab() {
     }
   };
 
-  const handleOpenUserDialog = () => {
-    setShowUserDialog(true);
-    if (roles.length === 0) fetchRoles();
-  };
-
-  const getRoleName = (roleId: string) => {
-    const role = roles.find((r) => r.id === roleId);
-    return role ? role.name : roleId;
-  };
-
-  const uniqueRoles = [...new Set(users.map((u) => u.role))];
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedUsers = filteredUsers.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
+  // --- Derived View Data ---
+  const uniqueRoles = useMemo(
+    () => [...new Set(users.map((u) => u.role))],
+    [users]
   );
 
-  const stats = {
-    total: users.length,
-    active: users.filter((u) => isUserActive(u.lastPlayed)).length,
-    newThisMonth: users.filter(
-      (u) => u.createdAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    ).length,
-    totalGames: users.reduce((sum, u) => sum + (u.gamesPlayed || 0), 0),
-  };
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE),
+    [filteredUsers, startIndex]
+  );
 
-  const activeFilters = [
-    searchTerm && {
-      label: "Search",
-      value: searchTerm,
-      clear: () => setSearchTerm(""),
-    },
-    roleFilter !== "all" && {
-      label: "Role",
-      value: getRoleName(roleFilter),
-      clear: () => setRoleFilter("all"),
-    },
-    statusFilter !== "all" && {
-      label: "Status",
-      value: statusFilter,
-      clear: () => setStatusFilter("all"),
-    },
-  ].filter(Boolean);
+  const activeFilters = useMemo(
+    () =>
+      [
+        searchTerm && {
+          label: "Search",
+          value: searchTerm,
+          clear: () => setSearchTerm(""),
+        },
+        roleFilter !== "all" && {
+          label: "Role",
+          value: getRoleName(roleFilter),
+          clear: () => setRoleFilter("all"),
+        },
+        statusFilter !== "all" && {
+          label: "Status",
+          value: statusFilter,
+          clear: () => setStatusFilter("all"),
+        },
+      ].filter(Boolean),
+    [searchTerm, roleFilter, statusFilter, getRoleName]
+  );
 
   if (loading) return <TableLoadingSkeleton />;
 
@@ -315,7 +374,7 @@ export default function UsersTab() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {statsConfig.map(({ key, label, icon: Icon, color }) => (
+        {STATS_CONFIG.map(({ key, label, icon: Icon, color }) => (
           <Card
             key={key}
             className="hover:shadow-lg transition-shadow duration-200"
@@ -404,7 +463,7 @@ export default function UsersTab() {
       {/* Results Info */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600">
-          Showing {startIndex + 1}-
+          Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}-
           {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
           {filteredUsers.length} users
         </p>
@@ -430,8 +489,7 @@ export default function UsersTab() {
                   onClick={handleOpenUserDialog}
                   className="flex items-center mx-auto"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add First User
+                  <UserPlus className="w-4 h-4 mr-2" /> Add First User
                 </Button>
               )}
             </div>
@@ -442,7 +500,7 @@ export default function UsersTab() {
                   <TableHead>User</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Games Played</TableHead>
+                  <TableHead>Total Points</TableHead>
                   <TableHead>Last Activity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -458,8 +516,11 @@ export default function UsersTab() {
                           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
                             {user.name.charAt(0).toUpperCase()}
                           </div>
-                          <div className="font-medium text-gray-900">
-                            {user.name}
+                          <div className="flex items-center font-medium text-gray-900">
+                            <span>{user.name}</span>
+                            {user.isMember && (
+                              <Crown className="w-4 h-4 ml-1 fill-purple-700 text-purple-700" />
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -473,7 +534,17 @@ export default function UsersTab() {
                           </div>
                           <div className="flex items-center text-sm">
                             <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                            <span>{user.phone}</span>
+                            <a
+                              href={`https://wa.me/${user.phone.replace(
+                                /^0/,
+                                "62"
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 underline hover:text-blue-700"
+                            >
+                              {user.phone}
+                            </a>
                           </div>
                         </div>
                       </TableCell>
@@ -493,9 +564,9 @@ export default function UsersTab() {
                         <div className="flex items-center space-x-2">
                           <Trophy className="w-4 h-4 text-yellow-500" />
                           <span className="font-medium">
-                            {user.gamesPlayed || 0}
+                            {user.totalPoints || 0}
                           </span>
-                          {(user.gamesPlayed || 0) >= 10 && (
+                          {(user.totalPoints || 0) >= 10 && (
                             <Badge
                               variant="outline"
                               className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
@@ -513,7 +584,9 @@ export default function UsersTab() {
                               {formatDate(user.lastPlayed)}
                             </div>
                           ) : (
-                            <span className="text-gray-400">Never</span>
+                            <span className="text-gray-400">
+                              Belum Pernah Main
+                            </span>
                           )}
                         </div>
                       </TableCell>
@@ -594,26 +667,7 @@ export default function UsersTab() {
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                {
-                  field: "name",
-                  label: "Full Name",
-                  type: "text",
-                  placeholder: "Enter full name",
-                },
-                {
-                  field: "email",
-                  label: "Email Address",
-                  type: "email",
-                  placeholder: "Enter email address",
-                },
-                {
-                  field: "phone",
-                  label: "Phone Number",
-                  type: "tel",
-                  placeholder: "Enter phone number",
-                },
-              ].map(({ field, label, type, placeholder }) => (
+              {INPUT_FIELDS.map(({ field, label, type, placeholder }) => (
                 <div key={field}>
                   <label className="block text-sm font-medium mb-2">
                     {label} *

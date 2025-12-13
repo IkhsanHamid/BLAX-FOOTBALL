@@ -24,6 +24,7 @@ interface AdminSidebarProps {
   onTabChange: (tab: string) => void;
   isMobileOpen: boolean;
   onMobileToggle: () => void;
+  userRole?: string;
 }
 
 const navItems: NavItem[] = [
@@ -51,6 +52,7 @@ export default function AdminSidebar({
   onTabChange,
   isMobileOpen,
   onMobileToggle,
+  userRole,
 }: AdminSidebarProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -88,6 +90,15 @@ export default function AdminSidebar({
     }
   };
 
+  // Filter navigation items based on user role
+  const filteredNavItems = navItems.filter((item) => {
+    // Only Owner can access reports
+    if (item.id === "reports") {
+      return userRole === "Owner";
+    }
+    return true;
+  });
+
   return (
     <>
       <aside
@@ -102,7 +113,7 @@ export default function AdminSidebar({
       >
         <div className="h-full flex flex-col">
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = selectedTab === item.id;
 

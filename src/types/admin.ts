@@ -16,6 +16,8 @@ export interface UserManagement {
   phone: string;
   role: string;
   gamesPlayed: number;
+  isMember: boolean;
+  totalPoints: number;
   lastPlayed: string | null;
   createdAt: Date;
 }
