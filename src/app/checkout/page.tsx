@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "motion/react";
-import { MapPin, Clock, User, Mail, Phone, Shield } from "lucide-react";
+import { MapPin, Clock, User, Mail, Phone, Shield, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +10,15 @@ import { formatMatchDate } from "@/lib/helper";
 import { useAuth } from "@/contexts/AuthContext";
 import { bookingService } from "@/utils/booking";
 import PaymentComponent from "@/components/organisms/Payment";
+
+// Fungsi validasi input
+const noSpace = (value: string) => value.replace(/\s+/g, "");
+const onlyNumbers = (value: string) => value.replace(/\D/g, "");
+const validateEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const validatePhone = (phone: string) =>
+  /^[0-9]+$/.test(phone) && phone.length >= 10;
+const validateName = (value: string) => value.trim().length > 0;
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -21,6 +30,9 @@ export default function CheckoutPage() {
   >(null);
   const { showSuccess, showError } = useNotifications();
 
+  // Toggle untuk team roster
+  const [includeRoster, setIncludeRoster] = useState(false);
+
   // Individual Form
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,7 +42,7 @@ export default function CheckoutPage() {
   const [picName, setPicName] = useState("");
   const [picEmail, setPicEmail] = useState("");
   const [players, setPlayers] = useState(
-    Array.from({ length: 11 }, () => ({ name: "", phone: "" }))
+    Array.from({ length: 10 }, () => ({ name: "", phone: "", email: "" }))
   );
 
   const { selectedSchedule } = useSchedule();
@@ -63,12 +75,18 @@ export default function CheckoutPage() {
 
   const handlePlayerChange = (
     index: number,
-    field: "name" | "phone",
+    field: "name" | "phone" | "email",
     value: string
   ) => {
-    const newPlayers = [...players];
-    newPlayers[index] = { ...newPlayers[index], [field]: value };
-    setPlayers(newPlayers);
+    const updated = [...players];
+    if (field === "name") {
+      updated[index][field] = noSpace(value);
+    } else if (field === "phone") {
+      updated[index][field] = onlyNumbers(value);
+    } else if (field === "email") {
+      updated[index][field] = noSpace(value);
+    }
+    setPlayers(updated);
   };
 
   const getPrice = () => {
@@ -103,50 +121,41 @@ export default function CheckoutPage() {
 
   // Validate and handle booking confirmation
   const handleBookingConfirmation = async () => {
-    // Validation
     if (bookingType === "individual") {
-      if (!name.trim() || !email.trim() || !whatsapp.trim()) {
-        showError("Please fill all fields");
-        return;
-      }
-      if (!selectedRole) {
-        showError("Please select a role");
-        return;
-      }
+      if (!validateName(name)) return showError("Nama wajib diisi");
+      if (!validateEmail(email)) return showError("Email tidak valid");
+      if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
+      if (!selectedRole) return showError("Pilih role");
     } else {
-      if (!picName.trim() || !picEmail.trim() || !whatsapp.trim()) {
-        showError("Please fill PIC details");
-        return;
-      }
-      const hasEmptyFields = players.some(
-        (player) => !player.name.trim() || !player.phone.trim()
-      );
-      if (hasEmptyFields) {
-        showError("Please fill all player details");
-        return;
+      if (!validateName(picName)) return showError("PIC name wajib diisi");
+      if (!validateEmail(picEmail)) return showError("PIC email tidak valid");
+      if (!validatePhone(whatsapp))
+        return showError("WhatsApp PIC tidak valid");
+
+      if (includeRoster) {
+        for (let i = 0; i < players.length; i++) {
+          const p = players[i];
+          if (!validateName(p.name))
+            return showError(`Nama Player ${i + 1} wajib diisi`);
+          if (!validatePhone(p.phone))
+            return showError(`Phone Player ${i + 1} tidak valid`);
+          if (!validateEmail(p.email))
+            return showError(`Email Player ${i + 1} tidak valid`);
+        }
       }
     }
 
-    setIsBookingLoading(true);
-
     try {
-      const payload = createBookingPayload();
-      const response = await bookingService.bookSlot(payload);
-
-      if (response) {
-        showSuccess("Booking berhasil! Silakan lakukan pembayaran.");
-        // Set payment ID and show payment component
-        setPaymentId(response);
+      setIsBookingLoading(true);
+      const res = await bookingService.bookSlot(createBookingPayload());
+      if (res) {
+        setPaymentId(res);
         setShowPayment(true);
-      } else {
-        showSuccess("Booking berhasil dikonfirmasi!");
-        setTimeout(() => {
-          router.push("/gallery");
-        }, 1500);
+        showSuccess("Booking berhasil");
       }
-    } catch (error) {
-      console.error("Booking error:", error);
-      showError("Terjadi kesalahan saat booking. Silakan coba lagi.");
+    } catch (err) {
+      console.error(err);
+      showError("Gagal melakukan booking");
     } finally {
       setIsBookingLoading(false);
     }
@@ -257,7 +266,7 @@ export default function CheckoutPage() {
 
                 <div>
                   <label className="block text-gray-600 mb-2">
-                    Name lengkap
+                    Nama lengkap
                   </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -265,7 +274,7 @@ export default function CheckoutPage() {
                       type="text"
                       value={name}
                       disabled={!!user}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => setName(noSpace(e.target.value))}
                       placeholder="Enter your name"
                       className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
                         user
@@ -286,10 +295,10 @@ export default function CheckoutPage() {
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       disabled={!!user}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(noSpace(e.target.value))}
                       placeholder="your@email.com"
                       className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
                         user
@@ -315,7 +324,7 @@ export default function CheckoutPage() {
                       type="tel"
                       value={whatsapp}
                       disabled={!!user}
-                      onChange={(e) => setWhatsapp(e.target.value)}
+                      onChange={(e) => setWhatsapp(onlyNumbers(e.target.value))}
                       placeholder="0812 3456 7890"
                       className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
                         user
@@ -387,7 +396,7 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       value={picName}
-                      onChange={(e) => setPicName(e.target.value)}
+                      onChange={(e) => setPicName(noSpace(e.target.value))}
                       placeholder="Enter PIC name"
                       className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                     />
@@ -399,9 +408,9 @@ export default function CheckoutPage() {
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
-                      type="email"
+                      type="text"
                       value={picEmail}
-                      onChange={(e) => setPicEmail(e.target.value)}
+                      onChange={(e) => setPicEmail(noSpace(e.target.value))}
                       placeholder="pic@email.com"
                       className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                     />
@@ -417,44 +426,104 @@ export default function CheckoutPage() {
                     <input
                       type="tel"
                       value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
+                      onChange={(e) => setWhatsapp(onlyNumbers(e.target.value))}
                       placeholder="0812 3456 7890"
                       className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                     />
                   </div>
                 </div>
 
-                <h3 className="text-blue-600">Team Roster (11 Players)</h3>
-
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                  {players.map((player, index) => (
-                    <div key={index} className="p-4 bg-blue-50 rounded-2xl">
-                      <div className="text-gray-600 mb-3">
-                        Player {index + 1}
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          value={player.name}
-                          onChange={(e) =>
-                            handlePlayerChange(index, "name", e.target.value)
-                          }
-                          placeholder="Name"
-                          className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
-                        />
-                        <input
-                          type="tel"
-                          value={player.phone}
-                          onChange={(e) =>
-                            handlePlayerChange(index, "phone", e.target.value)
-                          }
-                          placeholder="Phone Number"
-                          className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
-                        />
+                {/* Toggle untuk Team Roster */}
+                <div className="pt-4 border-t border-blue-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <h4 className="text-blue-600 font-medium">
+                          Include Team Roster
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          Add 10 player details (optional)
+                        </p>
                       </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => setIncludeRoster(!includeRoster)}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                        includeRoster ? "bg-blue-600" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                          includeRoster ? "translate-x-7" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Team Roster - Muncul jika toggle aktif */}
+                {includeRoster && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-3"
+                  >
+                    <h3 className="text-blue-600">Team Roster (10 Players)</h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                      {players.map((player, index) => (
+                        <div key={index} className="p-4 bg-blue-50 rounded-2xl">
+                          <div className="text-gray-600 mb-3">
+                            Player {index + 1}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={player.name}
+                              onChange={(e) =>
+                                handlePlayerChange(
+                                  index,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Name"
+                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                            />
+                            <input
+                              type="tel"
+                              value={player.phone}
+                              onChange={(e) =>
+                                handlePlayerChange(
+                                  index,
+                                  "phone",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Phone Number"
+                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                            />
+                            <input
+                              type="text"
+                              value={player.email}
+                              onChange={(e) =>
+                                handlePlayerChange(
+                                  index,
+                                  "email",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Email"
+                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 sm:col-span-2"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </div>
@@ -529,8 +598,9 @@ export default function CheckoutPage() {
                   <div className="text-gray-900 font-medium">
                     IDR{" "}
                     {selectedRole || bookingType === "team"
-                      ? (Number(getPrice()) + (isMember ? 0 : 1000)) // <-- tambahkan 1000 jika bukan member
-                          .toLocaleString("id-ID")
+                      ? (
+                          Number(getPrice()) + (isMember ? 0 : 1000)
+                        ).toLocaleString("id-ID")
                       : "-"}
                   </div>
                 </div>

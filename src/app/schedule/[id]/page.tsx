@@ -87,14 +87,14 @@ const NotFoundDisplay = () => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50">
       <Navbar currentPage="" navigateTo={() => {}} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <Button
+        {/* <Button
           variant="ghost"
           onClick={() => router.back()}
           className="mb-6 hover:bg-white/80 backdrop-blur-sm text-slate-700 border border-emerald-100 shadow-md hover:shadow-lg"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
-        </Button>
+        </Button> */}
         <div className="bg-white rounded-2xl p-12 text-center shadow-lg">
           <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -355,17 +355,17 @@ export default function ScheduleDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
         <Navbar currentPage="" navigateTo={() => {}} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <Button
+          {/* <Button
             variant="ghost"
             onClick={() => router.back()}
             className="mb-6 hover:bg-white/80 backdrop-blur-sm text-slate-700 border border-emerald-100 shadow-md hover:shadow-lg"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
-          </Button>
+          </Button> */}
 
           {/* Hero Section */}
-          <div className="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-80 shadow-xl border border-emerald-200">
+          <div className="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-80 shadow-xl border border-emerald-200 mt-10">
             <img
               src={schedule.imageUrl}
               alt={schedule.venue}
