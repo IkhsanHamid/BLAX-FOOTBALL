@@ -59,6 +59,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (user) {
       setName(user.name || "");
+      setPicName(user.name || "");
+      setPicEmail(user.email || "");
       setEmail(user.email || "");
       setWhatsapp(user.phone || "");
       if (user.isMember) setIsMember(true);
@@ -101,16 +103,33 @@ export default function CheckoutPage() {
 
   // Create booking payload
   const createBookingPayload = () => {
-    return {
+    const basePayload = {
       scheduleId: String(selectedSchedule?.id),
       bookingType: bookingType.toUpperCase(),
       isGuest: !user,
-      name: user ? user.name : name,
-      email: user ? user.email : email,
+      name: user ? user.name : bookingType === "team" ? picName : name,
+      email: user ? user.email : bookingType === "team" ? picEmail : email,
       phoneNumber: user ? user.phone : whatsapp,
       isPlayer: selectedRole === "player" || bookingType === "team",
       isGk: selectedRole === "goalkeeper" || bookingType === "team",
+      isTeam: bookingType === "team" && includeRoster,
     };
+
+    // Tambahkan teamRoster jika isTeam true
+    if (basePayload.isTeam) {
+      return {
+        ...basePayload,
+        teamRoster: players.map((player) => ({
+          name: player.name,
+          phone: player.phone,
+          email: player.email,
+        })),
+      };
+    }
+
+    console.log("basePayload", basePayload);
+
+    return basePayload;
   };
 
   // Handle back from payment component
@@ -147,7 +166,8 @@ export default function CheckoutPage() {
 
     try {
       setIsBookingLoading(true);
-      const res = await bookingService.bookSlot(createBookingPayload());
+      const payload = createBookingPayload();
+      const res = await bookingService.bookSlot(payload);
       if (res) {
         setPaymentId(res);
         setShowPayment(true);
@@ -396,9 +416,14 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       value={picName}
+                      disabled={!!user}
                       onChange={(e) => setPicName(noSpace(e.target.value))}
                       placeholder="Enter PIC name"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      }`}
                     />
                   </div>
                 </div>
@@ -410,9 +435,14 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       value={picEmail}
+                      disabled={!!user}
                       onChange={(e) => setPicEmail(noSpace(e.target.value))}
                       placeholder="pic@email.com"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      }`}
                     />
                   </div>
                 </div>
@@ -426,9 +456,14 @@ export default function CheckoutPage() {
                     <input
                       type="tel"
                       value={whatsapp}
+                      disabled={!!user}
                       onChange={(e) => setWhatsapp(onlyNumbers(e.target.value))}
                       placeholder="0812 3456 7890"
-                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                      className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
+                        user
+                          ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                          : "border-gray-300"
+                      }`}
                     />
                   </div>
                 </div>
