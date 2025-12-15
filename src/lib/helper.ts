@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import CryptoJS from "crypto-js";
 import { PUBLIC_KEY } from "./publicKey";
 import Pako from "pako";
 
@@ -26,43 +27,46 @@ export const formatCurrency = (amount: number) => {
 };
 
 export async function encryptWithPublicKey(data: object) {
-  // --- Convert PEM ke CryptoKey ---
-  const pemHeader = "-----BEGIN PUBLIC KEY-----";
-  const pemFooter = "-----END PUBLIC KEY-----";
+  // 1️⃣ Generate AES key (256 bit)
+  const aesKey = CryptoJS.lib.WordArray.random(32).toString();
+
+  // 2️⃣ Compress data
+  const jsonString = JSON.stringify(data);
+  const compressed = Pako.deflate(jsonString);
+
+  // 3️⃣ Encrypt data with AES
+  const encryptedData = CryptoJS.AES.encrypt(
+    CryptoJS.lib.WordArray.create(compressed as any),
+    aesKey
+  ).toString();
+
+  // 4️⃣ Import RSA Public Key
   const pemContents = secret
-    .replace(pemHeader, "")
-    .replace(pemFooter, "")
+    .replace(/-----BEGIN PUBLIC KEY-----/, "")
+    .replace(/-----END PUBLIC KEY-----/, "")
     .replace(/\s/g, "");
 
   const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
 
-  const key = await window.crypto.subtle.importKey(
+  const publicKey = await window.crypto.subtle.importKey(
     "spki",
     binaryDer.buffer,
-    {
-      name: "RSA-OAEP",
-      hash: "SHA-256",
-    },
+    { name: "RSA-OAEP", hash: "SHA-256" },
     false,
     ["encrypt"]
   );
 
-  // --- Encrypt ---
-  // Step 1: Convert object to string
-  const jsonString = JSON.stringify(data);
-
-  // Step 2: Compress
-  const compressed = Pako.deflate(jsonString);
-  const encrypted = await window.crypto.subtle.encrypt(
-    {
-      name: "RSA-OAEP",
-    },
-    key,
-    compressed
+  // 5️⃣ Encrypt AES key with RSA
+  const encryptedKey = await window.crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    publicKey,
+    new TextEncoder().encode(aesKey)
   );
 
-  // Convert ke base64 supaya aman dikirim ke server
-  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  return {
+    encryptedKey: btoa(String.fromCharCode(...new Uint8Array(encryptedKey))),
+    encryptedData,
+  };
 }
 
 export const getDateRange = (filter: string) => {

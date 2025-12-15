@@ -10,10 +10,6 @@ class BookingService {
     const encrypt = await encryptWithPublicKey(data);
     const session = await AuthService.getSession();
 
-    const finalPayload = {
-      data: encrypt,
-    };
-
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
@@ -25,7 +21,7 @@ class BookingService {
     const response = await fetch(`${API_BASE_URL}/book-schedule`, {
       method: "POST",
       headers,
-      body: JSON.stringify(finalPayload),
+      body: JSON.stringify(encrypt),
     });
 
     const result = await response.json();
