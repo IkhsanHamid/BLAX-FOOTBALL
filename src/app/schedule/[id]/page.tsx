@@ -20,7 +20,6 @@ import { scheduleService } from "@/utils/schedule";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
 import { Rules, Schedule, ScheduleDetail } from "@/types/schedule";
-import BookModal from "@/components/molecules/BookModal";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import LineupBlur from "@/components/molecules/LineupBlur";
@@ -233,7 +232,6 @@ export default function ScheduleDetailPage() {
   const [schedule, setSchedule] = useState<ScheduleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const { showError } = useNotifications();
   const { setSelectedSchedule } = useSchedule();
   const { user, setUser } = useAuth();
@@ -282,14 +280,9 @@ export default function ScheduleDetailPage() {
   }, [params.id, showError]);
 
   const handleBooking = (schedule: any) => {
-    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
     router.push(`/checkout`);
   };
-
-  const closeModal = useCallback(() => {
-    setIsBookModalOpen(false);
-  }, []);
 
   if (loading) return <SkeletonLoading />;
   if (!schedule) return <NotFoundDisplay />;

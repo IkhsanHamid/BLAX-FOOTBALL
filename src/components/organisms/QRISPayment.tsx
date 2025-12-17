@@ -8,33 +8,30 @@ import {
   CheckCircle,
   MessageCircle,
   RefreshCw,
+  Copy,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "./NotificationContainer";
 import Navbar from "./Navbar";
 import { paymentService } from "@/utils/payment";
-import { PaymentDataMember } from "@/types/payment";
+import { PaymentDataBooking, PaymentDataMember } from "@/types/payment";
 import PaymentSuccessModal from "../molecules/SuccessPaymentModal";
+import { bookingService } from "@/utils/booking";
+import { formatCurrency, formatDate } from "@/lib/helper";
+import Button from "../atoms/Button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface QRISPaymentPageProps {
-  amount: number;
+  amount?: number;
   paymentType: "booking" | "membership";
-  bookingDetails?: {
-    stadium: string;
-    location: string;
-    date: string;
-    time: string;
-    bookingType: string;
-  };
   paymentId: string;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess?: () => void;
 }
 
 export function QRISPaymentPage({
   amount,
   paymentType,
-  bookingDetails,
   paymentId,
   onPaymentSuccess,
 }: QRISPaymentPageProps) {
@@ -43,11 +40,72 @@ export function QRISPaymentPage({
   const [isProcessing, setIsProcessing] = useState(false);
   const { showSuccess, showError } = useNotifications();
   const [loading, setLoading] = useState(true);
-  const [paymentData, setPaymentData] = useState<PaymentDataMember | null>(
-    null
-  );
+  const [paymentData, setPaymentData] = useState<
+    PaymentDataMember | PaymentDataBooking | null
+  >(null);
   const [successPayment, setSuccessPayment] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { user } = useAuth();
 
+  // Ref to prevent multiple simultaneous fetches
+  const isFetchingRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Memoize payment label calculation
+  const PAYMENT_LABEL: Record<string, string> = {
+    booking: "Booking",
+    membership: "Membership",
+  };
+  const paymentLabel = PAYMENT_LABEL[paymentType] ?? "Pembayaran";
+
+  // Fetch payment data with proper error handling and loading state
+  const fetchPaymentData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+
+    try {
+      isFetchingRef.current = true;
+      setLoading(true);
+
+      let result;
+      if (paymentType === "membership") {
+        result = await paymentService.showQRMember(paymentId);
+      } else if (paymentType === "booking") {
+        result = await bookingService.previewPayment(paymentId);
+      } else {
+        throw new Error("Invalid payment type");
+      }
+
+      if (result?.status === "expire") {
+        showError(
+          "error",
+          "Pembayaran telah kaduluarsa silahkan login kembali"
+        );
+        router.push("/");
+        return;
+      }
+
+      setPaymentData(result);
+    } catch (error: any) {
+      console.error("Error fetching payment data:", error);
+      showError(
+        "Payment Error",
+        error?.message || "Failed to fetch payment data"
+      );
+      setPaymentData(null);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [paymentId, paymentType, showError, router]);
+
+  // Initial data fetch
+  useEffect(() => {
+    if (paymentId) {
+      fetchPaymentData();
+    }
+  }, [paymentId, fetchPaymentData]);
+
+  // Timer effect with proper cleanup and expiry handling
   useEffect(() => {
     if (!paymentData?.expired_at) return;
 
@@ -61,25 +119,53 @@ export function QRISPaymentPage({
     };
 
     // Set initial time
-    setTimeLeft(calculateTimeLeft());
+    const initialTime = calculateTimeLeft();
+    setTimeLeft(initialTime);
 
-    const timer = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        clearInterval(timer);
+    // Don't start timer if already expired
+    if (initialTime <= 0) {
+      // Use setTimeout to avoid calling state updates during render
+      const timeoutId = setTimeout(() => {
         showError("error", "Payment session expired");
         if (paymentType === "booking") {
           router.push("/schedule");
         } else {
           router.push("/");
         }
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
+    }
+
+    timerRef.current = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+
+        // Defer navigation to avoid state update during render
+        setTimeout(() => {
+          showError("error", "Payment session expired");
+          if (paymentType === "booking") {
+            router.push("/schedule");
+          } else {
+            router.push("/");
+          }
+        }, 0);
       }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [paymentData?.expired_at, showError, paymentType, router]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [paymentData?.expired_at]); // Remove showError, paymentType, router from dependencies
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -89,72 +175,100 @@ export function QRISPaymentPage({
       .padStart(2, "0")}`;
   };
 
-  useEffect(() => {
-    if (paymentId) {
-      fetchPaymentData();
+  const copyBookId = async () => {
+    // Type guard untuk memastikan ini adalah PaymentDataBooking
+    if (!paymentData || !("bookId" in paymentData)) {
+      showError("Error", "Booking ID tidak tersedia");
+      return;
     }
-  }, [paymentId]);
 
-  const fetchPaymentData = async () => {
+    const bookingData = paymentData as PaymentDataBooking;
+
+    if (!bookingData.bookId) {
+      showError("Error", "Booking ID tidak tersedia");
+      return;
+    }
+
     try {
-      setLoading(true);
-      const result = await paymentService.showQRMember(paymentId);
-      if (result.status === "expire") {
-        router.push("/");
-        showError(
-          "error",
-          "Pembayaran telah kaduluarsa silahkan login kembali"
-        );
+      await navigator.clipboard.writeText(bookingData.bookId);
+      showSuccess("Berhasil!", "Booking ID berhasil disalin ke clipboard");
+    } catch (error) {
+      // Fallback untuk browser yang tidak mendukung clipboard API
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = bookingData.bookId;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showSuccess("Berhasil!", "Booking ID berhasil disalin ke clipboard");
+      } catch (fallbackError) {
+        showError("Error", "Gagal menyalin Booking ID");
+        console.error("Copy failed:", fallbackError);
       }
-      setPaymentData(result);
-    } catch (error: any) {
-      console.error("Error fetching payment data:", error);
-      showError("Payment Error", "Failed to fetch payment data");
-      setPaymentData(null);
-      setLoading(false);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleRefreshPayment = async () => {
-    try {
-      setLoading(true);
-      const result = await paymentService.checkPaymentStatusMembership(
-        paymentId
-      );
+    if (isRefreshing) return; // Prevent double-click
 
-      if (result.status === "settlement") {
+    try {
+      setIsRefreshing(true);
+
+      let result;
+      if (paymentType === "membership") {
+        result = await paymentService.checkPaymentStatusMembership(paymentId);
+      } else if (paymentType === "booking") {
+        result = await bookingService.previewPayment(paymentId);
+      }
+
+      if (result?.status === "settlement") {
         setSuccessPayment(true);
         showSuccess("success", "Berhasil melakukan pembayaran");
-        onPaymentSuccess();
-      } else if (result.status === "expire") {
+      } else if (result?.status === "expire") {
         showError("error", "Gagal melakukan pembayaran silahkan login kembali");
         router.push("/");
-      } else if (result.status === "pending") {
+      } else if (result?.status === "pending") {
         showSuccess("success", "Berhasil refresh pembayaran");
-      } else if (result.status === true) {
+      } else if (result?.status === true) {
         showSuccess("success", "Pembayaran sudah dilakukan");
         router.push("/");
+      } else {
+        showSuccess("success", "Status pembayaran diperbarui");
       }
     } catch (error: any) {
-      console.error("Error fetching payment data:", error);
-      showError("Payment Error", "Failed to refresh payment data");
-      setLoading(false);
+      console.error("Error refreshing payment:", error);
+      showError(
+        "Payment Error",
+        error?.message || "Failed to refresh payment data"
+      );
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   const handleWhatsAppChat = () => {
-    // Open WhatsApp chat with Blax Football support
     const phoneNumber = "6281234567890"; // Replace with actual WhatsApp business number
     const message = encodeURIComponent(
-      `Hi Blax Football! I need help with my ${
+      `Hi Admin Blax Football! Saya butuh bantuan dalam melakukan pembayaran ${
         paymentType === "booking" ? "booking" : "membership"
-      } payment. Transaction Amount: IDR ${amount.toLocaleString("id-ID")}`
+      }. Jumlah transaksi: ${
+        amount ? formatCurrency(amount) : formatCurrency(paymentData?.total!)
+      }`
     );
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
+  };
+
+  const handleCloseSuccessModal = () => {
+    setSuccessPayment(false);
+    // Navigate based on payment type
+    if (paymentType === "booking") {
+      router.push("/schedule");
+    } else {
+      router.push("/");
+    }
   };
 
   return (
@@ -174,12 +288,14 @@ export function QRISPaymentPage({
             className="mb-12 text-center"
           >
             <h1 className="text-2xl md:text-3xl font-bold text-blue-600 mb-4">
-              Selesaikan Pembayaran Membership Anda
+              Selesaikan Pembayaran {paymentLabel} Anda
             </h1>
+
             <p className="text-gray-700 text-sm md:text-base">
-              Hanya beberapa langkah lagi untuk menyelesaikan proses membership
-              Anda.
+              Hanya beberapa langkah lagi untuk menyelesaikan proses{" "}
+              {paymentLabel.toLowerCase()} Anda.
             </p>
+
             <p className="text-gray-700 text-sm md:text-base mt-1">
               Data yang Anda masukkan akan kami jaga kerahasiaannya.
             </p>
@@ -215,7 +331,7 @@ export function QRISPaymentPage({
                     <div
                       className={`${
                         timeLeft < 300 ? "text-red-500" : "text-blue-600"
-                      }`}
+                      } font-semibold text-lg`}
                     >
                       {formatTime(timeLeft)}
                     </div>
@@ -285,17 +401,71 @@ export function QRISPaymentPage({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleRefreshPayment}
-                className="w-full mb-4 px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-2xl hover:bg-blue-50 transition-all shadow-md flex items-center justify-center gap-2"
+                disabled={isRefreshing || loading}
+                className="w-full mb-4 px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-2xl hover:bg-blue-50 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="w-5 h-5" />
-                Refresh Payment
+                <RefreshCw
+                  className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                {isRefreshing ? "Refreshing..." : "Refresh Payment"}
               </motion.button>
 
               {/* Amount */}
-              <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl text-white shadow-lg">
-                <div className="flex items-center justify-between">
-                  <span>Total Pembayaran</span>
-                  <div>IDR {amount.toLocaleString("id-ID")}</div>
+              <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl text-white shadow-lg space-y-2">
+                <div className="mb-3 font-semibold text-sm text-white">
+                  Rincian Pembayaran
+                </div>
+
+                {/* Harga Booking - Only show for booking type */}
+                {paymentType === "booking" &&
+                  paymentData &&
+                  "baseFee" in paymentData && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white">Harga Booking</span>
+                      <span className="font-medium">
+                        {formatCurrency(paymentData.baseFee ?? 0)}
+                      </span>
+                    </div>
+                  )}
+
+                {/* Diskon Member - Only show for booking type */}
+                {paymentType === "booking" &&
+                  paymentData &&
+                  "discountAmount" in paymentData &&
+                  paymentData.discountAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white">Diskon Member (10%)</span>
+                      <span className="font-medium text-white">
+                        - {formatCurrency(paymentData.discountAmount)}
+                      </span>
+                    </div>
+                  )}
+
+                {/* Admin Fee - Only show for booking type */}
+                {paymentType === "booking" &&
+                  paymentData &&
+                  "adminFee" in paymentData && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white">Admin Fee</span>
+
+                      {paymentData?.adminFee == 0 ? (
+                        <span className="font-medium text-white">FREE</span>
+                      ) : (
+                        <span className="font-medium">
+                          {formatCurrency(paymentData?.adminFee ?? 0)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                <hr className="border-white/20 my-2" />
+
+                {/* Total */}
+                <div className="flex items-center justify-between text-base">
+                  <span className="font-semibold">Total Pembayaran</span>
+                  <span className="font-semibold text-lg">
+                    {formatCurrency(paymentData?.total ?? 0)}
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -309,58 +479,86 @@ export function QRISPaymentPage({
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="bg-white border border-blue-200 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="mb-6 text-blue-600">Detail Pembayaran</h3>
+                <h3 className="mb-6 text-blue-600 font-semibold">
+                  Detail Pembayaran
+                </h3>
 
-                {paymentType === "booking" && bookingDetails ? (
+                {paymentType === "booking" &&
+                paymentData &&
+                "venue" in paymentData ? (
                   <div className="space-y-4">
                     <div>
-                      <div className="text-gray-500 mb-1">Stadium</div>
-                      <div className="text-gray-900">
-                        {bookingDetails.stadium}
+                      <div className="text-gray-500 mb-2 text-sm">
+                        Booking ID
                       </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="text-gray-900 font-mono font-medium">
+                            {paymentData.bookId}
+                          </div>
+                        </div>
+                        <button
+                          onClick={copyBookId}
+                          className="px-4 py-2 bg-yellow-50 border-2 border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-all flex items-center gap-2 font-medium"
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Simpan Booking ID ini untuk referensi Anda
+                      </p>
                     </div>
+
+                    {/* Venue */}
                     <div>
-                      <div className="text-gray-500 mb-1">Location</div>
-                      <div className="text-gray-900">
-                        {bookingDetails.location}
+                      <div className="text-gray-500 mb-1 text-sm">Venue</div>
+                      <div className="text-gray-900 font-medium">
+                        {paymentData.venue}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-gray-500 mb-1">Date</div>
-                        <div className="text-gray-900">
-                          {bookingDetails.date}
+                        <div className="text-gray-500 mb-1 text-sm">
+                          Tanggal
+                        </div>
+                        <div className="text-gray-900 font-medium">
+                          {formatDate(paymentData.date!)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-gray-500 mb-1">Time</div>
-                        <div className="text-gray-900">
-                          {bookingDetails.time}
+                        <div className="text-gray-500 mb-1 text-sm">Jam</div>
+                        <div className="text-gray-900 font-medium">
+                          {paymentData.time}
                         </div>
                       </div>
                     </div>
                     <div>
-                      <div className="text-gray-500 mb-1">Booking Type</div>
-                      <div className="text-gray-900 capitalize">
-                        {bookingDetails.bookingType}
+                      <div className="text-gray-500 mb-1 text-sm">
+                        Booking Type
+                      </div>
+                      <div className="text-gray-900 capitalize font-medium">
+                        {paymentData.bookingType}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <div className="text-gray-500 mb-1">Product</div>
-                      <div className="text-gray-900">
+                      <div className="text-gray-500 mb-1 text-sm">Product</div>
+                      <div className="text-gray-900 font-medium">
                         Blax Football Membership
                       </div>
                     </div>
                     <div>
-                      <div className="text-gray-500 mb-1">Validity</div>
-                      <div className="text-gray-900">Anually Access</div>
+                      <div className="text-gray-500 mb-1 text-sm">Validity</div>
+                      <div className="text-gray-900 font-medium">
+                        Annual Access
+                      </div>
                     </div>
                     <div>
-                      <div className="text-gray-500 mb-1">Benefits</div>
-                      <div className="text-gray-900">
+                      <div className="text-gray-500 mb-1 text-sm">Benefits</div>
+                      <div className="text-gray-900 font-medium">
                         Free admin, Discounts, Premium Access
                       </div>
                     </div>
@@ -369,9 +567,11 @@ export function QRISPaymentPage({
 
                 <div className="mt-6 pt-6 border-t border-blue-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-900">Total</span>
-                    <div className="text-blue-600">
-                      IDR {amount.toLocaleString("id-ID")}
+                    <span className="text-gray-900 font-semibold">Total</span>
+                    <div className="text-blue-600 font-bold text-lg">
+                      {amount
+                        ? formatCurrency(amount)
+                        : formatCurrency(paymentData?.total!)}
                     </div>
                   </div>
                 </div>
@@ -384,55 +584,59 @@ export function QRISPaymentPage({
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="bg-white border border-blue-200 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="mb-6 text-blue-600">
-                  Bagaimana cara pembayaran ?
+                <h3 className="mb-6 text-blue-600 font-semibold">
+                  Bagaimana cara pembayaran?
                 </h3>
 
                 <ol className="space-y-4">
                   <li className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
                       1
                     </div>
                     <div>
-                      <div className="text-gray-900 mb-1">Buka aplikasi</div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-900 mb-1 font-medium">
+                        Buka aplikasi
+                      </div>
+                      <div className="text-gray-600 text-sm">
                         Buka aplikasi mobile banking atau e-wallet anda
                       </div>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
                       2
                     </div>
                     <div>
-                      <div className="text-gray-900 mb-1">Scan QR Code</div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-900 mb-1 font-medium">
+                        Scan QR Code
+                      </div>
+                      <div className="text-gray-600 text-sm">
                         Gunakan fitur scan QRIS yang ada di aplikasi anda
                       </div>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
                       3
                     </div>
                     <div>
-                      <div className="text-gray-900 mb-1">
+                      <div className="text-gray-900 mb-1 font-medium">
                         Verifikasi jumlah
                       </div>
-                      <div className="text-gray-600">
-                        Cek kembali apakah jumlah yang dibayarkan sama
+                      <div className="text-gray-600 text-sm">
+                        Cek kembali apakah jumlah yang dibayarkan sudah sesuai
                       </div>
                     </div>
                   </li>
                   <li className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
                       4
                     </div>
                     <div>
-                      <div className="text-gray-900 mb-1">
+                      <div className="text-gray-900 mb-1 font-medium">
                         Selesaikan pembayaran
                       </div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-600 text-sm">
                         Konfirmasi dan selesaikan pembayaran anda
                       </div>
                     </div>
@@ -440,10 +644,9 @@ export function QRISPaymentPage({
                 </ol>
 
                 <div className="mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-                  <p className="text-gray-600 text-center">
-                    Pembayaran anda akan terkonfirmasi otomatis jika pembayaran
-                    telah diterima, jika belum terkonfirmasi harap tekan tombol
-                    konfirmasi
+                  <p className="text-gray-600 text-center text-sm">
+                    Pembayaran anda akan terkonfirmasi otomatis. Jika belum
+                    terkonfirmasi, harap tekan tombol refresh payment.
                   </p>
                 </div>
               </motion.div>
@@ -453,6 +656,8 @@ export function QRISPaymentPage({
                 initial={{ opacity: 0, x: 30 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleWhatsAppChat}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all shadow-md flex items-center justify-center gap-2"
               >
@@ -465,9 +670,9 @@ export function QRISPaymentPage({
       </div>
       <PaymentSuccessModal
         isOpen={successPayment}
-        onClose={() => setSuccessPayment(false)}
+        onClose={handleCloseSuccessModal}
         amount={amount}
-        productName="Membership"
+        productName={paymentType === "booking" ? "Booking" : "Membership"}
       />
     </>
   );

@@ -53,3 +53,8 @@ export interface ScheduleOverview {
   rules: Rules[];
   facilities: Facilites[];
 }
+
+export interface ListSchedule {
+  id: string;
+  name: string;
+}

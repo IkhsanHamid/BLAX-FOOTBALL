@@ -3,30 +3,17 @@ export interface Voucher {
   code: string;
   name: string;
   description: string;
-  discountType: "PERCENTAGE" | "FIXED";
-  discountValue: number;
-  minPurchase: number;
-  maxDiscount?: number;
-  validFrom: string;
-  validUntil: string;
-  usageLimit: number;
-  usedCount: number;
+  type: "PERCENTAGE" | "FIXED";
+  nominal: number;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface VoucherPayload {
-  code: string;
+  code?: string;
   name: string;
   description: string;
-  discountType: "PERCENTAGE" | "FIXED";
-  discountValue: number;
-  minPurchase: number;
-  maxDiscount?: number;
-  validFrom: string;
-  validUntil: string;
-  usageLimit: number;
+  type: "PERCENTAGE" | "FIXED";
+  nominal: number;
   isActive: boolean;
 }
 

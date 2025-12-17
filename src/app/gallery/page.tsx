@@ -22,6 +22,8 @@ import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
 import Pagination from "@/components/atoms/Pagination";
 import Navbar from "@/components/organisms/Navbar";
+import { adminService } from "@/utils/admin";
+import { GalleryData } from "@/types/galleries";
 
 // Skeleton Loading Components
 function SessionSkeleton() {
@@ -90,8 +92,8 @@ function SkeletonLoading() {
 
 export default function GalleryPage() {
   const router = useRouter();
-  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
-  const [filteredPhotos, setFilteredPhotos] = useState<GalleryPhoto[]>([]);
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryData[]>([]);
+  const [filteredPhotos, setFilteredPhotos] = useState<GalleryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,7 +114,7 @@ export default function GalleryPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const fetchedPhotos = await galleryService.getAllPhotos();
+      const fetchedPhotos = await adminService.galleriesDatas();
       setGalleryPhotos(fetchedPhotos);
     } catch (error) {
       console.error("Error fetching gallery data:", error);
@@ -129,7 +131,9 @@ export default function GalleryPage() {
     if (searchQuery) {
       filtered = filtered.filter(
         (photo) =>
-          photo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          photo.scheduleName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
           photo.venue.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -154,12 +158,23 @@ export default function GalleryPage() {
     showSuccess("Gallery refreshed successfully");
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    };
+    return date.toLocaleDateString("id-ID", options).toUpperCase();
+  };
+
   const handleOpenLink = (
-    link: string,
+    link: string | undefined,
     name: string,
     type: "photo" | "video"
   ) => {
-    if (link) {
+    if (link && link.trim() !== "") {
       window.open(link, "_blank");
       showSuccess(`Opening ${type}s for ${name}`);
     } else {
@@ -185,8 +200,12 @@ export default function GalleryPage() {
   const stats = {
     totalSessions: galleryPhotos.length,
     venues: new Set(galleryPhotos.map((photo) => photo.venue)).size,
-    withPhotos: galleryPhotos.filter((photo) => photo.linkPhoto).length,
-    withVideos: galleryPhotos.filter((photo) => photo.linkVideo).length,
+    withPhotos: galleryPhotos.filter(
+      (photo) => photo.linkPhotos && photo.linkPhotos.trim() !== ""
+    ).length,
+    withVideos: galleryPhotos.filter(
+      (photo) => photo.linkVideos && photo.linkVideos.trim() !== ""
+    ).length,
   };
 
   if (loading) {
@@ -352,7 +371,7 @@ export default function GalleryPage() {
           <div className="space-y-4">
             {paginatedPhotos.map((photo, index) => (
               <Card
-                key={`${photo.name}-${photo.date}-${index}`}
+                key={`${photo.scheduleName}-${photo.date}-${index}`}
                 className="hover:shadow-lg transition-all duration-200 border border-blue-100 hover:border-blue-200"
               >
                 <CardContent className="p-6">
@@ -365,18 +384,12 @@ export default function GalleryPage() {
 
                       {/* Session Info */}
                       <div className="pt-4 flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate">
-                          {photo.name}
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {photo.scheduleName.toUpperCase()}{" "}
+                          {formatDate(photo.date)}
                         </h3>
 
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4 text-blue-500" />
-                            <span>
-                              {new Date(photo.date).toLocaleDateString("id-ID")}
-                            </span>
-                          </div>
-
                           <div className="flex items-center space-x-1">
                             <Clock className="w-4 h-4 text-green-500" />
                             <span>{photo.time} WIB</span>
@@ -389,34 +402,48 @@ export default function GalleryPage() {
                         </div>
 
                         <div className="mt-2 flex gap-2">
-                          {photo.linkPhoto && (
-                            <Badge
-                              variant="outline"
-                              className="bg-green-50 text-green-700 border-green-200"
-                            >
-                              Foto tersedia
-                            </Badge>
-                          )}
-                          {photo.linkVideo && (
-                            <Badge
-                              variant="outline"
-                              className="bg-purple-50 text-purple-700 border-purple-200"
-                            >
-                              Video tersedia
-                            </Badge>
-                          )}
+                          {photo.linkPhotos &&
+                            photo.linkPhotos.trim() !== "" && (
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-200"
+                              >
+                                Foto tersedia
+                              </Badge>
+                            )}
+                          {photo.linkVideos &&
+                            photo.linkVideos.trim() !== "" && (
+                              <Badge
+                                variant="outline"
+                                className="bg-purple-50 text-purple-700 border-purple-200"
+                              >
+                                Video tersedia
+                              </Badge>
+                            )}
+                        </div>
+
+                        {/* Thank You Message */}
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-600 italic">
+                            Terima kasih sudah ikut meramaikan event
+                            BlaxFootball. Maaf jika masih ada kekurangan.
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2 ml-4">
-                      {photo.linkPhoto && (
+                      {photo.linkPhotos && photo.linkPhotos.trim() !== "" && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            handleOpenLink(photo.linkPhoto, photo.name, "photo")
+                            handleOpenLink(
+                              photo.linkPhotos,
+                              photo.scheduleName,
+                              "photo"
+                            )
                           }
                           className="flex items-center border-green-200 text-green-700 hover:bg-green-50"
                         >
@@ -425,12 +452,16 @@ export default function GalleryPage() {
                         </Button>
                       )}
 
-                      {photo.linkVideo && (
+                      {photo.linkVideos && photo.linkVideos.trim() !== "" && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            handleOpenLink(photo.linkVideo, photo.name, "video")
+                            handleOpenLink(
+                              photo.linkVideos,
+                              photo.scheduleName,
+                              "video"
+                            )
                           }
                           className="flex items-center border-purple-200 text-purple-700 hover:bg-purple-50"
                         >
@@ -439,11 +470,13 @@ export default function GalleryPage() {
                         </Button>
                       )}
 
-                      {!photo.linkPhoto && !photo.linkVideo && (
-                        <Badge variant="outline" className="text-gray-500">
-                          Coming Soon
-                        </Badge>
-                      )}
+                      {(!photo.linkPhotos || photo.linkPhotos.trim() === "") &&
+                        (!photo.linkVideos ||
+                          photo.linkVideos.trim() === "") && (
+                          <Badge variant="outline" className="text-gray-500">
+                            Coming Soon
+                          </Badge>
+                        )}
                     </div>
                   </div>
                 </CardContent>
@@ -463,23 +496,25 @@ export default function GalleryPage() {
           </div>
         )}
 
-        {/* Help Section */}
-        <Card className="mt-8 border-gray-200">
+        {/* Thank You Section */}
+        <Card className="mt-8 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-6">
             <div className="pt-4 text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Butuh Bantuan Mengakses Media?
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Klik "Foto" atau "Video" untuk membuka folder masing-masing.
-                Anda mungkin perlu meminta akses jika folder bersifat privat.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <div className="text-sm text-gray-500">
-                  📞 Support: +62 21 1234 5678
-                </div>
-                <div className="text-sm text-gray-500">
-                  📧 Email: support@blaxfootball.com
+              <div className="border-t border-blue-200 pt-4 mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Butuh Bantuan Mengakses Media?
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Klik "Foto" atau "Video" untuk membuka folder masing-masing.
+                  Anda mungkin perlu meminta akses jika folder bersifat privat.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <div className="text-sm text-gray-500">
+                    📞 Support: +62 21 1234 5678
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    📧 Email: support@blaxfootball.com
+                  </div>
                 </div>
               </div>
             </div>

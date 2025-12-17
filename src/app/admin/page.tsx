@@ -15,6 +15,7 @@ import UsersTab from "@/components/organisms/UserTabComponent";
 import NewsTab from "@/components/organisms/NewsTabComponent";
 import MasterDataTab from "@/components/organisms/MasterDataTab";
 import BookingHistoryTab from "@/components/organisms/BookingHistoryTab";
+import GalleriesManagement from "@/components/organisms/GalleriesManagement";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -105,6 +106,8 @@ export default function AdminPage() {
         return <MasterDataTab />;
       case "booking-history":
         return <BookingHistoryTab />;
+      case "gallery":
+        return <GalleriesManagement />;
       default:
         return <BookingHistoryTab />;
     }

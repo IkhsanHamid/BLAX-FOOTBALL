@@ -1,4 +1,4 @@
-import { ScheduleOverview } from "@/types/schedule";
+import { ListSchedule, ScheduleOverview } from "@/types/schedule";
 import { apiClient } from "./api";
 import {
   BookingHistory,
@@ -9,6 +9,7 @@ import {
   Users,
 } from "@/types/admin";
 import { News } from "@/types/news";
+import { GalleriesRequest, GalleryData } from "@/types/galleries";
 
 class AdminService {
   // User Management
@@ -220,6 +221,74 @@ class AdminService {
       const response = await apiClient.delete(`/api/v1/users/removeUser/${id}`);
       return response.data;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  async addGallery(payload: GalleriesRequest) {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/galleries/add-gallery`,
+        payload
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error create galery:", error);
+      throw error;
+    }
+  }
+
+  async galleriesDatas(
+    scheduleId?: string,
+    skip?: number,
+    limit?: number
+  ): Promise<GalleryData[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (scheduleId) queryParams.append("scheduleId", scheduleId.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+      const response = await apiClient.get(
+        `/api/v1/galleries/galleries-data?${queryParams}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error get galeries data:", error);
+      throw error;
+    }
+  }
+
+  async listSchedule(): Promise<ListSchedule[]> {
+    try {
+      const response = await apiClient.get(`/api/v1/matches/list-schedule`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error get list schedule data:", error);
+      throw error;
+    }
+  }
+
+  async deleteGallery(id: string) {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/galleries/delete-gallery/${id}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error delete gallery:", error);
+      throw error;
+    }
+  }
+
+  async updateGallery(id: string, payload: GalleriesRequest) {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/galleries/update-gallery/${id}`,
+        payload
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error delete gallery:", error);
       throw error;
     }
   }

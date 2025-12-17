@@ -29,3 +29,30 @@ export interface PaymentDataMember {
   imageBase64: string;
   expired_at: string;
 }
+
+export interface PaymentDataBooking {
+  name: string;
+  phone: string;
+  bookId: string;
+  total: number;
+  baseFee: number;
+  discountAmount: number;
+  adminFee: number;
+  imageBase64: string;
+  status: "pending" | "settlement" | "expire";
+  scheduleName?: string;
+  venue?: string;
+  date?: string;
+  time?: string;
+  bookingType?: string;
+  feeGk?: number;
+  feePlayer?: number;
+  expired_at: string;
+  error?: string;
+}
+
+export interface WhatsAppModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  paymentData: PaymentDataBooking;
+}

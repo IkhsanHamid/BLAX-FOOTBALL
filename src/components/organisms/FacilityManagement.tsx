@@ -1,22 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Edit,
   Trash2,
   Settings,
   Search,
-  Filter,
-  Download,
-  Upload,
-  Eye,
-  MoreHorizontal,
   Wifi,
   Car,
   Coffee,
   Shield,
   Zap,
+  Grid3x3,
+  List,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import Input from "../atoms/Input";
@@ -38,8 +35,8 @@ import Badge from "../atoms/Badge";
 import Pagination from "../atoms/Pagination";
 import { CardsLoadingSkeleton } from "./LoadingSkeleton";
 
-// Facility icons mapping
-const facilityIcons: Record<string, any> = {
+// Pemetaan ikon fasilitas
+const FACILITY_ICONS: Record<string, any> = {
   "Air Mineral": Coffee,
   Rompi: Shield,
   Bola: Settings,
@@ -51,51 +48,26 @@ const facilityIcons: Record<string, any> = {
   default: Settings,
 };
 
-// Skeleton Components
-const FacilityCardSkeleton = () => (
-  <Card className="animate-pulse">
-    <CardContent className="p-6">
-      <div className="flex items-center space-x-4">
-        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-        <div className="flex-1">
-          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
-      <div className="flex justify-end space-x-2 mt-4">
-        <div className="w-8 h-8 bg-gray-200 rounded"></div>
-        <div className="w-8 h-8 bg-gray-200 rounded"></div>
-      </div>
-    </CardContent>
-  </Card>
-);
+// Warna gradient untuk kartu fasilitas
+const GRADIENT_COLORS = [
+  "from-blue-500 to-teal-500",
+  "from-green-500 to-emerald-500",
+  "from-purple-500 to-pink-500",
+  "from-orange-500 to-red-500",
+  "from-indigo-500 to-blue-500",
+  "from-yellow-500 to-orange-500",
+];
 
-const StatsSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    {[...Array(4)].map((_, i) => (
-      <Card key={i} className="animate-pulse">
-        <CardContent className="p-6">
-          <div className="pt-4 flex items-center justify-between">
-            <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-20"></div>
-              <div className="h-8 bg-gray-200 rounded w-16"></div>
-            </div>
-            <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
+const ITEMS_PER_PAGE = 12;
 
 export default function FacilityManagement() {
+  // State Management
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(12);
   const [showDialog, setShowDialog] = useState(false);
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -106,41 +78,31 @@ export default function FacilityManagement() {
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
-  const [formData, setFormData] = useState<FacilityPayload>({
-    name: "",
-  });
-
+  const [formData, setFormData] = useState<FacilityPayload>({ name: "" });
   const [formErrors, setFormErrors] = useState<Partial<FacilityPayload>>({});
 
   const { showSuccess, showError } = useNotifications();
 
-  useEffect(() => {
-    fetchFacilities();
-  }, []);
-
-  useEffect(() => {
-    filterFacilities();
-  }, [facilities, searchTerm]);
-
-  const fetchFacilities = async () => {
+  // Fetch facilities
+  const fetchFacilities = useCallback(async () => {
     try {
       setLoading(true);
       const response = await masterDataService.getFacilities(
         searchTerm,
         currentPage,
-        itemsPerPage
+        ITEMS_PER_PAGE
       );
       setFacilities(response.data);
     } catch (error) {
       console.error("Error fetching facilities:", error);
-      showError("Error", "Failed to load facilities");
+      showError("Gagal memuat data fasilitas");
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, currentPage, showError]);
 
-  const filterFacilities = () => {
+  // Filter facilities
+  const filterFacilities = useCallback(() => {
     let filtered = facilities;
 
     if (searchTerm) {
@@ -151,37 +113,46 @@ export default function FacilityManagement() {
 
     setFilteredFacilities(filtered);
     setCurrentPage(1);
-  };
+  }, [facilities, searchTerm]);
 
+  // Effects
+  useEffect(() => {
+    fetchFacilities();
+  }, [fetchFacilities]);
+
+  useEffect(() => {
+    filterFacilities();
+  }, [filterFacilities]);
+
+  // Form validation
   const validateForm = (): boolean => {
     const errors: Partial<FacilityPayload> = {};
 
     if (!formData.name.trim()) {
-      errors.name = "Facility name is required";
+      errors.name = "Nama fasilitas wajib diisi";
     } else if (formData.name.trim().length < 2) {
-      errors.name = "Facility name must be at least 2 characters long";
+      errors.name = "Nama fasilitas minimal 2 karakter";
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
+  // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       setSubmitting(true);
 
       if (editingFacility) {
         await masterDataService.updateFacility(editingFacility.id, formData);
-        showSuccess("Success", "Facility updated successfully");
+        showSuccess("Fasilitas berhasil diperbarui");
       } else {
         await masterDataService.createFacility(formData);
-        showSuccess("Success", "Facility created successfully");
+        showSuccess("Fasilitas berhasil ditambahkan");
       }
 
       handleCloseDialog();
@@ -189,57 +160,54 @@ export default function FacilityManagement() {
     } catch (error) {
       console.error("Error saving facility:", error);
       showError(
-        "Error",
         editingFacility
-          ? "Failed to update facility"
-          : "Failed to create facility"
+          ? "Gagal memperbarui fasilitas"
+          : "Gagal menambahkan fasilitas"
       );
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Edit facility
   const handleEdit = (facility: Facility) => {
     setEditingFacility(facility);
-    setFormData({
-      name: facility.name,
-    });
+    setFormData({ name: facility.name });
     setShowDialog(true);
   };
 
+  // Delete single facility
   const handleDelete = async () => {
     if (!deleteConfirmation.facility) return;
 
     try {
       setActionLoading("delete");
       await masterDataService.deleteFacility(deleteConfirmation.facility.id);
-      showSuccess("Success", "Facility deleted successfully");
+      showSuccess("Fasilitas berhasil dihapus");
       setDeleteConfirmation({ isOpen: false, facility: null });
       fetchFacilities();
     } catch (error) {
       console.error("Error deleting facility:", error);
-      showError("Error", "Failed to delete facility");
+      showError("Gagal menghapus fasilitas");
     } finally {
       setActionLoading(null);
     }
   };
 
+  // Bulk delete
   const handleBulkDelete = async () => {
     try {
-      // Simulate API call for bulk delete
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showSuccess(
-        `${selectedFacilities.length} facilities deleted successfully`
-      );
+      showSuccess(`${selectedFacilities.length} fasilitas berhasil dihapus`);
       setShowBulkDeleteConfirm(false);
       setSelectedFacilities([]);
       fetchFacilities();
     } catch (error) {
-      showError("Error", "Failed to delete facilities");
+      showError("Gagal menghapus fasilitas");
     }
   };
 
+  // Close dialog
   const handleCloseDialog = () => {
     setShowDialog(false);
     setEditingFacility(null);
@@ -247,98 +215,61 @@ export default function FacilityManagement() {
     setFormErrors({});
   };
 
+  // Handle input change
   const handleInputChange = (field: keyof FacilityPayload, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
-  const handleSelectFacility = (id: string) => {
-    setSelectedFacilities((prev) =>
-      prev.includes(id)
-        ? prev.filter((facilityId) => facilityId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedFacilities.length === paginatedFacilities.length) {
-      setSelectedFacilities([]);
-    } else {
-      setSelectedFacilities(paginatedFacilities.map((f) => f.id));
-    }
-  };
-
+  // Utility functions
   const getFacilityIcon = (name: string) => {
-    const IconComponent = facilityIcons[name] || facilityIcons.default;
-    return IconComponent;
+    return FACILITY_ICONS[name] || FACILITY_ICONS.default;
   };
 
   const getFacilityColor = (name: string) => {
-    const colors = [
-      "from-blue-500 to-teal-500",
-      "from-green-500 to-emerald-500",
-      "from-purple-500 to-pink-500",
-      "from-orange-500 to-red-500",
-      "from-indigo-500 to-blue-500",
-      "from-yellow-500 to-orange-500",
-    ];
-    const index = name.length % colors.length;
-    return colors[index];
+    const index = name.length % GRADIENT_COLORS.length;
+    return GRADIENT_COLORS[index];
   };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredFacilities.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredFacilities.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedFacilities = filteredFacilities.slice(
     startIndex,
-    startIndex + itemsPerPage
+    startIndex + ITEMS_PER_PAGE
   );
 
-  // Stats calculation
-  const stats = {
-    total: facilities.length,
-    active: facilities.length, // All facilities are active
-    categories: new Set(facilities.map((f) => f.name.split(" ")[0])).size,
-    recent: facilities.filter(
-      (f) =>
-        f.createdAt &&
-        new Date(f.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    ).length,
-  };
-
+  // Loading state
   if (loading) {
     return <CardsLoadingSkeleton />;
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
+    <div className="space-y-4 p-4 sm:p-0">
+      {/* Header - Responsif */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             Manajemen Fasilitas
           </h2>
-          <p className="text-sm md:text-base text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 mt-1">
             Kelola fasilitas dan amenitas venue
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 md:space-x-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {selectedFacilities.length > 0 && (
             <Button
               variant="danger"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="flex items-center"
+              className="flex items-center gap-2"
             >
-              <Trash2 className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
-              <span className="hidden md:inline">
-                Hapus ({selectedFacilities.length})
-              </span>
-              <span className="md:hidden">({selectedFacilities.length})</span>
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden xs:inline">Hapus</span>
+              <span>({selectedFacilities.length})</span>
             </Button>
           )}
 
@@ -347,137 +278,66 @@ export default function FacilityManagement() {
             size="sm"
             onClick={() => setShowDialog(true)}
             disabled={loading}
-            className="flex items-center"
+            className="flex items-center gap-2 flex-1 sm:flex-initial justify-center"
           >
-            <Plus className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
-            <span className="hidden md:inline">Tambah Fasilitas</span>
-            <span className="md:hidden">Tambah</span>
+            <Plus className="w-4 h-4" />
+            <span>Tambah Fasilitas</span>
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="hover:shadow-lg transition-shadow duration-200">
-          <CardContent className="p-6">
-            <div className="pt-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Total Facilities
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Settings className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-200">
-          <CardContent className="p-6">
-            <div className="pt-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {stats.active}
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Shield className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-200">
-          <CardContent className="p-6">
-            <div className="pt-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Categories</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {stats.categories}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Filter className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-200">
-          <CardContent className="p-6">
-            <div className="pt-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Added This Week
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {stats.recent}
-                </p>
-              </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <Plus className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and View Toggle */}
+      {/* Search & View Toggle - Responsif */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="pt-4 flex-1 relative">
-              <Search className="absolute left-3 top-9 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
               <input
                 type="text"
-                placeholder="Search facilities..."
+                placeholder="Cari fasilitas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            <div className="pt-4 flex items-center space-x-3">
-              {/* View Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  Grid
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === "list"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  List
-                </button>
-              </div>
+            {/* View Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1 self-start">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  viewMode === "grid"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Grid3x3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  viewMode === "list"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                <span className="hidden sm:inline">List</span>
+              </button>
             </div>
           </div>
 
           {/* Active Filters */}
           {searchTerm && (
-            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mr-2">Active filters:</p>
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                Search: {searchTerm}
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs sm:text-sm text-gray-600">Filter aktif:</p>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm">
+                Pencarian: {searchTerm}
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="ml-1 hover:text-blue-600"
+                  className="ml-1 hover:text-blue-600 text-base"
                 >
                   ×
                 </button>
@@ -488,42 +348,43 @@ export default function FacilityManagement() {
       </Card>
 
       {/* Results Info */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          Showing {startIndex + 1}-
-          {Math.min(startIndex + itemsPerPage, filteredFacilities.length)} of{" "}
-          {filteredFacilities.length} facilities
+      <div className="flex justify-between items-center px-1">
+        <p className="text-xs sm:text-sm text-gray-600">
+          Menampilkan {startIndex + 1}-
+          {Math.min(startIndex + ITEMS_PER_PAGE, filteredFacilities.length)}{" "}
+          dari {filteredFacilities.length} fasilitas
         </p>
       </div>
 
-      {/* Facilities Display */}
+      {/* Empty State */}
       {filteredFacilities.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No facilities found
+          <CardContent className="p-8 sm:p-12 text-center">
+            <Settings className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+              Tidak ada fasilitas
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-sm sm:text-base text-gray-600 mb-6">
               {searchTerm
-                ? "Try adjusting your search criteria"
-                : "Get started by adding your first facility"}
+                ? "Coba sesuaikan kata kunci pencarian"
+                : "Mulai dengan menambahkan fasilitas pertama"}
             </p>
             {!searchTerm && (
               <Button
                 variant="black"
                 size="sm"
                 onClick={() => setShowDialog(true)}
-                className="flex items-center mx-auto"
+                className="flex items-center gap-2 mx-auto"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add First Facility
+                <Plus className="w-4 h-4" />
+                Tambah Fasilitas Pertama
               </Button>
             )}
           </CardContent>
         </Card>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        /* Grid View - Responsif */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {paginatedFacilities.map((facility) => {
             const IconComponent = getFacilityIcon(facility.name);
             const colorClass = getFacilityColor(facility.name);
@@ -531,25 +392,30 @@ export default function FacilityManagement() {
             return (
               <Card
                 key={facility.id}
-                className="hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 group"
+                className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1 group"
               >
-                <CardContent className="p-6">
-                  <div className="pt-4 flex items-center space-x-4 mb-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center gap-3 sm:gap-4 mb-4">
                     <div
-                      className={`w-12 h-12 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}
+                      className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}
                     >
-                      <IconComponent className="w-6 h-6 text-white" />
+                      <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
                         {facility.name}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {facility.createdAt
-                          ? `Added ${new Date(
-                              facility.createdAt
-                            ).toLocaleDateString()}`
-                          : "Recently added"}
+                          ? new Date(facility.createdAt).toLocaleDateString(
+                              "id-ID",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              }
+                            )
+                          : "Baru ditambahkan"}
                       </p>
                     </div>
                   </div>
@@ -557,16 +423,16 @@ export default function FacilityManagement() {
                   <div className="flex justify-between items-center">
                     <Badge
                       variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200"
+                      className="bg-green-50 text-green-700 border-green-200 text-xs"
                     >
-                      Active
+                      Aktif
                     </Badge>
-                    <div className="flex space-x-2">
+                    <div className="flex gap-1 sm:gap-2">
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleEdit(facility)}
-                        className="hover:bg-yellow-50"
+                        className="hover:bg-yellow-50 p-1.5 sm:p-2"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -579,7 +445,7 @@ export default function FacilityManagement() {
                             facility: facility,
                           })
                         }
-                        className="hover:bg-red-50 text-red-600"
+                        className="hover:bg-red-50 text-red-600 p-1.5 sm:p-2"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -591,6 +457,7 @@ export default function FacilityManagement() {
           })}
         </div>
       ) : (
+        /* List View - Responsif */
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-gray-200">
@@ -601,42 +468,47 @@ export default function FacilityManagement() {
                 return (
                   <div
                     key={facility.id}
-                    className="p-6 hover:bg-gray-50 transition-colors"
+                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                         <div
-                          className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center`}
+                          className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center flex-shrink-0`}
                         >
                           <IconComponent className="w-5 h-5 text-white" />
                         </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                             {facility.name}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             {facility.createdAt
-                              ? `Added ${new Date(
-                                  facility.createdAt
-                                ).toLocaleDateString()}`
-                              : "Recently added"}
+                              ? new Date(facility.createdAt).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )
+                              : "Baru ditambahkan"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <Badge
                           variant="outline"
-                          className="bg-green-50 text-green-700 border-green-200"
+                          className="bg-green-50 text-green-700 border-green-200 text-xs hidden sm:inline-flex"
                         >
-                          Active
+                          Aktif
                         </Badge>
-                        <div className="flex space-x-2">
+                        <div className="flex gap-1 sm:gap-2">
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEdit(facility)}
-                            className="hover:bg-yellow-50"
+                            className="hover:bg-yellow-50 p-1.5 sm:p-2"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -649,7 +521,7 @@ export default function FacilityManagement() {
                                 facility: facility,
                               })
                             }
-                            className="hover:bg-red-50 text-red-600"
+                            className="hover:bg-red-50 text-red-600 p-1.5 sm:p-2"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -673,60 +545,63 @@ export default function FacilityManagement() {
         />
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog - Responsif */}
       <Dialog open={showDialog} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingFacility ? "Edit Facility" : "Add New Facility"}
+            <DialogTitle className="text-lg sm:text-xl">
+              {editingFacility ? "Edit Fasilitas" : "Tambah Fasilitas Baru"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Facility Name *
+                Nama Fasilitas <span className="text-red-500">*</span>
               </label>
               <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Enter facility name"
+                placeholder="Masukkan nama fasilitas"
                 className={formErrors.name ? "border-red-500" : ""}
               />
               {formErrors.name && (
-                <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
+                <p className="text-red-500 text-xs sm:text-sm mt-1">
+                  {formErrors.name}
+                </p>
               )}
-              <p className="text-gray-500 text-sm mt-1">
-                Examples: Air Mineral, Rompi, Bola, Shower, Wasit, Parking, WiFi
+              <p className="text-gray-500 text-xs sm:text-sm mt-1">
+                Contoh: Air Mineral, Rompi, Bola, Shower, Wasit, Parking, WiFi
               </p>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end gap-2 sm:gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleCloseDialog}
                 disabled={submitting}
+                className="flex-1 sm:flex-initial"
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 type="submit"
                 variant="black"
                 size="sm"
                 disabled={submitting}
-                className="flex items-center"
+                className="flex items-center gap-2 flex-1 sm:flex-initial justify-center"
               >
                 {submitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {editingFacility ? "Updating..." : "Creating..."}
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>
+                      {editingFacility ? "Menyimpan..." : "Menambah..."}
+                    </span>
                   </>
-                ) : editingFacility ? (
-                  "Update Facility"
                 ) : (
-                  "Create Facility"
+                  <span>{editingFacility ? "Perbarui" : "Tambah"}</span>
                 )}
               </Button>
             </div>
@@ -739,12 +614,24 @@ export default function FacilityManagement() {
         isOpen={deleteConfirmation.isOpen}
         onClose={() => setDeleteConfirmation({ isOpen: false, facility: null })}
         onConfirm={handleDelete}
-        title="Delete Facility"
-        message={`Apakah kamu yakin hapus fasilitas "${deleteConfirmation.facility?.name}"? Aksi ini tidak dapat dibatalkan.`}
+        title="Hapus Fasilitas"
+        message={`Apakah Anda yakin ingin menghapus fasilitas "${deleteConfirmation.facility?.name}"? Tindakan ini tidak dapat dibatalkan.`}
         type="danger"
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText="Hapus"
+        cancelText="Batal"
         isLoading={actionLoading === "delete"}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title="Hapus Beberapa Fasilitas"
+        message={`Apakah Anda yakin ingin menghapus ${selectedFacilities.length} fasilitas? Tindakan ini tidak dapat dibatalkan.`}
+        type="danger"
+        confirmText="Hapus Semua"
+        cancelText="Batal"
       />
     </div>
   );

@@ -22,9 +22,9 @@ import {
 import ConfirmationModal from "../molecules/ConfirmationModal";
 import { useNotifications } from "./NotificationContainer";
 import { masterDataService, Venue, VenuePayload } from "@/utils/masterData";
-import { TableLoadingSkeleton } from "./LoadingSkeleton";
 
-export default function VenueManagement() {
+export default function ManajemenVenue() {
+  // State Management
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -49,10 +49,12 @@ export default function VenueManagement() {
 
   const { showSuccess, showError } = useNotifications();
 
+  // Effects
   useEffect(() => {
     fetchVenues();
   }, [searchTerm, currentPage]);
 
+  // API Functions
   const fetchVenues = async () => {
     try {
       setLoading(true);
@@ -60,33 +62,13 @@ export default function VenueManagement() {
       setVenues(response);
     } catch (error) {
       console.error("Error fetching venues:", error);
-      showError("Error", "Failed to load venues");
+      showError("Error", "Gagal memuat data venue");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateForm = (): boolean => {
-    const errors: Partial<VenuePayload> = {};
-
-    if (!formData.name.trim()) {
-      errors.name = "Venue name is required";
-    }
-
-    if (!formData.address.trim()) {
-      errors.address = "Address is required";
-    }
-
-    if (!formData.gmapLink.trim()) {
-      errors.gmapLink = "Google Maps link is required";
-    } else if (!isValidUrl(formData.gmapLink)) {
-      errors.gmapLink = "Please enter a valid URL";
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
+  // Validation
   const isValidUrl = (string: string): boolean => {
     try {
       new URL(string);
@@ -96,22 +78,49 @@ export default function VenueManagement() {
     }
   };
 
+  const validateForm = (): boolean => {
+    const errors: Partial<VenuePayload> = {};
+
+    if (!formData.name.trim()) {
+      errors.name = "Nama venue wajib diisi";
+    }
+
+    if (!formData.address.trim()) {
+      errors.address = "Alamat wajib diisi";
+    }
+
+    if (!formData.gmapLink.trim()) {
+      errors.gmapLink = "Link Google Maps wajib diisi";
+    } else if (!isValidUrl(formData.gmapLink)) {
+      errors.gmapLink = "Mohon masukkan URL yang valid";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Form Handlers
+  const handleInputChange = (field: keyof VenuePayload, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       setSubmitting(true);
 
       if (editingVenue) {
         await masterDataService.updateVenue(editingVenue.id, formData);
-        showSuccess("Success", "Venue updated successfully");
+        showSuccess("Berhasil", "Venue berhasil diperbarui");
       } else {
         await masterDataService.createVenue(formData);
-        showSuccess("Success", "Venue created successfully");
+        showSuccess("Berhasil", "Venue berhasil dibuat");
       }
 
       handleCloseDialog();
@@ -120,13 +129,21 @@ export default function VenueManagement() {
       console.error("Error saving venue:", error);
       showError(
         "Error",
-        editingVenue ? "Failed to update venue" : "Failed to create venue"
+        editingVenue ? "Gagal memperbarui venue" : "Gagal membuat venue"
       );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleCloseDialog = () => {
+    setShowDialog(false);
+    setEditingVenue(null);
+    setFormData({ name: "", gmapLink: "", address: "" });
+    setFormErrors({});
+  };
+
+  // CRUD Handlers
   const handleEdit = (venue: Venue) => {
     setEditingVenue(venue);
     setFormData({
@@ -143,31 +160,33 @@ export default function VenueManagement() {
     try {
       setActionLoading("delete");
       await masterDataService.deleteVenue(deleteConfirmation.venue.id);
-      showSuccess("Success", "Venue deleted successfully");
+      showSuccess("Berhasil", "Venue berhasil dihapus");
       setDeleteConfirmation({ isOpen: false, venue: null });
       fetchVenues();
     } catch (error) {
       console.error("Error deleting venue:", error);
-      showError("Error", "Failed to delete venue");
+      showError("Error", "Gagal menghapus venue");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleCloseDialog = () => {
-    setShowDialog(false);
-    setEditingVenue(null);
-    setFormData({ name: "", gmapLink: "", address: "" });
-    setFormErrors({});
-  };
+  // Render Functions
+  const renderEmptyState = () => (
+    <TableRow>
+      <TableCell className="text-center py-8">
+        <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-500">Tidak ada venue ditemukan</p>
+      </TableCell>
+    </TableRow>
+  );
 
-  const handleInputChange = (field: keyof VenuePayload, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
+  const renderLoadingState = () => (
+    <div className="flex items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <span className="ml-2 text-gray-600">Memuat venue...</span>
+    </div>
+  );
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -214,74 +233,64 @@ export default function VenueManagement() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-2 text-gray-600">Loading venues...</span>
-            </div>
+            renderLoadingState()
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Alamat</TableHead>
                   <TableHead>Google Maps</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {venues.length === 0 ? (
-                  <TableRow>
-                    <TableCell className="text-center py-8">
-                      <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">No venues found</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  venues.map((venue) => (
-                    <TableRow key={venue.id}>
-                      <TableCell className="font-medium">
-                        {venue.name}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {venue.address}
-                      </TableCell>
-                      <TableCell>
-                        <a
-                          href={venue.gmapLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View Map
-                        </a>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(venue)}
+                {venues.length === 0
+                  ? renderEmptyState()
+                  : venues.map((venue) => (
+                      <TableRow key={venue.id}>
+                        <TableCell className="font-medium">
+                          {venue.name}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {venue.address}
+                        </TableCell>
+                        <TableCell>
+                          <a
+                            href={venue.gmapLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800"
                           >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() =>
-                              setDeleteConfirmation({
-                                isOpen: true,
-                                venue: venue,
-                              })
-                            }
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Lihat Peta
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(venue)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() =>
+                                setDeleteConfirmation({
+                                  isOpen: true,
+                                  venue: venue,
+                                })
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
           )}
@@ -296,10 +305,10 @@ export default function VenueManagement() {
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
-            Previous
+            Sebelumnya
           </Button>
           <span className="flex items-center px-4 py-2 text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
+            Halaman {currentPage} dari {totalPages}
           </span>
           <Button
             variant="outline"
@@ -308,7 +317,7 @@ export default function VenueManagement() {
             }
             disabled={currentPage === totalPages}
           >
-            Next
+            Berikutnya
           </Button>
         </div>
       )}
@@ -318,19 +327,19 @@ export default function VenueManagement() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingVenue ? "Edit Venue" : "Add New Venue"}
+              {editingVenue ? "Edit Venue" : "Buat Venue Baru"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Venue Name *
+                Nama Venue *
               </label>
               <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Enter venue name"
+                placeholder="Masukkan nama venue"
                 className={formErrors.name ? "border-red-500" : ""}
               />
               {formErrors.name && (
@@ -340,12 +349,12 @@ export default function VenueManagement() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address *
+                Alamat *
               </label>
               <textarea
                 value={formData.address}
                 onChange={(e) => handleInputChange("address", e.target.value)}
-                placeholder="Enter venue address"
+                placeholder="Masukkan alamat venue"
                 rows={3}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   formErrors.address ? "border-red-500" : "border-gray-300"
@@ -360,7 +369,7 @@ export default function VenueManagement() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Google Maps Link *
+                Link Google Maps *
               </label>
               <Input
                 type="url"
@@ -384,7 +393,7 @@ export default function VenueManagement() {
                 onClick={handleCloseDialog}
                 disabled={submitting}
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 type="submit"
@@ -394,11 +403,11 @@ export default function VenueManagement() {
               >
                 {submitting
                   ? editingVenue
-                    ? "Updating..."
-                    : "Creating..."
+                    ? "Memperbarui..."
+                    : "Membuat..."
                   : editingVenue
-                  ? "Update Venue"
-                  : "Create Venue"}
+                  ? "Perbarui Venue"
+                  : "Buat Venue"}
               </Button>
             </div>
           </form>
@@ -410,11 +419,11 @@ export default function VenueManagement() {
         isOpen={deleteConfirmation.isOpen}
         onClose={() => setDeleteConfirmation({ isOpen: false, venue: null })}
         onConfirm={handleDelete}
-        title="Delete Venue"
-        message={`Apakah kamu yakin hapus venue "${deleteConfirmation.venue?.name}"? Aksi ini tidak dapat dibatalkan.`}
+        title="Hapus Venue"
+        message={`Apakah kamu yakin ingin menghapus venue "${deleteConfirmation.venue?.name}"? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText="Hapus"
+        cancelText="Batal"
         isLoading={actionLoading === "delete"}
       />
     </div>

@@ -145,7 +145,6 @@ export default function SchedulesCarousel() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const { showSuccess, showError } = useNotifications();
@@ -233,7 +232,6 @@ export default function SchedulesCarousel() {
   };
 
   const handleBooking = (schedule: any) => {
-    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
     router.push(`/checkout`);
   };

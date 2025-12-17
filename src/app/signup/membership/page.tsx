@@ -16,7 +16,7 @@ export default function MembershipCheckoutPage() {
   const handlePaymentSuccess = () => {
     setTimeout(() => {
       navigate.push("/");
-    }, 10000); // 10 detik = 10000 ms
+    }, 30000); // 10 detik = 10000 ms
   };
 
   const isPaymentIdInvalid =

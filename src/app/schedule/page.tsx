@@ -8,7 +8,6 @@ import { formatCurrency, formatMatchDate } from "@/lib/helper";
 import { Schedule } from "@/types/schedule";
 import { formatDate } from "@/utils/helpers";
 import { scheduleService } from "@/utils/schedule";
-import BookModal from "@/components/molecules/BookModal";
 import { Calendar, Clock, Eye, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
@@ -23,7 +22,6 @@ export default function SchedulePage() {
   const [selectedVenue, setSelectedVenue] = useState("All Venues");
   const [selectedType, setSelectedType] = useState("All Types");
   const [sortBy, setSortBy] = useState("date");
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const { setSelectedSchedule } = useSchedule();
 
   const matchesData = useMemo(
@@ -133,7 +131,6 @@ export default function SchedulePage() {
   };
 
   const handleBooking = (schedule: any) => {
-    // setIsBookModalOpen(true);
     setSelectedSchedule(schedule);
     router.push(`/checkout`);
   };
@@ -522,17 +519,6 @@ export default function SchedulePage() {
           )}
         </div>
       </div>
-
-      {/* Book Modal */}
-      {/* <BookModal
-        isOpen={isBookModalOpen}
-        onClose={() => {
-          setIsBookModalOpen(false);
-          setSelectedSchedule(null);
-        }}
-        schedule={selectedSchedule}
-        scheduleId={selectedSchedule?.id || null}
-      /> */}
     </>
   );
 }

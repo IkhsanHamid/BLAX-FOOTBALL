@@ -9,6 +9,7 @@ import {
   Database,
   History,
   Shield,
+  Image,
 } from "lucide-react";
 import { cn } from "@/lib/helper";
 
@@ -36,8 +37,9 @@ const navItems: NavItem[] = [
   },
   { id: "schedules", label: "Jadwal", icon: Calendar },
   { id: "lineup", label: "Lineup", icon: Shield },
-  { id: "users", label: "Pengguna", icon: Users },
+  { id: "users", label: "Member", icon: Users },
   { id: "news", label: "Berita", icon: Newspaper },
+  { id: "gallery", label: "Galeri", icon: Image },
   {
     id: "master-data",
     label: "Master Data",

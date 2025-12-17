@@ -10,6 +10,7 @@ import { formatMatchDate } from "@/lib/helper";
 import { useAuth } from "@/contexts/AuthContext";
 import { bookingService } from "@/utils/booking";
 import PaymentComponent from "@/components/organisms/Payment";
+import { QRISPaymentPage } from "@/components/organisms/QRISPayment";
 
 // Fungsi validasi input
 const noSpace = (value: string) => value.replace(/\s+/g, "");
@@ -183,9 +184,7 @@ export default function CheckoutPage() {
 
   // Jika showPayment true, tampilkan PaymentComponent
   if (showPayment && paymentId) {
-    return (
-      <PaymentComponent paymentId={paymentId} onBack={handleBackFromPayment} />
-    );
+    return <QRISPaymentPage paymentId={paymentId} paymentType={"booking"} />;
   }
 
   if (!selectedSchedule) {
