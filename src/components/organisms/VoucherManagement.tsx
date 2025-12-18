@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Edit, Trash2, Search, Gift, Eye, X } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  Gift,
+  Eye,
+  X,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import Button from "../atoms/Button";
 import Input from "../atoms/Input";
 import { Card, CardContent } from "../atoms/Card";
@@ -19,6 +29,24 @@ import Pagination from "../atoms/Pagination";
 import { CardsLoadingSkeleton } from "./LoadingSkeleton";
 import { formatCurrency } from "@/lib/helper";
 import { Voucher, VoucherPayload } from "@/types/voucher";
+import { adminService } from "@/utils/admin";
+import { ListUserMember } from "@/types/admin";
+
+// Mock user type - sesuaikan dengan tipe User di aplikasi Anda
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// Mock assigned voucher type
+interface AssignedVoucher {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  assignedAt: string;
+}
 
 // Constants
 const ITEMS_PER_PAGE = 12;
@@ -118,6 +146,14 @@ export default function VoucherManagement(): JSX.Element {
   const [formData, setFormData] = useState<VoucherPayload>(INITIAL_FORM_DATA);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [viewingVoucher, setViewingVoucher] = useState<Voucher | null>(null);
+  const [showAssignDialog, setShowAssignDialog] = useState<boolean>(false);
+  const [assigningVoucher, setAssigningVoucher] = useState<Voucher | null>(
+    null
+  );
+  const [assignedUsers, setAssignedUsers] = useState<AssignedVoucher[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<ListUserMember[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [loadingAssignments, setLoadingAssignments] = useState<boolean>(false);
 
   const { showSuccess, showError } = useNotifications();
 
@@ -142,6 +178,48 @@ export default function VoucherManagement(): JSX.Element {
   useEffect(() => {
     fetchVouchers();
   }, [fetchVouchers]);
+
+  // Fetch available users - ganti dengan API call yang sesuai
+  const fetchAvailableUsers = useCallback(async (): Promise<void> => {
+    try {
+      // TODO: Ganti dengan API call yang sesuai
+      const response = await adminService.listMemberUser();
+      setAvailableUsers(response);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      showError("Error", "Failed to load users");
+    }
+  }, [showError]);
+
+  // Fetch assigned users for a voucher
+  const fetchAssignedUsers = useCallback(
+    async (voucherId: string): Promise<void> => {
+      try {
+        setLoadingAssignments(true);
+        // TODO: Ganti dengan API call yang sesuai
+        const response = await voucherService.listAssignVoucher(voucherId);
+        setAssignedUsers(response);
+      } catch (error) {
+        console.error("Error fetching assigned users:", error);
+        showError("Error", "Failed to load assigned users");
+      } finally {
+        setLoadingAssignments(false);
+      }
+    },
+    [showError]
+  );
+
+  useEffect(() => {
+    if (showAssignDialog && assigningVoucher) {
+      fetchAvailableUsers();
+      fetchAssignedUsers(assigningVoucher.id);
+    }
+  }, [
+    showAssignDialog,
+    assigningVoucher,
+    fetchAvailableUsers,
+    fetchAssignedUsers,
+  ]);
 
   // Filter vouchers
   const filteredVouchers = useMemo((): Voucher[] => {
@@ -301,6 +379,96 @@ export default function VoucherManagement(): JSX.Element {
         : paginatedVouchers.map((v) => v.id)
     );
   }, [paginatedVouchers]);
+
+  // Assign voucher to user
+  const handleOpenAssignDialog = useCallback((voucher: Voucher): void => {
+    setAssigningVoucher(voucher);
+    setShowAssignDialog(true);
+    setSelectedUserId("");
+  }, []);
+
+  const handleCloseAssignDialog = useCallback((): void => {
+    setShowAssignDialog(false);
+    setAssigningVoucher(null);
+    setSelectedUserId("");
+    setAssignedUsers([]);
+  }, []);
+
+  const handleAssignVoucher = async (): Promise<void> => {
+    if (!assigningVoucher || !selectedUserId) {
+      showError("Error", "Silakan pilih user terlebih dahulu");
+      return;
+    }
+
+    const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
+    if (!selectedUser) {
+      showError("Error", "User tidak ditemukan");
+      return;
+    }
+
+    // Check if user already assigned
+    const isAlreadyAssigned = assignedUsers.some(
+      (a) => a.userId === selectedUserId
+    );
+    if (isAlreadyAssigned) {
+      showError("Error", `${selectedUser.name} sudah memiliki voucher ini`);
+      return;
+    }
+
+    try {
+      setLoadingAssignments(true);
+
+      // API call to assign voucher
+      await voucherService.assignToUser(assigningVoucher.id, selectedUserId);
+
+      // Update local state with new assignment
+      const newAssignment: AssignedVoucher = {
+        id: `${assigningVoucher.id}-${selectedUserId}`,
+        userId: selectedUserId,
+        name: selectedUser.name,
+        email: selectedUser.email,
+        assignedAt: new Date().toISOString(),
+      };
+
+      setAssignedUsers((prev) => [...prev, newAssignment]);
+      setSelectedUserId("");
+
+      showSuccess(
+        "Berhasil",
+        `Voucher berhasil di-assign ke ${selectedUser.name}`
+      );
+    } catch (error: any) {
+      console.error("Error assigning voucher:", error);
+
+      // Handle specific error cases
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Gagal assign voucher ke user";
+
+      showError("Error", errorMessage);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (
+    assignmentId: string,
+    userName: string
+  ): Promise<void> => {
+    try {
+      // TODO: Ganti dengan API call yang sesuai
+      await voucherService.removeAssignment(assignmentId);
+
+      // Mock success
+      setAssignedUsers((prev) => prev.filter((a) => a.id !== assignmentId));
+
+      showSuccess("Success", `Voucher berhasil dihapus dari ${userName}`);
+    } catch (error) {
+      console.error("Error removing assignment:", error);
+      showError("Error", "Failed to remove voucher assignment");
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -462,6 +630,7 @@ export default function VoucherManagement(): JSX.Element {
                   setDeleteConfirmation({ isOpen: true, voucher: v })
                 }
                 onView={setViewingVoucher}
+                onAssign={handleOpenAssignDialog}
               />
             ))}
           </CardContent>
@@ -500,6 +669,23 @@ export default function VoucherManagement(): JSX.Element {
           setViewingVoucher(null);
           setDeleteConfirmation({ isOpen: true, voucher });
         }}
+        onAssign={(voucher) => {
+          setViewingVoucher(null);
+          handleOpenAssignDialog(voucher);
+        }}
+      />
+
+      <AssignVoucherDialog
+        open={showAssignDialog}
+        voucher={assigningVoucher}
+        availableUsers={availableUsers}
+        assignedUsers={assignedUsers}
+        selectedUserId={selectedUserId}
+        loading={loadingAssignments}
+        onClose={handleCloseAssignDialog}
+        onSelectUser={setSelectedUserId}
+        onAssign={handleAssignVoucher}
+        onRemoveAssignment={handleRemoveAssignment}
       />
 
       <ConfirmationModal
@@ -535,6 +721,7 @@ interface VoucherListItemProps {
   onEdit: (voucher: Voucher) => void;
   onDelete: (voucher: Voucher) => void;
   onView: (voucher: Voucher) => void;
+  onAssign: (voucher: Voucher) => void;
 }
 
 function VoucherListItem({
@@ -544,6 +731,7 @@ function VoucherListItem({
   onEdit,
   onDelete,
   onView,
+  onAssign,
 }: VoucherListItemProps): JSX.Element {
   const status = getVoucherStatus(voucher);
 
@@ -595,6 +783,13 @@ function VoucherListItem({
             >
               <Eye className="w-3.5 h-3.5" />
               Detail
+            </button>
+            <button
+              onClick={() => onAssign(voucher)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Assign
             </button>
             <button
               onClick={() => onEdit(voucher)}
@@ -811,6 +1006,7 @@ interface VoucherDetailDialogProps {
   onClose: () => void;
   onEdit: (voucher: Voucher) => void;
   onDelete: (voucher: Voucher) => void;
+  onAssign: (voucher: Voucher) => void;
 }
 
 function VoucherDetailDialog({
@@ -818,6 +1014,7 @@ function VoucherDetailDialog({
   onClose,
   onEdit,
   onDelete,
+  onAssign,
 }: VoucherDetailDialogProps): JSX.Element | null {
   if (!voucher) return null;
 
@@ -897,6 +1094,15 @@ function VoucherDetailDialog({
             <Button
               variant="outline"
               size="sm"
+              onClick={() => onAssign(voucher)}
+              className="flex-1 flex items-center justify-center gap-2 bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200"
+            >
+              <UserPlus className="w-4 h-4" />
+              Assign ke User
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => onEdit(voucher)}
               className="flex-1 flex items-center justify-center gap-2"
             >
@@ -911,6 +1117,185 @@ function VoucherDetailDialog({
             >
               <Trash2 className="w-4 h-4" />
               Hapus Voucher
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Assign Voucher Dialog Component
+interface AssignVoucherDialogProps {
+  open: boolean;
+  voucher: Voucher | null;
+  availableUsers: User[];
+  assignedUsers: AssignedVoucher[];
+  selectedUserId: string;
+  loading: boolean;
+  onClose: () => void;
+  onSelectUser: (userId: string) => void;
+  onAssign: () => void;
+  onRemoveAssignment: (assignmentId: string, userName: string) => void;
+}
+
+function AssignVoucherDialog({
+  open,
+  voucher,
+  availableUsers,
+  assignedUsers,
+  selectedUserId,
+  loading,
+  onClose,
+  onSelectUser,
+  onAssign,
+  onRemoveAssignment,
+}: AssignVoucherDialogProps): JSX.Element | null {
+  if (!open || !voucher) return null;
+
+  const assignedUserIds = assignedUsers.map((a) => a.userId);
+  const unassignedUsers = availableUsers.filter(
+    (u) => !assignedUserIds.includes(u.id)
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center justify-between pr-8">
+            <DialogTitle>Assign Voucher ke User</DialogTitle>
+            <button
+              onClick={onClose}
+              className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </div>
+        </DialogHeader>
+
+        <div className="p-6 space-y-6">
+          {/* Voucher Info */}
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
+            <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex-shrink-0">
+              <Gift className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900">{voucher.name}</h3>
+              <p className="text-sm text-gray-600 font-mono">{voucher.code}</p>
+            </div>
+            <div className="text-lg font-bold text-green-600">
+              {getDiscountDisplay(voucher)}
+            </div>
+          </div>
+
+          {/* Assign Form */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">
+              Assign ke User Baru
+            </h4>
+            <div className="flex gap-2">
+              <select
+                value={selectedUserId}
+                onChange={(e) => onSelectUser(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                disabled={unassignedUsers.length === 0}
+              >
+                <option value="">
+                  {unassignedUsers.length === 0
+                    ? "Semua user sudah di-assign"
+                    : "Pilih user..."}
+                </option>
+                {unassignedUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="black"
+                size="sm"
+                onClick={onAssign}
+                disabled={!selectedUserId || loading}
+                className="whitespace-nowrap"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Assign
+              </Button>
+            </div>
+          </div>
+
+          {/* Assigned Users List */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                User yang Sudah Di-assign
+              </h4>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                {assignedUsers.length} user
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Memuat...</p>
+              </div>
+            ) : assignedUsers.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-sm text-gray-600">
+                  Belum ada user yang di-assign voucher ini
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                {assignedUsers.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">
+                        {assignment.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {assignment.email}
+                      </p>
+                      {/* <p className="text-xs text-gray-500 mt-1">
+                        Assigned:{" "}
+                        {new Date(assignment.assignedAt).toLocaleDateString(
+                          "id-ID",
+                          {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p> */}
+                    </div>
+                    <button
+                      onClick={() =>
+                        onRemoveAssignment(assignment.id, assignment.name)
+                      }
+                      className="ml-3 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                      title="Hapus assignment"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Close Button */}
+          <div className="flex justify-end pt-4 border-t">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Tutup
             </Button>
           </div>
         </div>

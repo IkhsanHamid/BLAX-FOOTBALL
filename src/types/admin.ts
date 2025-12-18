@@ -89,3 +89,11 @@ export interface Users {
   name: string;
   email: string;
 }
+
+export interface ListUserMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  validUntil: string;
+}

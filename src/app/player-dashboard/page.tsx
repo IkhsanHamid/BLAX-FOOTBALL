@@ -19,6 +19,9 @@ import {
   AlertCircle,
   Camera,
   Crown,
+  Copy,
+  Check,
+  Info,
 } from "lucide-react";
 import {
   Card,
@@ -38,13 +41,149 @@ import MembershipBanner from "@/components/molecules/MembershipBanner";
 import BookingHistoryBlur from "@/components/molecules/MembershipBlur";
 import VouchersBlur from "@/components/molecules/VoucherBlur";
 import MembershipModal from "@/components/molecules/MembershipModal";
+import { UserVoucher } from "@/types/voucher";
 
-// Updated UserVoucher interface to match the API response
-export interface UserVoucher {
-  name: string;
-  code: string;
-  description: string;
-}
+// Popover Component
+const Popover: React.FC<{ children: React.ReactNode; content: string }> = ({
+  children,
+  content,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-blue-600 hover:text-blue-800 transition-colors"
+        type="button"
+      >
+        {children}
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 w-72 p-3 bg-white border border-gray-200 rounded-lg shadow-lg bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+          <div className="text-sm text-gray-700">{content}</div>
+          <div className="absolute w-3 h-3 bg-white border-b border-r border-gray-200 transform rotate-45 left-1/2 -translate-x-1/2 -bottom-1.5"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// VoucherCard Component
+const VoucherCard: React.FC<{ voucher: UserVoucher; index: number }> = ({
+  voucher,
+  index,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const { showSuccess, showError } = useNotifications();
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(voucher.code);
+      setCopied(true);
+      showSuccess("Code copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      showError("Failed to copy code");
+    }
+  };
+
+  const truncateDescription = (text: string, maxLength: number = 60) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  const isDescriptionLong = voucher.description.length > 60;
+
+  // Format discount display
+  const getDiscountDisplay = () => {
+    if (voucher.type === "PERCENTAGE") {
+      return `${voucher.nominal}%`;
+    } else {
+      return formatCurrency(voucher.nominal);
+    }
+  };
+
+  const getDiscountLabel = () => {
+    if (voucher.type === "PERCENTAGE") {
+      return "Diskon";
+    } else {
+      return "Potongan";
+    }
+  };
+
+  return (
+    <div
+      key={`${voucher.code}-${index}`}
+      className="p-4 border border-green-200 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-all duration-200 shadow-sm hover:shadow-md"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-semibold text-green-800 text-base">
+              {voucher.name}
+            </h4>
+            <div className="px-2 py-0.5 bg-green-600 text-white rounded-md text-xs font-bold">
+              {getDiscountDisplay()}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <p className="text-sm text-green-700">
+              {truncateDescription(voucher.description)}
+            </p>
+            {isDescriptionLong && (
+              <Popover content={voucher.description}>
+                <Info className="w-4 h-4 flex-shrink-0" />
+              </Popover>
+            )}
+          </div>
+        </div>
+        <Badge className="bg-green-100 text-green-800 border border-green-200 ml-2">
+          Available
+        </Badge>
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-green-200 my-3"></div>
+
+      {/* Code Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-green-600 font-medium mb-1">
+            Voucher Code
+          </p>
+          <p className="font-mono text-sm font-bold text-green-800">
+            {voucher.code}
+          </p>
+        </div>
+        <button
+          onClick={handleCopyCode}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-sm transition-all duration-200 ${
+            copied
+              ? "bg-green-600 text-white"
+              : "bg-white text-green-700 border border-green-300 hover:bg-green-100"
+          }`}
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4" />
+              Copied!
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Skeleton Components
 const StatsCardSkeleton = () => (
@@ -398,81 +537,6 @@ export default function PlayerDashboardPage() {
               </div>
             </div>
 
-            {/* Stats Cards */}
-            {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-white/95 backdrop-blur-sm border border-blue-100 hover:shadow-lg transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="pt-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Bookings
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {stats.totalBookings}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <Calendar className="w-6 h-6 text-blue-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/95 backdrop-blur-sm border border-green-100 hover:shadow-lg transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="pt-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Available Vouchers
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {stats.availableVouchers}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-green-100 rounded-lg">
-                      <Gift className="w-6 h-6 text-green-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/95 backdrop-blur-sm border border-purple-100 hover:shadow-lg transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="pt-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Successful Payments
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {stats.successfulPayments}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-purple-100 rounded-lg">
-                      <Trophy className="w-6 h-6 text-purple-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/95 backdrop-blur-sm border border-orange-100 hover:shadow-lg transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="pt-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Spent
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(stats.totalSpent)}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-orange-100 rounded-lg">
-                      <CreditCard className="w-6 h-6 text-orange-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div> */}
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Vouchers */}
               <div className="lg:col-span-1">
@@ -490,41 +554,22 @@ export default function PlayerDashboardPage() {
                       />
                     ) : userVouchers.length === 0 ? (
                       <div className="text-center py-8">
-                        <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">
+                        <Gift className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">
                           Tidak ada voucher tersedia
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-400">
                           Silahkan cek kembali secara berkala
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {userVouchers.slice(0, 3).map((voucher, index) => (
-                          <div
+                          <VoucherCard
                             key={`${voucher.code}-${index}`}
-                            className="p-4 border border-green-200 rounded-lg bg-green-50 hover:bg-green-100 transition-colors"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold text-green-800">
-                                {voucher.name}
-                              </h4>
-                              <Badge className="bg-green-100 text-green-800">
-                                Available
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-green-700 mb-2">
-                              {voucher.description}
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <div className="text-right">
-                                <p className="text-xs text-green-600">Code</p>
-                                <p className="font-mono text-sm font-bold text-green-800">
-                                  {voucher.code}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
+                            voucher={voucher}
+                            index={index}
+                          />
                         ))}
                         {userVouchers.length > 3 && (
                           <div className="text-center pt-2">
@@ -548,14 +593,6 @@ export default function PlayerDashboardPage() {
                         <Clock className="w-5 h-5 mr-2" />
                         Booking History
                       </div>
-                      {/* <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                      >
-                        <Download className="w-4 h-4 mr-1" />
-                        Export
-                      </Button> */}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -622,17 +659,6 @@ export default function PlayerDashboardPage() {
                                     minute: "2-digit",
                                   })}
                                 </div>
-                                {/* <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleViewPaymentDetails(booking.bookingId)
-                                  }
-                                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                                >
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  View Details
-                                </Button> */}
                               </div>
                             </div>
                           ))}

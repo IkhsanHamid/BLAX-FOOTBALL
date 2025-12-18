@@ -29,4 +29,6 @@ export interface UserVoucher {
   name: string;
   code: string;
   description: string;
+  type: "PERCENTAGE" | "FIXED";
+  nominal: number;
 }

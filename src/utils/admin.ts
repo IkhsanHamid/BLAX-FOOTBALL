@@ -3,6 +3,7 @@ import { apiClient } from "./api";
 import {
   BookingHistory,
   BookingHistoryResponse,
+  ListUserMember,
   ReportBooking,
   Roles,
   UserManagement,
@@ -223,6 +224,11 @@ class AdminService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async listMemberUser(): Promise<ListUserMember[]> {
+    const response = await apiClient.get(`/api/v1/users/list-membership`);
+    return response.data;
   }
 
   async addGallery(payload: GalleriesRequest) {

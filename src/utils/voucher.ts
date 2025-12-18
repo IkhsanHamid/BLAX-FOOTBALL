@@ -78,6 +78,28 @@ class VoucherService {
     const response = await apiClient.get("/api/v1/vouchers/voucher-user");
     return response.data;
   }
+
+  async assignToUser(voucherId: string, userId: string): Promise<any> {
+    const response = await apiClient.post("/api/v1/vouchers/assign-voucher", {
+      voucherId,
+      userId,
+    });
+    return response.data;
+  }
+
+  async listAssignVoucher(voucherId: string) {
+    const response = await apiClient.get(
+      `/api/v1/vouchers/list-assign-users/${voucherId}`
+    );
+    return response.data;
+  }
+
+  async removeAssignment(id: string) {
+    const response = await apiClient.delete(
+      `/api/v1/vouchers/remove-assignment/${id}`
+    );
+    return response;
+  }
 }
 
 export const voucherService = new VoucherService();

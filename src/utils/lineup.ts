@@ -8,6 +8,7 @@ export interface ApiLineupResponse {
   time: string;
   status: "DRAFT" | "CONFIRMED" | "COMPLETED" | "ACTIVE";
   bookedSlots?: number;
+  lockLineup: boolean;
   openSlots?: number;
   totalSlots?: number;
   team: number;
@@ -56,6 +57,7 @@ export interface LineupMatch {
   id: string;
   scheduleId?: string;
   scheduleName: string;
+  lockLineup: boolean;
   venue: string;
   date: string;
   time: string;
@@ -132,6 +134,7 @@ export class LineupService {
       venue: apiResponse.venue,
       date: apiResponse.date,
       time: apiResponse.time,
+      lockLineup: apiResponse.lockLineup,
       status:
         apiResponse.status === "ACTIVE" ? "CONFIRMED" : apiResponse.status,
       totalPlayers: allPlayers.length,
@@ -163,6 +166,13 @@ export class LineupService {
       requestBody
     );
     return response.data;
+  }
+
+  async updateLockLineup(lineupId: string, lockStatus: boolean) {
+    const response = apiClient.put(`/api/v1/lineup/lock/${lineupId}`, {
+      lineupStatus: lockStatus,
+    });
+    return response;
   }
 }
 

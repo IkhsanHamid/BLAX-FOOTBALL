@@ -259,6 +259,40 @@ export default function ScheduleDetailPage() {
     [schedule]
   );
 
+  // Function to check if booking is still allowed (at least 2 hours before match time)
+  const isBookingAllowed = useCallback(
+    (matchDate: string, matchTime: string): boolean => {
+      try {
+        const now = new Date();
+        const matchDateTime = new Date(matchDate);
+
+        // Parse time (format: "HH:MM")
+        const [hours, minutes] = matchTime.split(":").map(Number);
+        matchDateTime.setHours(hours, minutes, 0, 0);
+
+        // Calculate difference in hours
+        const diffInMs = matchDateTime.getTime() - now.getTime();
+        const diffInHours = diffInMs / (1000 * 60 * 60);
+
+        // Allow booking if match is more than 2 hours away
+        return diffInHours >= 2;
+      } catch (error) {
+        console.error("Error checking booking time:", error);
+        return true; // Default to allowing booking if there's an error
+      }
+    },
+    []
+  );
+
+  // Function to check if lineup should be visible (H-2 hours or if user is member)
+  const isLineupVisible = useMemo(() => {
+    if (!schedule) return false;
+    // If user is a member, always show lineup
+    if (user?.isMember) return true;
+    // If not a member, show lineup only if H-2 hours has passed
+    return !isBookingAllowed(schedule.date, schedule.time);
+  }, [schedule, user?.isMember, isBookingAllowed]);
+
   useEffect(() => {
     const fetchScheduleDetail = async () => {
       if (!params.id) return;
@@ -484,17 +518,23 @@ export default function ScheduleDetailPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-3">
-                      <Button
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
-                        variant="primary"
-                        size="lg"
-                        onClick={handleBooking}
-                        disabled={Number(schedule.openSlots) === 0}
-                      >
-                        {Number(schedule.openSlots) === 0
-                          ? "Penuh"
-                          : "Book Sekarang"}
-                      </Button>
+                      {isBookingAllowed(schedule.date, schedule.time) ? (
+                        <Button
+                          className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
+                          variant="primary"
+                          size="lg"
+                          onClick={handleBooking}
+                          disabled={Number(schedule.openSlots) === 0}
+                        >
+                          {Number(schedule.openSlots) === 0
+                            ? "Penuh"
+                            : "Book Sekarang"}
+                        </Button>
+                      ) : (
+                        <div className="w-full px-4 py-3 bg-gray-100 text-gray-500 rounded-lg text-center font-medium">
+                          Booking Ditutup
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -535,10 +575,11 @@ export default function ScheduleDetailPage() {
               activeTab={activeTab}
               className="space-y-6"
             >
-              {!user?.isMember ? (
+              {!isLineupVisible ? (
+                /* ❌ NON-MEMBER & BOOKING MASIH BUKA → BLUR */
                 <LineupBlur onUpgradeClick={() => handleClickMembership()} />
               ) : schedule.lineUp && Object.keys(schedule.lineUp).length > 0 ? (
-                /* ✅ MEMBER → LINEUP ASLI */
+                /* ✅ MEMBER ATAU H-2 JAM → LINEUP ASLI */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {Object.entries(schedule.lineUp).map(
                     ([teamKey, team]: [string, any]) => (

@@ -17,6 +17,9 @@ import {
   GripVertical,
   AlertCircle,
   UserCheck,
+  Lock,
+  Unlock,
+  Download,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../atoms/Card";
@@ -50,6 +53,7 @@ interface SortablePlayerCardProps {
   index: number;
   teamKey: string;
   canAcceptPlayer: boolean;
+  isLocked?: boolean;
 }
 
 interface TeamDropzoneProps {
@@ -130,7 +134,13 @@ const getAllPlayers = (lineup: LineupMatch): LineupPlayer[] => {
 
 // Sortable Player Card
 const SortablePlayerCard = React.memo(
-  ({ player, index, teamKey, canAcceptPlayer }: SortablePlayerCardProps) => {
+  ({
+    player,
+    index,
+    teamKey,
+    canAcceptPlayer,
+    isLocked = false,
+  }: SortablePlayerCardProps) => {
     const {
       attributes,
       listeners,
@@ -138,7 +148,7 @@ const SortablePlayerCard = React.memo(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: player.id });
+    } = useSortable({ id: player.id, disabled: isLocked });
     const isGK = player.position === "GK";
 
     const style = {
@@ -152,20 +162,29 @@ const SortablePlayerCard = React.memo(
         style={style}
         className={`bg-white border-2 rounded-xl shadow-sm hover:shadow-md transition-all ${
           isDragging ? "opacity-50 scale-105" : "border-gray-200"
-        }`}
+        } ${isLocked ? "opacity-75" : ""}`}
       >
         <div className="p-3 sm:p-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               {...attributes}
               {...listeners}
-              className={`cursor-grab active:cursor-grabbing p-1.5 rounded flex-shrink-0 touch-none ${
-                isGK
-                  ? "hover:bg-amber-100 text-amber-600"
-                  : "hover:bg-blue-100 text-blue-600"
+              className={`p-1.5 rounded flex-shrink-0 touch-none ${
+                isLocked
+                  ? "cursor-not-allowed text-gray-400"
+                  : `cursor-grab active:cursor-grabbing ${
+                      isGK
+                        ? "hover:bg-amber-100 text-amber-600"
+                        : "hover:bg-blue-100 text-blue-600"
+                    }`
               }`}
+              disabled={isLocked}
             >
-              <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+              {isLocked ? (
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </button>
 
             <div
@@ -290,6 +309,8 @@ export default function LineupManagement() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { showError, showSuccess, showWarning } = useNotifications();
 
@@ -356,6 +377,215 @@ export default function LineupManagement() {
     }
   };
 
+  const handleLockLineup = async () => {
+    if (!selectedLineup) return;
+
+    try {
+      setIsLocking(true);
+      const newLockStatus = !selectedLineup.lockLineup;
+
+      // Call API to update lock status
+      await lineupService.updateLockLineup(selectedLineup.id, newLockStatus);
+
+      // Update local state
+      const updatedLineup = { ...selectedLineup, lockLineup: newLockStatus };
+      setSelectedLineup(updatedLineup);
+      setLineups((prev) =>
+        prev.map((lineup) =>
+          lineup.id === selectedLineup.id ? updatedLineup : lineup
+        )
+      );
+
+      showSuccess(
+        newLockStatus ? "Lineup Locked" : "Lineup Unlocked",
+        newLockStatus
+          ? "Lineup has been locked. Players cannot be moved."
+          : "Lineup has been unlocked. You can now move players."
+      );
+    } catch (error) {
+      showError("Error", "Failed to update lineup lock status");
+    } finally {
+      setIsLocking(false);
+    }
+  };
+
+  const handleExportToExcel = async () => {
+    if (!selectedLineup) return;
+
+    try {
+      setIsExporting(true);
+
+      // Dynamic import xlsx library
+      const XLSX = await import("xlsx");
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Prepare data for the sheet
+      const data: any[][] = [];
+
+      // Add title
+      data.push([selectedLineup.scheduleName]);
+      data.push([]);
+
+      // Add match information
+      data.push(["Match Information"]);
+      data.push(["Date", formatDate(selectedLineup.date)]);
+      data.push(["Time", selectedLineup.time]);
+      data.push(["Venue", selectedLineup.venue]);
+      data.push([]);
+      data.push([]);
+
+      // Add teams data
+      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
+        const teamKey = getTeamLetter(i);
+        const teamPlayers = selectedLineup.teams[teamKey] || [];
+
+        // Team header
+        data.push([`TEAM ${teamKey}`]);
+        data.push(["No", "Player Name", "Position", "Phone Number"]);
+
+        // Add players
+        if (teamPlayers.length > 0) {
+          teamPlayers.forEach((player, idx) => {
+            data.push([idx + 1, player.name, player.position, player.phone]);
+          });
+        } else {
+          data.push(["-", "No players assigned", "-", "-"]);
+        }
+
+        // Add spacing between teams
+        data.push([]);
+        data.push([]);
+      }
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths
+      ws["!cols"] = [
+        { wch: 8 }, // No
+        { wch: 30 }, // Player Name
+        { wch: 12 }, // Position
+        { wch: 18 }, // Phone Number
+      ];
+
+      // Styling for title (A1)
+      ws["A1"] = {
+        v: selectedLineup.scheduleName,
+        t: "s",
+        s: {
+          font: { bold: true, sz: 16 },
+          alignment: { horizontal: "center" },
+        },
+      };
+
+      // Merge cells for title
+      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+      // Style match information section
+      const matchInfoStart = 2;
+      for (let i = 0; i < 4; i++) {
+        const cellRef = XLSX.utils.encode_cell({ r: matchInfoStart + i, c: 0 });
+        if (!ws[cellRef]) continue;
+        ws[cellRef].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "E3F2FD" } },
+        };
+      }
+
+      // Style team headers and player table headers
+      let currentRow = matchInfoStart + 5;
+      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
+        const teamKey = getTeamLetter(i);
+        const teamPlayers = selectedLineup.teams[teamKey] || [];
+
+        // Team header styling
+        const teamHeaderRef = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
+        if (ws[teamHeaderRef]) {
+          ws[teamHeaderRef].s = {
+            font: { bold: true, sz: 14 },
+            fill: { fgColor: { rgb: "BBDEFB" } },
+            alignment: { horizontal: "left" },
+          };
+
+          // Merge team header across columns
+          if (!ws["!merges"]) ws["!merges"] = [];
+          ws["!merges"].push({
+            s: { r: currentRow, c: 0 },
+            e: { r: currentRow, c: 3 },
+          });
+        }
+
+        // Column headers styling
+        currentRow++;
+        for (let col = 0; col < 4; col++) {
+          const headerRef = XLSX.utils.encode_cell({ r: currentRow, c: col });
+          if (ws[headerRef]) {
+            ws[headerRef].s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: "90CAF9" } },
+              alignment: { horizontal: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "000000" } },
+                bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } },
+                right: { style: "thin", color: { rgb: "000000" } },
+              },
+            };
+          }
+        }
+
+        // Player rows styling
+        currentRow++;
+        const playerCount = teamPlayers.length > 0 ? teamPlayers.length : 1;
+        for (let p = 0; p < playerCount; p++) {
+          for (let col = 0; col < 4; col++) {
+            const cellRef = XLSX.utils.encode_cell({
+              r: currentRow + p,
+              c: col,
+            });
+            if (ws[cellRef]) {
+              ws[cellRef].s = {
+                alignment: { horizontal: col === 0 ? "center" : "left" },
+                border: {
+                  top: { style: "thin", color: { rgb: "CCCCCC" } },
+                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                  left: { style: "thin", color: { rgb: "CCCCCC" } },
+                  right: { style: "thin", color: { rgb: "CCCCCC" } },
+                },
+              };
+            }
+          }
+        }
+
+        currentRow += playerCount + 2; // Move to next team
+      }
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Lineup");
+
+      // Generate file name
+      const fileName = `Lineup_${selectedLineup.scheduleName.replace(
+        /[^a-z0-9]/gi,
+        "_"
+      )}_${new Date().getTime()}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(wb, fileName);
+
+      showSuccess("Export Successful", "Lineup has been exported to Excel");
+    } catch (error) {
+      console.error("Export error:", error);
+      showError(
+        "Error",
+        "Failed to export lineup. Make sure you have internet connection."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // ========== VALIDATION ==========
   const canAcceptPlayer = useCallback(
     (
@@ -405,6 +635,12 @@ export default function LineupManagement() {
       setOverId(null);
 
       if (!over || !selectedLineup || active.id === over.id) return;
+
+      // Check if lineup is locked
+      if (selectedLineup.lockLineup) {
+        showWarning("Lineup Locked", "Cannot move players. Lineup is locked.");
+        return;
+      }
 
       const activeId = active.id as string;
       const overId = over.id as string;
@@ -561,6 +797,7 @@ export default function LineupManagement() {
 
     const totalTeams = selectedLineup.totalTeams || 2;
     const maxPlayersPerTeam = getPlayersPerTeam(selectedLineup);
+    const isLocked = selectedLineup.lockLineup || false;
 
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
@@ -581,16 +818,16 @@ export default function LineupManagement() {
             <TeamDropzone
               key={teamKey}
               teamKey={teamKey}
-              isActive={!!activeId && canAccept}
+              isActive={!!activeId && canAccept && !isLocked}
             >
               <Card
                 className={`shadow-lg border-2 bg-gradient-to-br transition-all ${
                   teamColor.gradient
                 } ${
-                  isDragOver && canAccept
+                  isDragOver && canAccept && !isLocked
                     ? teamColor.dragOver
                     : teamColor.border
-                } ${!canAccept && activeId ? "opacity-50" : ""}`}
+                } ${(!canAccept || isLocked) && activeId ? "opacity-50" : ""}`}
               >
                 <CardHeader className={`border-b ${teamColor.bg} p-3 sm:p-4`}>
                   <button
@@ -662,13 +899,14 @@ export default function LineupManagement() {
                               index={idx}
                               teamKey={teamKey}
                               canAcceptPlayer={canAccept}
+                              isLocked={isLocked}
                             />
                           ))
                         ) : (
                           <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-xl">
                             <Users className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
                             <p className="text-sm sm:text-base text-gray-500">
-                              Drop players here
+                              {isLocked ? "Team is empty" : "Drop players here"}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                               Max {maxPlayersPerTeam} players • 1 GK required
@@ -807,13 +1045,21 @@ export default function LineupManagement() {
                           <h4 className="font-semibold text-sm line-clamp-2">
                             {lineup.scheduleName}
                           </h4>
-                          <Badge
-                            className={`text-xs flex-shrink-0 ${getStatusColor(
-                              lineup.status
-                            )}`}
-                          >
-                            {lineup.status}
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-end flex-shrink-0">
+                            {lineup.lockLineup && (
+                              <Badge className="text-xs bg-red-100 text-red-700">
+                                <Lock className="w-3 h-3 mr-1" />
+                                Locked
+                              </Badge>
+                            )}
+                            <Badge
+                              className={`text-xs ${getStatusColor(
+                                lineup.status
+                              )}`}
+                            >
+                              {lineup.status}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="space-y-1 text-xs text-gray-600">
                           <div className="flex items-center gap-2">
@@ -861,15 +1107,21 @@ export default function LineupManagement() {
                       <h3 className="text-xl sm:text-2xl font-bold flex-1">
                         {selectedLineup.scheduleName}
                       </h3>
-                      <Badge
-                        className={`self-start sm:self-auto ${getStatusColor(
-                          selectedLineup.status
-                        )}`}
-                      >
-                        {selectedLineup.status}
-                      </Badge>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedLineup.lockLineup && (
+                          <Badge className="bg-red-100 text-red-700 border-red-200">
+                            <Lock className="w-3 h-3 mr-1" />
+                            Locked
+                          </Badge>
+                        )}
+                        <Badge
+                          className={`${getStatusColor(selectedLineup.status)}`}
+                        >
+                          {selectedLineup.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-sm mb-4">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
                         <span className="truncate">
@@ -891,6 +1143,54 @@ export default function LineupManagement() {
                           {getPlayersPerTeam(selectedLineup)} per team
                         </span>
                       </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <Button
+                        onClick={handleLockLineup}
+                        disabled={isLocking}
+                        className={`flex-1 sm:flex-none ${
+                          selectedLineup.lockLineup
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-green-600 hover:bg-green-700"
+                        } text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {isLocking ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            Processing...
+                          </>
+                        ) : selectedLineup.lockLineup ? (
+                          <>
+                            <Unlock className="w-4 h-4 mr-2" />
+                            Unlock Lineup
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-4 h-4 mr-2" />
+                            Lock Lineup
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={handleExportToExcel}
+                        disabled={isExporting}
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isExporting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Export to Excel
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

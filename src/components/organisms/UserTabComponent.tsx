@@ -40,6 +40,7 @@ import Input from "@/components/atoms/Input";
 import ConfirmationModal from "../molecules/ConfirmationModal";
 import Pagination from "../atoms/Pagination";
 import { TableLoadingSkeleton } from "./LoadingSkeleton";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- Static Constants (Moved outside to reduce compile/render overhead) ---
 const ITEMS_PER_PAGE = 10;
@@ -53,15 +54,15 @@ const initialFormState = {
 };
 
 const STATS_CONFIG = [
-  { key: "total", label: "Total Users", icon: Users, color: "blue" },
-  { key: "active", label: "Active Users", icon: UserCheck, color: "green" },
+  { key: "total", label: "Total Players", icon: Users, color: "blue" },
+  { key: "active", label: "Total Membership", icon: Crown, color: "purple" },
   {
     key: "newThisMonth",
     label: "New This Month",
     icon: UserPlus,
     color: "purple",
   },
-  { key: "totalGames", label: "Total Games", icon: Trophy, color: "yellow" },
+  { key: "totalGames", label: "Total Staff", icon: UserCheck, color: "yellow" },
 ];
 
 const INPUT_FIELDS = [
@@ -110,6 +111,7 @@ export default function UsersTab() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const { showSuccess, showError } = useNotifications();
+  const { user } = useAuth();
 
   // --- Data Fetching ---
   const fetchUsers = useCallback(async () => {
@@ -199,16 +201,16 @@ export default function UsersTab() {
   // --- Stats Calculation (Memoized) ---
   const stats = useMemo(
     () => ({
-      total: users.length,
-      active: users.filter((u) => isUserActive(u.lastPlayed)).length,
+      total: users.filter((u) => u.role !== "Admin").length, // Count users with role player only
+      active: users.filter((u) => u.isMember === true).length, // Count users with isMember true
       newThisMonth: users.filter(
         (u) =>
           new Date(u.createdAt).getTime() >
           Date.now() - 30 * 24 * 60 * 60 * 1000
       ).length,
-      totalGames: users.reduce((sum, u) => sum + (u.gamesPlayed || 0), 0),
+      totalGames: users.filter((u) => u.role === "Admin").length, // Count users with role admin
     }),
-    [users, isUserActive]
+    [users]
   );
 
   // --- Handlers ---
@@ -360,16 +362,18 @@ export default function UsersTab() {
             Kelola user account dan izin akses
           </p>
         </div>
-        <Button
-          variant="black"
-          size="sm"
-          onClick={handleOpenUserDialog}
-          className="flex items-center"
-        >
-          <UserPlus className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
-          <span className="hidden md:inline">Tambah User</span>
-          <span className="md:hidden">Tambah</span>
-        </Button>
+        {user?.role === "Owner" && (
+          <Button
+            variant="black"
+            size="sm"
+            onClick={handleOpenUserDialog}
+            className="flex items-center"
+          >
+            <UserPlus className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
+            <span className="hidden md:inline">Tambah User</span>
+            <span className="md:hidden">Tambah</span>
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -501,24 +505,25 @@ export default function UsersTab() {
                   <TableHead>Contact</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Total Points</TableHead>
+                  <TableHead>Total Games</TableHead>
                   <TableHead>Last Activity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedUsers.map((user) => {
-                  const isActive = isUserActive(user.lastPlayed);
+                {paginatedUsers.map((u) => {
+                  const isActive = isUserActive(u.lastPlayed);
                   return (
-                    <TableRow key={user.id}>
+                    <TableRow key={u.id}>
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {user.name.charAt(0).toUpperCase()}
+                            {u.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex items-center font-medium text-gray-900">
-                            <span>{user.name}</span>
-                            {user.isMember && (
+                            <span>{u.name}</span>
+                            {u.isMember && (
                               <Crown className="w-4 h-4 ml-1 fill-purple-700 text-purple-700" />
                             )}
                           </div>
@@ -529,13 +534,13 @@ export default function UsersTab() {
                           <div className="flex items-center text-sm">
                             <Mail className="w-4 h-4 text-gray-400 mr-2" />
                             <span className="truncate max-w-[200px]">
-                              {user.email || "N/A"}
+                              {u.email || "N/A"}
                             </span>
                           </div>
                           <div className="flex items-center text-sm">
                             <Phone className="w-4 h-4 text-gray-400 mr-2" />
                             <a
-                              href={`https://wa.me/${user.phone.replace(
+                              href={`https://wa.me/${u.phone.replace(
                                 /^0/,
                                 "62"
                               )}`}
@@ -543,7 +548,7 @@ export default function UsersTab() {
                               rel="noopener noreferrer"
                               className="text-blue-600 underline hover:text-blue-700"
                             >
-                              {user.phone}
+                              {u.phone}
                             </a>
                           </div>
                         </div>
@@ -552,36 +557,52 @@ export default function UsersTab() {
                         <Badge
                           variant="outline"
                           className={
-                            user.role === "admin"
+                            u.role === "admin"
                               ? "bg-purple-100 text-purple-800 border-purple-200"
                               : "bg-gray-100 text-gray-800 border-gray-200"
                           }
                         >
-                          {getRoleName(user.role)}
+                          {getRoleName(u.role)}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Trophy className="w-4 h-4 text-yellow-500" />
                           <span className="font-medium">
-                            {user.totalPoints || 0}
+                            {u.totalPoints || 0}
                           </span>
-                          {(user.totalPoints || 0) >= 10 && (
+                          {/* {(u.totalPoints || 0) >= 10 && (
                             <Badge
                               variant="outline"
                               className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
                             >
                               VIP
                             </Badge>
-                          )}
+                          )} */}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {/* <Trophy className="w-4 h-4 text-yellow-500" /> */}
+                          <span className="font-medium">
+                            {u.gamesPlayed || 0}
+                          </span>
+                          {/* {(u.totalPoints || 0) >= 10 && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
+                            >
+                              VIP
+                            </Badge>
+                          )} */}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {user.lastPlayed ? (
+                          {u.lastPlayed ? (
                             <div className="flex items-center">
                               <Calendar className="w-4 h-4 text-gray-400 mr-1" />
-                              {formatDate(user.lastPlayed)}
+                              {formatDate(u.lastPlayed)}
                             </div>
                           ) : (
                             <span className="text-gray-400">
@@ -594,12 +615,12 @@ export default function UsersTab() {
                         <Badge
                           variant="outline"
                           className={
-                            isActive || user.role === "Admin"
+                            isActive || u.role === "Admin"
                               ? "bg-green-100 text-green-800 border-green-200"
                               : "bg-gray-100 text-gray-800 border-gray-200"
                           }
                         >
-                          {isActive || user.role === "Admin"
+                          {isActive || u.role === "Admin"
                             ? "Active"
                             : "Inactive"}
                         </Badge>
@@ -608,7 +629,7 @@ export default function UsersTab() {
                         <div className="flex items-center space-x-2">
                           <div
                             title={
-                              user.role !== "Admin"
+                              u.role !== "Admin"
                                 ? "Only Admin can edit users"
                                 : "Edit user"
                             }
@@ -616,27 +637,29 @@ export default function UsersTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleEditUser(user)}
+                              onClick={() => handleEditUser(u)}
                               className="hover:bg-yellow-50"
-                              disabled={user.role !== "Admin"}
+                              // disabled={u.role !== "Admin" && user?.role !== "Owner"}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </div>
-                          <div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setUserToDelete(user);
-                                setShowDeleteConfirm(true);
-                              }}
-                              className="hover:bg-red-50 text-red-600"
-                              disabled={user.role !== "Admin"}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          {user?.role === "Owner" && (
+                            <div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setUserToDelete(u);
+                                  setShowDeleteConfirm(true);
+                                }}
+                                className="hover:bg-red-50 text-red-600"
+                                // disabled={user?.role !== "Owner"}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

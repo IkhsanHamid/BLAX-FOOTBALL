@@ -13,8 +13,6 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { GalleryPhoto } from "@/types/gallery";
-import { galleryService } from "@/utils/gallery";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import SearchBar from "@/components/atoms/SearchBar";
 import Badge from "@/components/atoms/Badge";
