@@ -119,7 +119,8 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200">
+      {/* Header - Fixed at top */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -176,7 +177,8 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main content area with top padding for fixed header */}
+      <div className="flex flex-1 pt-24 md:pt-16 overflow-hidden">
         <AdminSidebar
           selectedTab={selectedTab}
           onTabChange={setSelectedTab}
@@ -185,7 +187,7 @@ export default function AdminPage() {
           userRole={user?.role}
         />
 
-        <main className="flex-1 overflow-y-auto lg:ml-0">
+        <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
             <div className="animate-fadeIn">{renderTabContent()}</div>
           </div>

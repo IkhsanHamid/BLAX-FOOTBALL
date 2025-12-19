@@ -194,6 +194,20 @@ export default function ScheduleTab({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Helper function to check if schedule is within H-3
+  const isWithinH3 = useCallback((scheduleDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const schedule = new Date(scheduleDate);
+    schedule.setHours(0, 0, 0, 0);
+
+    const diffTime = schedule.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays <= 3;
+  }, []);
+
   // Data Fetching
   const fetchScheduleOverview = useCallback(async () => {
     try {
@@ -436,6 +450,15 @@ export default function ScheduleTab({
 
   const handleEditSchedule = useCallback(
     (schedule: ScheduleOverview) => {
+      // Check if within H-3
+      if (isWithinH3(schedule.date)) {
+        showError(
+          "Cannot Edit",
+          "Schedule cannot be edited within 3 days before the event date (H-3)"
+        );
+        return;
+      }
+
       const venue = venues.find((v) => v.name === schedule.venue);
       setEditingSchedule(schedule);
       setScheduleForm({
@@ -460,7 +483,7 @@ export default function ScheduleTab({
       });
       setShowScheduleDialog(true);
     },
-    [venues]
+    [venues, isWithinH3, showError]
   );
 
   const handleDeleteSchedule = useCallback(async () => {
@@ -749,7 +772,7 @@ export default function ScheduleTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEditSchedule(schedule)}
-                            disabled={isDisabled}
+                            disabled={isDisabled || isWithinH3(schedule.date)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -757,6 +780,13 @@ export default function ScheduleTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              if (isWithinH3(schedule.date)) {
+                                showError(
+                                  "Cannot Delete",
+                                  "Schedule cannot be deleted within 3 days before the event date (H-3)"
+                                );
+                                return;
+                              }
                               setScheduleToDelete(schedule);
                               setShowDeleteConfirm(true);
                             }}
