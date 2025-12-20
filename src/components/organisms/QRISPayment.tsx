@@ -46,6 +46,9 @@ export function QRISPaymentPage({
   const [successPayment, setSuccessPayment] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
+  const [paymentStatus, setPaymentStatus] = useState<
+    "pending" | "settled" | "expired"
+  >("pending");
 
   // Ref to prevent multiple simultaneous fetches
   const isFetchingRef = useRef(false);
@@ -60,6 +63,11 @@ export function QRISPaymentPage({
 
   // Fetch payment data with proper error handling and loading state
   const fetchPaymentData = useCallback(async () => {
+    // Skip fetch if payment already settled
+    if (paymentStatus === "settled") {
+      return "settled";
+    }
+
     if (isFetchingRef.current) return;
 
     try {
@@ -76,15 +84,24 @@ export function QRISPaymentPage({
       }
 
       if (result?.status === "expire") {
+        setPaymentStatus("expired");
         showError(
           "error",
-          "Pembayaran telah kaduluarsa silahkan login kembali"
+          "Pembayaran telah kadaluarsa silahkan login kembali"
         );
         router.push("/");
-        return;
+        return "expired";
+      }
+
+      // Check if payment is already settled
+      if (result?.status === "settlement" || result?.status === true) {
+        setPaymentStatus("settled");
+        setPaymentData(result);
+        return "settled";
       }
 
       setPaymentData(result);
+      return "pending";
     } catch (error: any) {
       console.error("Error fetching payment data:", error);
       showError(
@@ -92,22 +109,51 @@ export function QRISPaymentPage({
         error?.message || "Failed to fetch payment data"
       );
       setPaymentData(null);
+      return "error";
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [paymentId, paymentType, showError, router]);
+  }, [paymentId, paymentType, showError, router, paymentStatus]);
 
   // Initial data fetch
   useEffect(() => {
-    if (paymentId) {
-      fetchPaymentData();
+    // Skip if payment already settled or expired
+    if (paymentStatus === "settled" || paymentStatus === "expired") {
+      return;
     }
-  }, [paymentId, fetchPaymentData]);
+
+    // Initial fetch
+    let mounted = true;
+    const initializePayment = async () => {
+      if (paymentId && mounted) {
+        const status = await fetchPaymentData();
+
+        // Don't start timer if payment already settled/expired
+        if (status === "settled" || status === "expired") {
+          return;
+        }
+      }
+    };
+
+    initializePayment();
+
+    // Cleanup for initial fetch
+    return () => {
+      mounted = false;
+    };
+  }, [paymentId]); // Only depend on paymentId for initial fetch
 
   // Timer effect with proper cleanup and expiry handling
   useEffect(() => {
-    if (!paymentData?.expired_at) return;
+    // Don't run timer if payment settled or no expiry time
+    if (
+      paymentStatus === "settled" ||
+      paymentStatus === "expired" ||
+      !paymentData?.expired_at
+    ) {
+      return;
+    }
 
     const calculateTimeLeft = () => {
       const now = new Date();
@@ -124,7 +170,7 @@ export function QRISPaymentPage({
 
     // Don't start timer if already expired
     if (initialTime <= 0) {
-      // Use setTimeout to avoid calling state updates during render
+      setPaymentStatus("expired");
       const timeoutId = setTimeout(() => {
         showError("error", "Payment session expired");
         if (paymentType === "booking") {
@@ -147,6 +193,7 @@ export function QRISPaymentPage({
           timerRef.current = null;
         }
 
+        setPaymentStatus("expired");
         // Defer navigation to avoid state update during render
         setTimeout(() => {
           showError("error", "Payment session expired");
@@ -165,7 +212,7 @@ export function QRISPaymentPage({
         timerRef.current = null;
       }
     };
-  }, [paymentData?.expired_at]); // Remove showError, paymentType, router from dependencies
+  }, [paymentData?.expired_at, paymentStatus, showError, router, paymentType]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -212,7 +259,7 @@ export function QRISPaymentPage({
   };
 
   const handleRefreshPayment = async () => {
-    if (isRefreshing) return; // Prevent double-click
+    if (isRefreshing || paymentStatus === "settled") return; // Prevent double-click and unnecessary refresh
 
     try {
       setIsRefreshing(true);
@@ -221,20 +268,40 @@ export function QRISPaymentPage({
       if (paymentType === "membership") {
         result = await paymentService.checkPaymentStatusMembership(paymentId);
       } else if (paymentType === "booking") {
-        result = await bookingService.previewPayment(paymentId);
+        result = await bookingService.checkPaymentStatusBooking(paymentId);
       }
 
       if (result?.status === "settlement") {
+        setPaymentStatus("settled");
+        // Stop timer to prevent further fetching
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
         setSuccessPayment(true);
         showSuccess("success", "Berhasil melakukan pembayaran");
+        // Navigation will be handled by modal close
       } else if (result?.status === "expire") {
+        setPaymentStatus("expired");
+        // Stop timer to prevent further fetching
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
         showError("error", "Gagal melakukan pembayaran silahkan login kembali");
-        router.push("/");
-      } else if (result?.status === "pending") {
-        showSuccess("success", "Berhasil refresh pembayaran");
+        setTimeout(() => router.push("/"), 1000);
       } else if (result?.status === true) {
+        setPaymentStatus("settled");
+        // Stop timer to prevent further fetching
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
         showSuccess("success", "Pembayaran sudah dilakukan");
-        router.push("/");
+        setTimeout(() => router.push("/"), 1000);
+      } else if (result?.status === "pending") {
+        await fetchPaymentData();
+        showSuccess("success", "Berhasil refresh pembayaran");
       } else {
         showSuccess("success", "Status pembayaran diperbarui");
       }
@@ -401,7 +468,9 @@ export function QRISPaymentPage({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleRefreshPayment}
-                disabled={isRefreshing || loading}
+                disabled={
+                  isRefreshing || loading || paymentStatus === "settled"
+                }
                 className="w-full mb-4 px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-2xl hover:bg-blue-50 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw

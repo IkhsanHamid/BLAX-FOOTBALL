@@ -51,7 +51,7 @@ export default function SchedulePage() {
     [schedules]
   );
   const types = useMemo(
-    () => ["All Types", ...new Set(schedules.map((s) => s.typeEvent))],
+    () => ["All Types", ...new Set(schedules.map((s) => s.typeMatch))],
     [schedules]
   );
 
@@ -67,7 +67,7 @@ export default function SchedulePage() {
       const matchesVenue =
         selectedVenue === "All Venues" || match.venue === selectedVenue;
       const matchesType =
-        selectedType === "All Types" || match.type === selectedType;
+        selectedType === "All Types" || match.typeMatch === selectedType;
 
       return matchesSearch && matchesVenue && matchesType;
     });
@@ -247,12 +247,12 @@ export default function SchedulePage() {
           {/* Filters */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 p-6 mb-8">
             <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
+              {/* <div className="flex-1">
                 <SearchBar
-                  placeholder="Search by venue, type, or description..."
+                  placeholder="Search by venue, type, or descrn..."
                   onSearch={handleSearch}
                 />
-              </div>
+              </div> */}
 
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Venue Select */}
@@ -286,7 +286,7 @@ export default function SchedulePage() {
                 </div>
 
                 {/* Sort Select */}
-                <div className="min-w-[120px]">
+                {/* <div className="min-w-[120px]">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
@@ -297,7 +297,7 @@ export default function SchedulePage() {
                     <option value="fee">Sort by Price</option>
                     <option value="availability">Sort by Availability</option>
                   </select>
-                </div>
+                </div> */}
               </div>
             </div>
 

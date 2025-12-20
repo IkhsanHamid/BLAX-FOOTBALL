@@ -298,6 +298,19 @@ class AdminService {
       throw error;
     }
   }
+
+  async lockSlots(scheduleId: string, slot: number) {
+    try {
+      const response = await apiClient.put(`/api/v1/matches/lock-slots`, {
+        slot,
+        scheduleId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error lock slots:", error);
+      throw error;
+    }
+  }
 }
 
 export const adminService = new AdminService();

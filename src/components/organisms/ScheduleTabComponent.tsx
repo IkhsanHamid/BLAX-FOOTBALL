@@ -11,6 +11,7 @@ import {
   MapPin,
   Users,
   DollarSign,
+  Lock,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -175,12 +176,16 @@ export default function ScheduleTab({
   const [rules, setRules] = useState<Rule[]>([]);
 
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showLockDialog, setShowLockDialog] = useState(false);
   const [editingSchedule, setEditingSchedule] =
+    useState<ScheduleOverview | null>(null);
+  const [lockingSchedule, setLockingSchedule] =
     useState<ScheduleOverview | null>(null);
   const [scheduleToDelete, setScheduleToDelete] =
     useState<ScheduleOverview | null>(null);
   const [scheduleForm, setScheduleForm] =
     useState<ScheduleForm>(initialFormState);
+  const [lockSlotCount, setLockSlotCount] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -190,6 +195,7 @@ export default function ScheduleTab({
   const [currentPage, setCurrentPage] = useState(1);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLocked, setIsLoadingLocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -351,6 +357,41 @@ export default function ScheduleTab({
     setFormErrors({});
     setEditingSchedule(null);
   }, []);
+
+  const handleLockSlots = useCallback((schedule: ScheduleOverview) => {
+    setLockingSchedule(schedule);
+    setLockSlotCount("");
+    setShowLockDialog(true);
+  }, []);
+
+  const handleConfirmLockSlots = useCallback(async () => {
+    if (!lockingSchedule) return;
+
+    setIsLoadingLocked(true);
+
+    const count = parseInt(lockSlotCount);
+    const availableSlots =
+      lockingSchedule.totalSlots -
+      lockingSchedule.bookedSlots -
+      lockingSchedule.lockedSlots;
+
+    if (isNaN(count) || count < 0) {
+      showError("Error", "Please enter a valid number");
+      return;
+    }
+
+    if (count > availableSlots) {
+      showError("Error", `Only ${availableSlots} slots available to lock`);
+      return;
+    }
+
+    await adminService.lockSlots(lockingSchedule.id, count);
+
+    setShowLockDialog(false);
+    setLockingSchedule(null);
+    setLockSlotCount("");
+    showSuccess("Slots locked successfully!");
+  }, [lockingSchedule, lockSlotCount]);
 
   // Form Validation
   const validateForm = useCallback((): boolean => {
@@ -700,7 +741,9 @@ export default function ScheduleTab({
                     schedule.status === "CANCELLED" ||
                     schedule.status === "COMPLETED";
                   const bookingPercentage = Math.round(
-                    (schedule.bookedSlots / schedule.totalSlots) * 100
+                    ((schedule.bookedSlots + schedule.lockedSlots) /
+                      schedule.totalSlots) *
+                      100
                   );
 
                   return (
@@ -733,7 +776,8 @@ export default function ScheduleTab({
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium">
-                            {schedule.bookedSlots}/{schedule.totalSlots}
+                            {schedule.bookedSlots + schedule.lockedSlots}/
+                            {schedule.totalSlots}
                           </span>
                           <div className="w-20 bg-gray-200 rounded-full h-2">
                             <div
@@ -775,6 +819,14 @@ export default function ScheduleTab({
                             disabled={isDisabled || isWithinH3(schedule.date)}
                           >
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleLockSlots(schedule)}
+                            // disabled={isDisabled || isWithinH3(schedule.date)}
+                          >
+                            <Lock className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -1128,6 +1180,105 @@ export default function ScheduleTab({
                 ) : (
                   "Create Schedule"
                 )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lock Slots</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {lockingSchedule && (
+              <>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">
+                    {lockingSchedule.name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatDate(lockingSchedule.date)} • {lockingSchedule.time}{" "}
+                    WIB
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Slots:</span>
+                      <span className="font-medium">
+                        {lockingSchedule.totalSlots}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Booked:</span>
+                      <span className="font-medium text-green-600">
+                        {lockingSchedule.bookedSlots}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Already Locked:</span>
+                      <span className="font-medium text-yellow-600">
+                        {lockingSchedule.lockedSlots}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm pt-2 border-t">
+                      <span className="text-gray-600">Available to Lock:</span>
+                      <span className="font-medium text-blue-600">
+                        {lockingSchedule.totalSlots -
+                          lockingSchedule.bookedSlots -
+                          lockingSchedule.lockedSlots}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Number of Slots to Lock{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter number of slots"
+                    value={lockSlotCount}
+                    onChange={(e) => setLockSlotCount(e.target.value)}
+                    min="1"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum:{" "}
+                    {lockingSchedule.totalSlots -
+                      lockingSchedule.bookedSlots -
+                      lockingSchedule.lockedSlots}{" "}
+                    slots
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowLockDialog(false);
+                  setLockingSchedule(null);
+                  setLockSlotCount("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="black"
+                size="sm"
+                onClick={handleConfirmLockSlots}
+                disabled={
+                  !lockSlotCount ||
+                  parseInt(lockSlotCount) < 0 ||
+                  isLoadingLocked
+                }
+              >
+                Lock Slots
               </Button>
             </div>
           </div>

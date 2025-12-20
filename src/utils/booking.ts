@@ -57,6 +57,25 @@ class BookingService {
     const response = await apiClient.get(`/api/v1/booking/history/user`);
     return response.data;
   }
+
+  async checkPaymentStatusBooking(paymentId: string) {
+    const response = await fetch(
+      `${API_BASE_URL}/book-status?statusId=${paymentId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+
+    return result.data;
+  }
 }
 
 export const bookingService = new BookingService();

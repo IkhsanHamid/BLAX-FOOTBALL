@@ -47,6 +47,7 @@ export interface ScheduleOverview {
   image: string;
   openSlots: number;
   bookedSlots: number;
+  lockedSlots: number;
   totalSlots: number;
   revenue: number;
   status: string;
