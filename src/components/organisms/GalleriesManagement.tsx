@@ -273,6 +273,8 @@ export default function GalleriesManagement() {
                     <TableHead>Tanggal & Jam</TableHead>
                     <TableHead>Link Foto</TableHead>
                     <TableHead>Link Video</TableHead>
+                    <TableHead>Link Video Match</TableHead>
+                    <TableHead>Link Video Slowmo</TableHead>
                     <TableHead>Expired At</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -322,6 +324,34 @@ export default function GalleriesManagement() {
                               className="text-blue-600 hover:text-blue-800 text-sm"
                             >
                               View Videos
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {gallery.linkVideosMatch ? (
+                            <a
+                              href={gallery.linkVideosMatch}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              View Videos Match
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {gallery.linkVideosSlowmo ? (
+                            <a
+                              href={gallery.linkVideosSlowmo}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              View Videos Slowmo
                             </a>
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
@@ -454,6 +484,54 @@ export default function GalleriesManagement() {
               <p className="text-xs text-gray-500 mt-1">
                 Masukkan link folder Google Drive yang berisi video (tidak
                 wajib)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Link Google Drive Video Match (Opsional)
+              </label>
+              <Input
+                type="url"
+                value={formData.linkVideos ? formData.linkVideos : ""}
+                onChange={(e) =>
+                  handleInputChange("linkVideosMatch", e.target.value)
+                }
+                placeholder="https://drive.google.com/..."
+                className={formErrors.linkVideos ? "border-red-500" : ""}
+              />
+              {formErrors.linkVideos && (
+                <p className="text-red-500 text-sm mt-1">
+                  {formErrors.linkVideos}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Masukkan link folder Google Drive yang berisi video Match (tidak
+                wajib)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Link Google Drive Video Slowmo (Opsional)
+              </label>
+              <Input
+                type="url"
+                value={formData.linkVideos ? formData.linkVideos : ""}
+                onChange={(e) =>
+                  handleInputChange("linkVideosSlowmo", e.target.value)
+                }
+                placeholder="https://drive.google.com/..."
+                className={formErrors.linkVideos ? "border-red-500" : ""}
+              />
+              {formErrors.linkVideos && (
+                <p className="text-red-500 text-sm mt-1">
+                  {formErrors.linkVideos}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Masukkan link folder Google Drive yang berisi video Slowmo
+                (tidak wajib)
               </p>
             </div>
 
