@@ -79,7 +79,7 @@ export default function Hero() {
       </section>
 
       {/* MERCHANT PARTNERS */}
-      <section className="bg-white py-10">
+      {/* <section className="bg-white py-10">
         <div className="container mx-auto px-4 sm:px-6">
           <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold text-center text-black mb-8 sm:mb-10">
             Merchant Partner Kami
@@ -100,7 +100,7 @@ export default function Hero() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* AUTH MODAL */}
       <AuthModal
