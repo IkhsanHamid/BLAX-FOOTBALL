@@ -133,6 +133,8 @@ export default function GalleriesManagement() {
       const payload = {
         ...formData,
         linkVideos: formData.linkVideos || undefined,
+        linkVideosMatch: formData.linkVideosMatch || undefined,
+        linkVideosSlowmo: formData.linkVideosSlowmo || undefined,
       };
 
       if (editingGallery) {

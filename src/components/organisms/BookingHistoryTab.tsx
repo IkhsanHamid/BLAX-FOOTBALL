@@ -516,21 +516,17 @@ export default function BookingHistoryTab() {
                               {booking.customerName}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {booking.paymentStatus === "FAILED" ? (
-                                <a
-                                  href={`https://wa.me/${booking.customerPhone.replace(
-                                    /^0/,
-                                    "62"
-                                  )}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 underline hover:text-blue-700"
-                                >
-                                  {booking.customerPhone}
-                                </a>
-                              ) : (
-                                booking.customerPhone
-                              )}
+                              <a
+                                href={`https://wa.me/${booking.customerPhone.replace(
+                                  /^0/,
+                                  "62"
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline hover:text-blue-700"
+                              >
+                                {booking.customerPhone}
+                              </a>
                             </div>
                           </div>
                         </TableCell>

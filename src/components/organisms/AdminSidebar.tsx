@@ -10,6 +10,7 @@ import {
   History,
   Shield,
   Image,
+  Clock,
 } from "lucide-react";
 
 interface NavItem {
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { id: "users", label: "Member", icon: Users },
   { id: "news", label: "Berita", icon: Newspaper },
   { id: "gallery", label: "Galeri", icon: Image },
+  { id: "reschedule", label: "Reschedule", icon: Clock },
   {
     id: "master-data",
     label: "Master Data",

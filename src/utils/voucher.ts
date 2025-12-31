@@ -47,17 +47,6 @@ class VoucherService {
     return response.data;
   }
 
-  async validateVoucher(code: string): Promise<{
-    valid: boolean;
-    voucher?: Voucher;
-    error?: string;
-  }> {
-    const response = await apiClient.post("/api/v1/vouchers/validate", {
-      code,
-    });
-    return response.data;
-  }
-
   async applyVoucher(
     voucherId: string,
     bookingId: string
@@ -98,6 +87,29 @@ class VoucherService {
     const response = await apiClient.delete(
       `/api/v1/vouchers/remove-assignment/${id}`
     );
+    return response;
+  }
+
+  async voucherAvailable() {
+    const response = await apiClient.get(
+      `/api/v1/vouchers/list-voucher-available`
+    );
+    return response.data;
+  }
+
+  async redeemVoucher(voucherId: string) {
+    const response = await apiClient.post(
+      `/api/v1/vouchers/redeem-voucher/${voucherId}`
+    );
+
+    return response;
+  }
+
+  async validateVoucher(code: string) {
+    const response = await apiClient.post(`/api/v1/vouchers/check-voucher`, {
+      code,
+    });
+
     return response;
   }
 }

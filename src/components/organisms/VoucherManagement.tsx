@@ -60,6 +60,9 @@ const INITIAL_FORM_DATA: VoucherPayload = {
   type: "PERCENTAGE",
   nominal: 0,
   isActive: true,
+  isRedeemable: false,
+  pointCost: 0,
+  isBooking: false,
 };
 
 const STATUS_FILTERS = [
@@ -119,6 +122,10 @@ const validateVoucherForm = (formData: VoucherPayload): FormErrors => {
 
   if (formData.type === "PERCENTAGE" && formData.nominal > MAX_PERCENTAGE) {
     errors.nominal = "Diskon persentase tidak boleh melebihi 100%";
+  }
+
+  if (formData.isRedeemable && formData.pointCost <= 0) {
+    errors.pointCost = "Jumlah poin harus lebih dari 0";
   }
 
   return errors;
@@ -330,6 +337,9 @@ export default function VoucherManagement(): JSX.Element {
       type: voucher.type,
       nominal: voucher.nominal,
       isActive: voucher.isActive,
+      isRedeemable: voucher.isRedeemable || false,
+      pointCost: voucher.pointCost || 0,
+      isBooking: voucher.isBooking || false,
     });
     setShowDialog(true);
   }, []);
@@ -763,6 +773,12 @@ function VoucherListItem({
                 {voucher.name}
               </h3>
               <Badge className={status.color}>{status.status}</Badge>
+              {voucher.isRedeemable && voucher.pointCost > 0 && (
+                <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                  <Gift className="w-3 h-3 mr-1" />
+                  {voucher.pointCost.toLocaleString("id-ID")} Poin
+                </Badge>
+              )}
             </div>
             <div className="text-lg font-bold text-green-600">
               {getDiscountDisplay(voucher)}
@@ -964,6 +980,68 @@ function VoucherFormDialog({
                 Voucher aktif
               </label>
             </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isBooking}
+                onChange={(e) => onInputChange("isBooking", e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label
+                htmlFor="isActive"
+                className="text-sm font-medium text-gray-700"
+              >
+                Bisa digunakan untuk booking
+              </label>
+            </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isRedeemable"
+                  checked={formData.isRedeemable}
+                  onChange={(e) =>
+                    onInputChange("isRedeemable", e.target.checked)
+                  }
+                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                <label
+                  htmlFor="isRedeemable"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Dapat ditukar dengan poin
+                </label>
+              </div>
+
+              {formData.isRedeemable && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Jumlah Poin yang Dibutuhkan *
+                  </label>
+                  <Input
+                    type="number"
+                    value={formData.pointCost.toString()}
+                    onChange={(e) =>
+                      onInputChange("pointCost", parseInt(e.target.value) || 0)
+                    }
+                    placeholder="100"
+                    min="1"
+                    className={formErrors.pointCost ? "border-red-500" : ""}
+                  />
+                  {formErrors.pointCost && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {formErrors.pointCost}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    User perlu menukar poin untuk mendapatkan voucher ini
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
@@ -1070,6 +1148,25 @@ function VoucherDetailDialog({
               </p>
             </div>
           </div>
+
+          {/* Point Redemption Info */}
+          {voucher.isRedeemable && voucher.pointCost > 0 && (
+            <div className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <Gift className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm text-amber-600 mb-1">
+                    Dapat Ditukar dengan Poin
+                  </p>
+                  <p className="text-2xl font-bold text-amber-800">
+                    {voucher.pointCost.toLocaleString("id-ID")} Poin
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">
@@ -1263,19 +1360,6 @@ function AssignVoucherDialog({
                       <p className="text-sm text-gray-600">
                         {assignment.email}
                       </p>
-                      {/* <p className="text-xs text-gray-500 mt-1">
-                        Assigned:{" "}
-                        {new Date(assignment.assignedAt).toLocaleDateString(
-                          "id-ID",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
-                      </p> */}
                     </div>
                     <button
                       onClick={() =>

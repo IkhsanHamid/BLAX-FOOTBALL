@@ -6,6 +6,7 @@ export interface User {
   role: string;
   isMember: boolean;
   code: string;
+  points: number;
 }
 
 export interface AuthSession {

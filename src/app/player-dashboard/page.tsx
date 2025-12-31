@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import {
@@ -42,6 +42,8 @@ import BookingHistoryBlur from "@/components/molecules/MembershipBlur";
 import VouchersBlur from "@/components/molecules/VoucherBlur";
 import MembershipModal from "@/components/molecules/MembershipModal";
 import { UserVoucher } from "@/types/voucher";
+import PointsBadge from "@/components/atoms/PointsBadge";
+import VoucherCarousel from "@/components/molecules/VoucherCaraousel";
 
 // Popover Component
 const Popover: React.FC<{ children: React.ReactNode; content: string }> = ({
@@ -343,9 +345,12 @@ interface BookingHistory {
   bookedAt: string;
 }
 
+import { RedeemableVoucher } from "@/types/voucher";
+import { AuthService } from "@/utils/auth";
+
 export default function PlayerDashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [userVouchers, setUserVouchers] = useState<UserVoucher[]>([]);
@@ -353,29 +358,48 @@ export default function PlayerDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const { showSuccess, showError } = useNotifications();
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [userPoints, setUserPoints] = useState(0);
+  const [redeemableVouchers, setRedeemableVouchers] = useState<
+    RedeemableVoucher[]
+  >([]);
+  console.log("user", user);
+
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    checkAccess();
-  }, [user]);
+    // Skip jika sudah initialized
+    if (hasInitialized.current) return;
 
-  const checkAccess = async () => {
-    if (!user) {
-      router.push("/");
-      return;
+    const checkAccess = async () => {
+      if (!user) {
+        router.push("/");
+        return;
+      }
+
+      // Check if user has player role
+      if (
+        user.role !== "Player" &&
+        user.role !== "Admin" &&
+        user.role !== "Owner"
+      ) {
+        showError("Access Denied", "This dashboard is only for players");
+        router.push("/");
+        return;
+      }
+
+      // Fetch data TANPA update user
+      await fetchDashboardData(false);
+      setLoading(false);
+      hasInitialized.current = true;
+    };
+
+    if (!authLoading && user) {
+      checkAccess();
+      setUserPoints(user?.points);
     }
+  }, [authLoading, user?.code]);
 
-    // Check if user has player role
-    if (user.role !== "Player" && user.role !== "Admin") {
-      showError("Access Denied", "This dashboard is only for players");
-      router.push("/");
-      return;
-    }
-
-    await fetchDashboardData();
-    setLoading(false);
-  };
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (shouldUpdateUser = false) => {
     try {
       setDataLoading(true);
 
@@ -383,9 +407,19 @@ export default function PlayerDashboardPage() {
       const vouchersResult = await voucherService.voucherUser();
       setUserVouchers(vouchersResult);
 
+      const availeVouchers = await voucherService.voucherAvailable();
+      setRedeemableVouchers(availeVouchers);
+
       // Fetch booking history from API
       const bookingsResult = await bookingService.bookingHistoryUser();
       setBookingHistory(bookingsResult);
+
+      if (shouldUpdateUser) {
+        const session = await AuthService.getSession();
+        const dataUser = await AuthService.getCurrentUser(session.access_token);
+        setUser(dataUser);
+        setUserPoints(dataUser.points);
+      }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       showError("Error", "Failed to load dashboard data");
@@ -396,13 +430,9 @@ export default function PlayerDashboardPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboardData();
+    await fetchDashboardData(true);
     setRefreshing(false);
     showSuccess("Dashboard refreshed successfully");
-  };
-
-  const handleViewPaymentDetails = (bookingId: string) => {
-    router.push(`/payment/${bookingId}`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -484,58 +514,104 @@ export default function PlayerDashboardPage() {
               />
             )}
             {/* Header */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 mb-8">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-xl">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-gray-600">Player Dashboard</p>
-
-                      {user.isMember && (
-                        <div className="flex items-center bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
-                          <Crown className="w-4 h-4 mr-1 fill-purple-700 text-purple-700" />
-                          Membership
-                        </div>
-                      )}
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg border border-gray-200 mb-8">
+              <div className="flex flex-col gap-6">
+                {/* TOP SECTION */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  {/* USER INFO */}
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl">
+                      {user.name.charAt(0).toUpperCase()}
                     </div>
-                    <h1 className="text-xl md:text-3xl font-bold text-gray-900">
-                      Welcome back, {user.name}!
-                    </h1>
-                    <Badge className="bg-blue-100 text-blue-800 mt-1">
-                      {user.role}
-                    </Badge>
+
+                    {/* Text */}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-gray-600 text-sm">
+                          Player Dashboard
+                        </p>
+
+                        {user.isMember && (
+                          <div className="flex items-center bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
+                            <Crown className="w-3.5 h-3.5 mr-1 fill-purple-700 text-purple-700" />
+                            Membership
+                          </div>
+                        )}
+                      </div>
+
+                      <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+                        Welcome back, {user.name}!
+                      </h1>
+
+                      <Badge className="bg-blue-100 text-blue-800 mt-1 text-xs sm:text-sm">
+                        {user.role}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* POINTS (mobile pindah ke bawah tombol) */}
+                  <div className="flex sm:hidden justify-between items-center">
+                    <p className="text-xs text-muted-foreground">Total Poin</p>
+                    <PointsBadge points={userPoints} size="md" />
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="flex items-center"
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 mr-2 ${
-                        refreshing ? "animate-spin" : ""
-                      }`}
-                    />
-                    {refreshing ? "Refreshing..." : "Refresh"}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => router.push("/schedule")}
-                    className="flex items-center"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    New Booking
-                  </Button>
+
+                {/* ACTIONS */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  {/* BUTTONS */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefresh}
+                      disabled={refreshing}
+                      className="flex items-center justify-center w-full sm:w-auto"
+                    >
+                      <RefreshCw
+                        className={`w-4 h-4 mr-2 ${
+                          refreshing ? "animate-spin" : ""
+                        }`}
+                      />
+                      {refreshing ? "Refreshing..." : "Refresh"}
+                    </Button>
+
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => router.push("/schedule")}
+                      className="flex items-center justify-center w-full sm:w-auto"
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      New Booking
+                    </Button>
+                  </div>
+
+                  {/* POINTS (desktop & tablet) */}
+                  <div className="hidden sm:flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">
+                        Total Poin
+                      </p>
+                    </div>
+                    <PointsBadge points={userPoints} size="lg" />
+                  </div>
                 </div>
               </div>
             </div>
+
+            {user.isMember && (
+              <Card className="mb-8 border-primary/10 shadow-lg">
+                <CardContent className="p-6 pt-5">
+                  <VoucherCarousel
+                    vouchers={redeemableVouchers}
+                    userPoints={userPoints!}
+                    onPointsUpdate={setUserPoints}
+                    onRefresh={handleRefresh}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Vouchers */}

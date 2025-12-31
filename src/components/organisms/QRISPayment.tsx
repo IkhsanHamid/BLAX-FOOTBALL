@@ -503,7 +503,7 @@ export function QRISPaymentPage({
                   "discountAmount" in paymentData &&
                   paymentData.discountAmount > 0 && (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-white">Diskon Member (10%)</span>
+                      <span className="text-white">Total diskon</span>
                       <span className="font-medium text-white">
                         - {formatCurrency(paymentData.discountAmount)}
                       </span>

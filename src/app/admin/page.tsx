@@ -16,6 +16,7 @@ import NewsTab from "@/components/organisms/NewsTabComponent";
 import MasterDataTab from "@/components/organisms/MasterDataTab";
 import BookingHistoryTab from "@/components/organisms/BookingHistoryTab";
 import GalleriesManagement from "@/components/organisms/GalleriesManagement";
+import RescheduleManagementComponent from "@/components/organisms/RescheduleManagement";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -112,6 +113,8 @@ export default function AdminPage() {
         return <BookingHistoryTab />;
       case "gallery":
         return <GalleriesManagement />;
+      case "reschedule":
+        return <RescheduleManagementComponent />;
       default:
         return <BookingHistoryTab />;
     }

@@ -6,6 +6,9 @@ export interface Voucher {
   type: "PERCENTAGE" | "FIXED";
   nominal: number;
   isActive: boolean;
+  isRedeemable: boolean;
+  isBooking: boolean;
+  pointCost: number;
 }
 
 export interface VoucherPayload {
@@ -15,6 +18,9 @@ export interface VoucherPayload {
   type: "PERCENTAGE" | "FIXED";
   nominal: number;
   isActive: boolean;
+  isRedeemable: boolean;
+  isBooking: boolean;
+  pointCost: number;
 }
 
 // export interface UserVoucher {
@@ -31,4 +37,28 @@ export interface UserVoucher {
   description: string;
   type: "PERCENTAGE" | "FIXED";
   nominal: number;
+}
+
+export interface RedeemableVoucher {
+  id: string;
+  name: string;
+  description: string;
+  pointCost: number;
+  type: "PERCENTAGE" | "FIXED";
+  nominal: number;
+  expiryDays?: number;
+}
+
+export interface UserPoints {
+  total: number;
+  pending: number;
+  history: PointTransaction[];
+}
+
+export interface PointTransaction {
+  id: string;
+  amount: number;
+  type: "EARN" | "REDEEM";
+  description: string;
+  date: string;
 }

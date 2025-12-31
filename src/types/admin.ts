@@ -97,3 +97,14 @@ export interface ListUserMember {
   phone: string;
   validUntil: string;
 }
+
+export interface RescheduleManagement {
+  id: string;
+  bookId: string;
+  playerName: string;
+  playerPhone: string;
+  venueName: string;
+  date: string;
+  time: string;
+  status: string;
+}

@@ -5,6 +5,7 @@ import {
   BookingHistoryResponse,
   ListUserMember,
   ReportBooking,
+  RescheduleManagement,
   Roles,
   UserManagement,
   Users,
@@ -310,6 +311,44 @@ class AdminService {
       console.error("Error lock slots:", error);
       throw error;
     }
+  }
+
+  async listAvailReschedule(skip: number, limit: number, search: string) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("name", search);
+
+      const result = await apiClient.get(
+        `/api/v1/reschedule/list-available-reschedule?${queryParams}`
+      );
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createRescheduleRecord(bookId: string, reason: string) {
+    const response = await apiClient.post("/api/v1/reschedule", {
+      bookId,
+      reason,
+    });
+    return response;
+  }
+
+  async historyReschedule(skip: number, limit: number, search: string) {
+    const queryParams = new URLSearchParams();
+    if (limit) queryParams.append("limit", limit.toString());
+    if (skip) queryParams.append("skip", skip.toString());
+    if (search) queryParams.append("name", search);
+
+    const result = await apiClient.get(
+      `/api/v1/reschedule/histories?${queryParams}`
+    );
+
+    return result;
   }
 }
 
