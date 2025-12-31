@@ -92,7 +92,7 @@ Mohon dicek dan dikonfirmasi untuk lineup. Terima kasih!`;
   };
 
   const handleWhatsAppClick = () => {
-    const phoneNumber = "6282288559679";
+    const phoneNumber = "6281385042622";
     const message = generateWhatsAppMessage();
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
@@ -721,9 +721,9 @@ export default function PaymentComponent({
                     Contact Support
                   </h4>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p>📞 Phone: +62 21 1234 5678</p>
-                    <p>📧 Email: support@blaxfootball.com</p>
-                    <p>💬 WhatsApp: +62 812 3456 7890</p>
+                    {/* <p>📞 Phone: +62 21 1234 5678</p>
+                    <p>📧 Email: support@blaxfootball.com</p> */}
+                    <p>💬 WhatsApp: +62 813 8504 2622</p>
                   </div>
                 </div>
               </div>

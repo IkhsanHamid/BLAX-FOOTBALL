@@ -88,7 +88,7 @@ Mohon dicek dan dikonfirmasi untuk lineup. Terima kasih!`;
   };
 
   const handleWhatsAppClick = () => {
-    const phoneNumber = "6282288559679"; // Replace with actual admin WhatsApp number
+    const phoneNumber = "621385042622"; // Replace with actual admin WhatsApp number
     const message = generateWhatsAppMessage();
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 

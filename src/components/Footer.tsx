@@ -61,21 +61,17 @@ export default function Footer() {
             <div className="space-y-4 text-gray-300">
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-sky-400" />
-                <p>
-                  +62 21 1234 5678
-                  <br />
-                  +62 812 3456 7890
-                </p>
+                <p>+62 813 8504 2622</p>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-sky-400" />
                 <p>
                   info@blaxfootball.com
                   <br />
                   support@blaxfootball.com
                 </p>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
@@ -86,9 +82,7 @@ export default function Footer() {
             © {currentYear} Blax Football. All rights reserved.
           </p>
 
-          <p className="mt-2 text-gray-500 text-sm">
-            Made with ❤️ for the football community in Jakarta
-          </p>
+          <p className="mt-2 text-gray-500 text-sm">#kitamainlagi</p>
         </div>
       </div>
     </footer>

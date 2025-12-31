@@ -15,14 +15,16 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Football Book",
-  description:
-    "Football book made simple and trustworthy through community football in Jakarta",
+  title: "BLAX",
+  description: "Komunitas sepakbola, minisoccer terbesar di jakarta",
   keywords: [
     "football",
     "minisoccer",
     "community",
     "jakarta",
+    "bogor",
+    "bekasi",
+    "jabodetabek",
     "bola",
     "main bola",
     "mabol",
@@ -30,11 +32,14 @@ export const metadata: Metadata = {
     "mabar",
     "main bareng",
     "sepakbola",
+    "#kitamainlagi",
+    "kitamainlagi",
+    "kita main lagi",
   ],
   authors: [{ name: "DamnSans Team" }],
   openGraph: {
-    title: "FootballBook",
-    description: "Football Book made simple and trustworthy",
+    title: "BLAX",
+    description: "Komunitas sepakbola, minisoccer terbesar di jakarta",
     type: "website",
   },
 };
