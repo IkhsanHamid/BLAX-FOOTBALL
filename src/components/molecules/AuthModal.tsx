@@ -465,7 +465,7 @@ export default function AuthModal({
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Jersey eksklusif, diskon 10%, akses live lineup
+                      Discount eksklusif, diskon 10%, akses live lineup
                     </p>
                     {includeMembership && (
                       <motion.div
