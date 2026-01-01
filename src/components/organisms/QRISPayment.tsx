@@ -317,7 +317,7 @@ export function QRISPaymentPage({
   };
 
   const handleWhatsAppChat = () => {
-    const phoneNumber = "6281234567890"; // Replace with actual WhatsApp business number
+    const phoneNumber = "6281385042622";
     const message = encodeURIComponent(
       `Hi Admin Blax Football! Saya butuh bantuan dalam melakukan pembayaran ${
         paymentType === "booking" ? "booking" : "membership"

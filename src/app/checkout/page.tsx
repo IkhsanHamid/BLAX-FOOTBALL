@@ -10,6 +10,7 @@ import {
   Users,
   Tag,
   X,
+  Shirt,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
@@ -31,6 +32,7 @@ const validateEmail = (email: string) =>
 const validatePhone = (phone: string) =>
   /^[0-9]+$/.test(phone) && phone.length >= 10;
 const validateName = (value: string) => value.trim().length > 0;
+const JERSEY_SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -54,7 +56,12 @@ export default function CheckoutPage() {
   const [picName, setPicName] = useState("");
   const [picEmail, setPicEmail] = useState("");
   const [players, setPlayers] = useState(
-    Array.from({ length: 10 }, () => ({ name: "", phone: "", email: "" }))
+    Array.from({ length: 10 }, () => ({
+      name: "",
+      phone: "",
+      email: "",
+      jerseySize: "",
+    }))
   );
 
   // Voucher states
@@ -65,6 +72,7 @@ export default function CheckoutPage() {
     type: "PERCENTAGE" | "FIXED";
   } | null>(null);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
+  const [jerseySize, setJerseySize] = useState("");
 
   const { selectedSchedule } = useSchedule();
   const { user } = useAuth();
@@ -203,6 +211,7 @@ export default function CheckoutPage() {
       isGk: selectedRole === "goalkeeper" || bookingType === "team",
       isTeam: bookingType === "team" && includeRoster,
       voucherCode: appliedVoucher?.code || undefined,
+      jerseySize: jerseySize,
     };
 
     // Tambahkan teamRoster jika isTeam true
@@ -235,6 +244,7 @@ export default function CheckoutPage() {
       if (!validateEmail(email)) return showError("Email tidak valid");
       if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
       if (!selectedRole) return showError("Pilih role");
+      if (!jerseySize) return showError("Ukuran jersey wajib dipilih");
     } else {
       if (!validateName(picName)) return showError("PIC name wajib diisi");
       if (!validateEmail(picEmail)) return showError("PIC email tidak valid");
@@ -250,6 +260,8 @@ export default function CheckoutPage() {
             return showError(`Phone Player ${i + 1} tidak valid`);
           if (!validateEmail(p.email))
             return showError(`Email Player ${i + 1} tidak valid`);
+          if (!p.jerseySize)
+            return showError(`Ukuran jersey Player ${i + 1} wajib dipilih`);
         }
       }
     }
@@ -448,6 +460,27 @@ export default function CheckoutPage() {
                         Data diambil dari profil akun Anda
                       </p>
                     )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-600 mb-2">
+                    Ukuran Jersey <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Shirt className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      value={jerseySize}
+                      onChange={(e) => setJerseySize(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer"
+                    >
+                      <option value="">Pilih ukuran</option>
+                      {JERSEY_SIZES.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

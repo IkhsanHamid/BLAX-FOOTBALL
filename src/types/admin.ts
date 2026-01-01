@@ -58,6 +58,7 @@ export interface BookingHistory {
   bookingId: string;
   customerName: string;
   customerPhone: string;
+  jerseySize: string;
   scheduleName: string;
   venue: string;
   date: string;

@@ -484,6 +484,7 @@ export default function BookingHistoryTab() {
                         "Booking ID",
                         "Customer",
                         "Schedule",
+                        "Jersey Size",
                         "Type",
                         "Amount",
                         "Status",
@@ -541,6 +542,11 @@ export default function BookingHistoryTab() {
                             <div className="text-xs text-gray-400">
                               {formatDate(booking.date)} • {booking.time}
                             </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-mono text-sm font-medium text-blue-600">
+                            {booking.jerseySize}
                           </div>
                         </TableCell>
                         <TableCell>
