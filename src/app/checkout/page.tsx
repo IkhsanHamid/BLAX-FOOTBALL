@@ -65,6 +65,7 @@ export default function CheckoutPage() {
   } | null>(null);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
   const [jerseySize, setJerseySize] = useState("");
+  const [picJerseySize, setPicJerseySize] = useState("");
 
   const { selectedSchedule } = useSchedule();
   const { user } = useAuth();
@@ -75,6 +76,8 @@ export default function CheckoutPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
+  const [emailErrors, setEmailErrors] = useState<{ [key: number]: string }>({});
+  const [phoneErrors, setPhoneErrors] = useState<{ [key: number]: string }>({});
 
   // Dynamic roster size based on match type
   const getRosterSize = () => {
@@ -131,6 +134,49 @@ export default function CheckoutPage() {
     }
   }, [selectedSchedule]);
 
+  // Check if form is valid and can proceed
+  const isFormValid = () => {
+    if (bookingType === "individual") {
+      return (
+        validateName(name) &&
+        validateEmail(email) &&
+        validatePhone(whatsapp) &&
+        selectedRole !== null &&
+        jerseySize !== ""
+      );
+    } else {
+      // Team booking
+      const isPicValid =
+        validateName(picName) &&
+        validateEmail(picEmail) &&
+        validatePhone(whatsapp) &&
+        picJerseySize !== "";
+
+      if (!includeRoster) {
+        return isPicValid;
+      }
+
+      // Check roster validity
+      const hasEmailErrors = Object.keys(emailErrors).length > 0;
+      const hasPhoneErrors = Object.keys(phoneErrors).length > 0;
+
+      if (hasEmailErrors || hasPhoneErrors) {
+        return false;
+      }
+
+      // Check all players have complete data
+      const allPlayersComplete = players.every(
+        (p) =>
+          validateName(p.name) &&
+          validatePhone(p.phone) &&
+          validateEmail(p.email) &&
+          p.jerseySize !== ""
+      );
+
+      return isPicValid && allPlayersComplete;
+    }
+  };
+
   const handlePlayerChange = (
     index: number,
     field: "name" | "phone" | "email" | "jerseySize",
@@ -141,8 +187,66 @@ export default function CheckoutPage() {
       updated[index][field] = noSpace(value);
     } else if (field === "phone") {
       updated[index][field] = onlyNumbers(value);
+
+      // Validasi phone duplikat
+      const duplicateIndex = updated.findIndex(
+        (p, i) => i !== index && p.phone && p.phone === onlyNumbers(value)
+      );
+
+      const newErrors = { ...phoneErrors };
+
+      if (duplicateIndex !== -1 && onlyNumbers(value)) {
+        newErrors[index] = `Nomor sama dengan Player ${duplicateIndex + 1}`;
+        newErrors[duplicateIndex] = `Nomor sama dengan Player ${index + 1}`;
+      } else {
+        delete newErrors[index];
+        // Clear error dari player lain jika tidak ada duplikat lagi
+        Object.keys(newErrors).forEach((key) => {
+          const keyIndex = parseInt(key);
+          if (keyIndex !== index) {
+            const hasDuplicate = updated.some(
+              (p, i) =>
+                i !== keyIndex && p.phone && p.phone === updated[keyIndex].phone
+            );
+            if (!hasDuplicate) {
+              delete newErrors[keyIndex];
+            }
+          }
+        });
+      }
+
+      setPhoneErrors(newErrors);
     } else if (field === "email") {
       updated[index][field] = noSpace(value);
+
+      // Validasi email duplikat
+      const duplicateIndex = updated.findIndex(
+        (p, i) => i !== index && p.email && p.email === noSpace(value)
+      );
+
+      const newErrors = { ...emailErrors };
+
+      if (duplicateIndex !== -1 && noSpace(value)) {
+        newErrors[index] = `Email sama dengan Player ${duplicateIndex + 1}`;
+        newErrors[duplicateIndex] = `Email sama dengan Player ${index + 1}`;
+      } else {
+        delete newErrors[index];
+        // Clear error dari player lain jika tidak ada duplikat lagi
+        Object.keys(newErrors).forEach((key) => {
+          const keyIndex = parseInt(key);
+          if (keyIndex !== index) {
+            const hasDuplicate = updated.some(
+              (p, i) =>
+                i !== keyIndex && p.email && p.email === updated[keyIndex].email
+            );
+            if (!hasDuplicate) {
+              delete newErrors[keyIndex];
+            }
+          }
+        });
+      }
+
+      setEmailErrors(newErrors);
     } else if (field === "jerseySize") {
       updated[index][field] = value;
     }
@@ -239,7 +343,7 @@ export default function CheckoutPage() {
       isGk: selectedRole === "goalkeeper" || bookingType === "team",
       isTeam: bookingType === "team" && includeRoster,
       voucherCode: appliedVoucher?.code || undefined,
-      jerseySize: jerseySize,
+      jerseySize: jerseySize || picJerseySize,
     };
 
     // Tambahkan teamRoster jika isTeam true
@@ -281,6 +385,16 @@ export default function CheckoutPage() {
         return showError("WhatsApp PIC tidak valid");
 
       if (includeRoster) {
+        // Cek error email duplikat
+        if (Object.keys(emailErrors).length > 0) {
+          return showError("Terdapat email yang sama di team roster");
+        }
+
+        // Cek error phone duplikat
+        if (Object.keys(phoneErrors).length > 0) {
+          return showError("Terdapat nomor phone yang sama di team roster");
+        }
+
         for (let i = 0; i < players.length; i++) {
           const p = players[i];
           if (!validateName(p.name))
@@ -623,6 +737,27 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-gray-600 mb-2">
+                    Ukuran Jersey PIC <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Shirt className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      value={picJerseySize}
+                      onChange={(e) => setPicJerseySize(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer"
+                    >
+                      <option value="">Pilih ukuran</option>
+                      {JERSEY_SIZES.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 {/* Toggle untuk Team Roster */}
                 <div className="pt-4 border-t border-blue-200">
                   <div className="flex items-center justify-between mb-4">
@@ -695,8 +830,17 @@ export default function CheckoutPage() {
                                 )
                               }
                               placeholder="Phone Number"
-                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                              className={`px-4 py-2 bg-white border rounded-xl focus:outline-none transition-colors text-gray-900 ${
+                                phoneErrors[index]
+                                  ? "border-red-500 focus:border-red-500"
+                                  : "border-blue-200 focus:border-blue-400"
+                              }`}
                             />
+                            {phoneErrors[index] && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {phoneErrors[index]}
+                              </p>
+                            )}
                             <input
                               type="text"
                               value={player.email}
@@ -708,8 +852,17 @@ export default function CheckoutPage() {
                                 )
                               }
                               placeholder="Email"
-                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
+                              className={`px-4 py-2 bg-white border rounded-xl focus:outline-none transition-colors text-gray-900 ${
+                                emailErrors[index]
+                                  ? "border-red-500 focus:border-red-500"
+                                  : "border-blue-200 focus:border-blue-400"
+                              }`}
                             />
+                            {emailErrors[index] && (
+                              <p className="text-xs text-red-500 mt-1 col-span-2">
+                                {emailErrors[index]}
+                              </p>
+                            )}
                             <select
                               value={player.jerseySize}
                               onChange={(e) =>
@@ -890,15 +1043,37 @@ export default function CheckoutPage() {
               {/* PAY BUTTON */}
               <motion.button
                 whileHover={{
-                  boxShadow: "0 12px 30px rgba(37, 99, 235, 0.35)",
+                  boxShadow:
+                    isFormValid() && !isBookingLoading
+                      ? "0 12px 30px rgba(37, 99, 235, 0.35)"
+                      : undefined,
                 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{
+                  scale: isFormValid() && !isBookingLoading ? 0.98 : 1,
+                }}
                 onClick={handleBookingConfirmation}
-                disabled={isBookingLoading}
-                className="w-full px-6 py-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
+                disabled={isBookingLoading || !isFormValid()}
+                className={`w-full px-6 py-4 rounded-full transition-all shadow-md ${
+                  isFormValid() && !isBookingLoading
+                    ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
               >
                 {isBookingLoading ? "Processing..." : "Proceed to Pay"}
               </motion.button>
+
+              {!isFormValid() && !isBookingLoading && (
+                <p className="text-center text-sm text-red-500">
+                  {bookingType === "individual"
+                    ? "Lengkapi semua data untuk melanjutkan"
+                    : includeRoster
+                    ? Object.keys(emailErrors).length > 0 ||
+                      Object.keys(phoneErrors).length > 0
+                      ? "Perbaiki data yang duplikat"
+                      : "Lengkapi data PIC dan semua roster untuk melanjutkan"
+                    : "Lengkapi data PIC untuk melanjutkan"}
+                </p>
+              )}
 
               <p className="text-center text-sm text-gray-500">
                 Secure payment via QRIS
