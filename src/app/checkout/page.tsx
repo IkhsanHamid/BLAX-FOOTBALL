@@ -55,14 +55,6 @@ export default function CheckoutPage() {
   // Team Form
   const [picName, setPicName] = useState("");
   const [picEmail, setPicEmail] = useState("");
-  const [players, setPlayers] = useState(
-    Array.from({ length: 10 }, () => ({
-      name: "",
-      phone: "",
-      email: "",
-      jerseySize: "",
-    }))
-  );
 
   // Voucher states
   const [voucherCode, setVoucherCode] = useState("");
@@ -84,6 +76,21 @@ export default function CheckoutPage() {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
 
+  // Dynamic roster size based on match type
+  const getRosterSize = () => {
+    if (!selectedSchedule) return 10;
+    return selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
+  };
+
+  const [players, setPlayers] = useState(
+    Array.from({ length: getRosterSize() }, () => ({
+      name: "",
+      phone: "",
+      email: "",
+      jerseySize: "",
+    }))
+  );
+
   // Auto-fill form data when user is available
   useEffect(() => {
     if (user) {
@@ -104,9 +111,29 @@ export default function CheckoutPage() {
     }
   }, [searchParams]);
 
+  // Update roster size when schedule changes
+  useEffect(() => {
+    if (selectedSchedule) {
+      const rosterSize = getRosterSize();
+      setPlayers(
+        Array.from({ length: rosterSize }, () => ({
+          name: "",
+          phone: "",
+          email: "",
+          jerseySize: "",
+        }))
+      );
+
+      // Reset to individual if PADEL
+      if (selectedSchedule.typeMatch === "PADEL") {
+        setBookingType("individual");
+      }
+    }
+  }, [selectedSchedule]);
+
   const handlePlayerChange = (
     index: number,
-    field: "name" | "phone" | "email",
+    field: "name" | "phone" | "email" | "jerseySize",
     value: string
   ) => {
     const updated = [...players];
@@ -116,6 +143,8 @@ export default function CheckoutPage() {
       updated[index][field] = onlyNumbers(value);
     } else if (field === "email") {
       updated[index][field] = noSpace(value);
+    } else if (field === "jerseySize") {
+      updated[index][field] = value;
     }
     setPlayers(updated);
   };
@@ -127,7 +156,7 @@ export default function CheckoutPage() {
         ? selectedSchedule?.feeGk
         : selectedSchedule?.feePlayer;
     }
-    return Number(selectedSchedule?.feePlayer) * 10;
+    return Number(selectedSchedule?.feePlayer) * getRosterSize();
   };
 
   // Handle apply voucher
@@ -139,7 +168,6 @@ export default function CheckoutPage() {
 
     setIsCheckingVoucher(true);
     try {
-      // TODO: Replace with actual API call
       const response = await voucherService.validateVoucher(voucherCode);
 
       if (response.status) {
@@ -222,6 +250,7 @@ export default function CheckoutPage() {
           name: player.name,
           phone: player.phone,
           email: player.email,
+          jerseySize: player.jerseySize,
         })),
       };
     }
@@ -344,38 +373,40 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Form */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Booking Type Toggle */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="p-2 bg-white border border-blue-200 rounded-3xl flex gap-2 shadow-lg"
-            >
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setBookingType("individual")}
-                className={`flex-1 px-6 py-4 rounded-2xl transition-all ${
-                  bookingType === "individual"
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "text-gray-600 hover:text-blue-600"
-                }`}
+            {/* Booking Type Toggle - Hide for PADEL */}
+            {selectedSchedule?.typeMatch !== "PADEL" && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="p-2 bg-white border border-blue-200 rounded-3xl flex gap-2 shadow-lg"
               >
-                Individual
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setBookingType("team")}
-                className={`flex-1 px-6 py-4 rounded-2xl transition-all ${
-                  bookingType === "team"
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "text-gray-600 hover:text-blue-600"
-                }`}
-              >
-                Team
-              </motion.button>
-            </motion.div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setBookingType("individual")}
+                  className={`flex-1 px-6 py-4 rounded-2xl transition-all ${
+                    bookingType === "individual"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-blue-600"
+                  }`}
+                >
+                  Individual
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setBookingType("team")}
+                  className={`flex-1 px-6 py-4 rounded-2xl transition-all ${
+                    bookingType === "team"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-blue-600"
+                  }`}
+                >
+                  Team
+                </motion.button>
+              </motion.div>
+            )}
 
             {/* Individual Form */}
             {bookingType === "individual" && (
@@ -602,7 +633,7 @@ export default function CheckoutPage() {
                           Include Team Roster
                         </h4>
                         <p className="text-sm text-gray-500">
-                          Add 10 player details (optional)
+                          Add {getRosterSize()} player details (optional)
                         </p>
                       </div>
                     </div>
@@ -630,7 +661,9 @@ export default function CheckoutPage() {
                     transition={{ duration: 0.3 }}
                     className="space-y-3"
                   >
-                    <h3 className="text-blue-600">Team Roster (10 Players)</h3>
+                    <h3 className="text-blue-600">
+                      Team Roster ({getRosterSize()} Players)
+                    </h3>
                     <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                       {players.map((player, index) => (
                         <div key={index} className="p-4 bg-blue-50 rounded-2xl">
@@ -675,8 +708,26 @@ export default function CheckoutPage() {
                                 )
                               }
                               placeholder="Email"
-                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 sm:col-span-2"
+                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900"
                             />
+                            <select
+                              value={player.jerseySize}
+                              onChange={(e) =>
+                                handlePlayerChange(
+                                  index,
+                                  "jerseySize",
+                                  e.target.value
+                                )
+                              }
+                              className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer"
+                            >
+                              <option value="">Jersey Size</option>
+                              {JERSEY_SIZES.map((size) => (
+                                <option key={size} value={size}>
+                                  {size}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       ))}
