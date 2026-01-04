@@ -159,7 +159,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-yellow-300">•</span>
-                  <span>Dapatkan 15% diskon untuk semua produk</span>
+                  <span>Dapatkan 10% diskon untuk semua produk</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-yellow-300">•</span>
