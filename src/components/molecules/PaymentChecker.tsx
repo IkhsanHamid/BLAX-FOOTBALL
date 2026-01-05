@@ -91,7 +91,7 @@ export default function PaymentChecker() {
   const handleViewFullPayment = (paymentId?: string) => {
     const id = paymentId || paymentStatus?.id;
     if (id) {
-      router.push(`/payment/${id}`);
+      router.push(`/checkout?paymentId=${id}`);
     }
   };
 

@@ -1064,16 +1064,18 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Member Discount */}
-                {isMember && pricing.memberDiscount > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-green-600">
-                      Member Discount (10%)
-                    </span>
-                    <span className="text-green-600">
-                      - IDR {pricing.memberDiscount.toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                )}
+                {isMember &&
+                  bookingType !== "team" &&
+                  pricing.memberDiscount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-600">
+                        Member Discount (10%)
+                      </span>
+                      <span className="text-green-600">
+                        - IDR {pricing.memberDiscount.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  )}
 
                 {pricing.voucherDiscount > 0 && (
                   <div className="flex justify-between text-green-600">

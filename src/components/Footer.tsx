@@ -9,10 +9,31 @@ import {
 } from "lucide-react";
 import BlaxLogo from "@/assets/blax-logo.png";
 import Image from "next/image";
+import { FaTiktok } from "react-icons/fa";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
+  const socialLinks = [
+    {
+      href: "https://www.tiktok.com/@blaxfootball.id?_r=1&_t=ZS-92p2cCYAjAH",
+      icon: FaTiktok,
+      label: "Facebook",
+      hover: "hover:bg-blue-600",
+    },
+    {
+      href: "https://instagram.com/blaxfootball",
+      icon: Instagram,
+      label: "Instagram",
+      hover: "hover:bg-pink-500",
+    },
+    {
+      href: "https://youtube.com/@blaxfootball?si=ocvCkHwmAWPexxbB",
+      icon: Youtube,
+      label: "YouTube",
+      hover: "hover:bg-red-600",
+    },
+  ];
   return (
     <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
@@ -31,24 +52,27 @@ export default function Footer() {
             </div>
 
             <p className="text-gray-300 leading-relaxed max-w-md">
-              Platform booking futsal dan mini soccer terpercaya di Jakarta.
-              Bergabunglah dengan komunitas football terbesar dan nikmati
-              pengalaman bermain yang tak terlupakan.
+              Platform booking fun footbal dan mini soccer terpercaya di
+              Jakarta. Bergabunglah dengan komunitas football terbesar dan
+              nikmati pengalaman bermain yang tak terlupakan.
             </p>
 
             <div className="flex space-x-3 pt-2">
-              {[Facebook, Instagram, Twitter, Youtube].map((Icon, i) => (
+              {socialLinks.map(({ href, icon: Icon, label, hover }) => (
                 <a
-                  key={i}
-                  href="#"
-                  className="
-                    w-10 h-10 rounded-full
-                    bg-gray-700 hover:bg-sky-500
-                    flex items-center justify-center
-                    transition-colors duration-300
-                  "
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className={`
+            w-10 h-10 rounded-full
+            bg-gray-700 ${hover}
+            flex items-center justify-center
+            transition-colors duration-300
+          `}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5 text-white" />
                 </a>
               ))}
             </div>

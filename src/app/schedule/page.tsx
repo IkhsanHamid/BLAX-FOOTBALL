@@ -58,6 +58,27 @@ export default function SchedulePage() {
     [schedules]
   );
 
+  const isBookingAllowed = (matchDate: string, matchTime: string): boolean => {
+    try {
+      const now = new Date();
+      const matchDateTime = new Date(matchDate);
+
+      // Parse time (format: "HH:MM")
+      const [hours, minutes] = matchTime.split(":").map(Number);
+      matchDateTime.setHours(hours, minutes, 0, 0);
+
+      // Calculate difference in hours
+      const diffInMs = matchDateTime.getTime() - now.getTime();
+      const diffInHours = diffInMs / (1000 * 60 * 60);
+
+      // Allow booking if match is more than 2 hours away
+      return diffInHours >= 2;
+    } catch (error) {
+      console.error("Error checking booking time:", error);
+      return true; // Default to allowing booking if there's an error
+    }
+  };
+
   // Filter and sort matches
   const filteredAndSortedMatches = useMemo(() => {
     let filtered = matchesData.filter((match) => {
@@ -476,17 +497,23 @@ export default function SchedulePage() {
                           <Eye className="w-4 h-4 mr-1" />
                           Detail
                         </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleBooking(match)}
-                          disabled={Number(match.openSlots) === 0}
-                          className="flex-1 shadow-md hover:shadow-lg"
-                        >
-                          {Number(match.openSlots) === 0
-                            ? "Penuh"
-                            : "Book Sekarang"}
-                        </Button>
+                        {isBookingAllowed(match.date, match.time) ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleBooking(match)}
+                            disabled={Number(match.openSlots) === 0}
+                            className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
+                          >
+                            {Number(match.openSlots) === 0
+                              ? "Penuh"
+                              : "Book Sekarang"}
+                          </Button>
+                        ) : (
+                          <div className="flex-1 px-3 md:px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs md:text-sm text-center font-medium">
+                            Booking Ditutup
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

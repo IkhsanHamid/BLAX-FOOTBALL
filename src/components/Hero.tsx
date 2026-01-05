@@ -53,7 +53,7 @@ export default function Hero() {
             <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-5 sm:mb-6 leading-tight">
               Fun game. Good vibes
               <span className="block bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
-                Great community
+                #kitamainlagi
               </span>
             </h2>
 
