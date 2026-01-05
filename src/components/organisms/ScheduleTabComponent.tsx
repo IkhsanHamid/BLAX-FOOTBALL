@@ -402,7 +402,10 @@ export default function ScheduleTab({
       time: "Time is required",
       venueId: "Venue is required",
       feePlayer: "Player fee is required",
-      feeGk: "Goalkeeper fee is required",
+      // Hanya require feeGk jika bukan PADEL
+      ...(scheduleForm.typeMatch !== PADEL_MATCH_TYPE && {
+        feeGk: "Goalkeeper fee is required",
+      }),
       typeEvent: "Event type is required",
       typeMatch: "Match type is required",
       image: "Match image is required",
@@ -447,9 +450,17 @@ export default function ScheduleTab({
       formData.append("date", scheduleForm.date);
       formData.append("time", scheduleForm.time);
       formData.append("venueId", scheduleForm.venueId);
-      formData.append("team", String(scheduleForm.totalTeams));
+      formData.append(
+        "team",
+        scheduleForm.typeMatch === PADEL_MATCH_TYPE
+          ? String(scheduleForm.totalSlots)
+          : String(scheduleForm.totalTeams)
+      );
       formData.append("feePlayer", scheduleForm.feePlayer);
-      formData.append("feeGk", scheduleForm.feeGk);
+      formData.append(
+        "feeGk",
+        scheduleForm.typeMatch === PADEL_MATCH_TYPE ? "0" : scheduleForm.feeGk
+      );
       formData.append("typeEvent", scheduleForm.typeEvent);
       formData.append("typeMatch", scheduleForm.typeMatch);
 
@@ -1042,7 +1053,13 @@ export default function ScheduleTab({
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
+              <div
+                className={
+                  scheduleForm.typeMatch === PADEL_MATCH_TYPE
+                    ? "md:col-span-2"
+                    : ""
+                }
+              >
                 <label className="block text-sm font-medium mb-2">
                   Player Fee (Rp) <span className="text-red-500">*</span>
                 </label>
@@ -1059,23 +1076,25 @@ export default function ScheduleTab({
                   </p>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Goalkeeper Fee (Rp) <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. 50.000"
-                  value={formatCurrency(scheduleForm.feeGk)}
-                  onChange={(e) => handleFeeChange("feeGk", e.target.value)}
-                  className={formErrors.feeGk ? "border-red-500" : ""}
-                />
-                {formErrors.feeGk && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.feeGk}
-                  </p>
-                )}
-              </div>
+              {scheduleForm.typeMatch !== PADEL_MATCH_TYPE && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Goalkeeper Fee (Rp) <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. 50.000"
+                    value={formatCurrency(scheduleForm.feeGk)}
+                    onChange={(e) => handleFeeChange("feeGk", e.target.value)}
+                    className={formErrors.feeGk ? "border-red-500" : ""}
+                  />
+                  {formErrors.feeGk && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.feeGk}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

@@ -118,7 +118,7 @@ export default function UsersTab() {
     try {
       setLoading(true);
       // Note: SearchTerm used here is from state, but intended for initial load or refresh
-      const result = await adminService.getAllUsers(100, 0, "");
+      const result = await adminService.getAllUsers(2000, 0, "");
       setUsers(result.users);
     } catch (error) {
       showError("Error", "Failed to load users");

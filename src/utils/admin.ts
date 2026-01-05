@@ -350,6 +350,20 @@ class AdminService {
 
     return result;
   }
+
+  async changeNameTeam(
+    scheduleId: string,
+    nameTeam: string,
+    teamExist: string
+  ) {
+    const result = await apiClient.post(`/api/v1/lineup/name-team`, {
+      scheduleId,
+      nameTeam,
+      teamExist,
+    });
+
+    return result;
+  }
 }
 
 export const adminService = new AdminService();

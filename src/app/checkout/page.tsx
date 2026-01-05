@@ -427,6 +427,8 @@ export default function CheckoutPage() {
     }
   };
 
+  console.log("selectedschedule", selectedSchedule);
+
   // Jika showPayment true, tampilkan PaymentComponent
   if (showPayment && paymentId) {
     return <QRISPaymentPage paymentId={paymentId} paymentType={"booking"} />;
@@ -508,16 +510,30 @@ export default function CheckoutPage() {
                   Individual
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setBookingType("team")}
-                  className={`flex-1 px-6 py-4 rounded-2xl transition-all ${
-                    bookingType === "team"
+                  whileHover={{
+                    scale: !selectedSchedule?.canRegistTeam ? 1 : 1.02,
+                  }}
+                  whileTap={{
+                    scale: !selectedSchedule?.canRegistTeam ? 1 : 0.98,
+                  }}
+                  onClick={() =>
+                    selectedSchedule?.canRegistTeam && setBookingType("team")
+                  }
+                  disabled={!selectedSchedule?.canRegistTeam}
+                  className={`flex-1 px-6 py-4 rounded-2xl transition-all relative ${
+                    !selectedSchedule?.canRegistTeam
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : bookingType === "team"
                       ? "bg-blue-600 text-white shadow-md"
                       : "text-gray-600 hover:text-blue-600"
                   }`}
                 >
                   Team
+                  {!selectedSchedule?.canRegistTeam && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      FULL
+                    </span>
+                  )}
                 </motion.button>
               </motion.div>
             )}
@@ -633,19 +649,52 @@ export default function CheckoutPage() {
                   <h3 className="mb-4 text-blue-600">Select Your Role</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => setSelectedRole("goalkeeper")}
-                      className={`p-6 border-2 rounded-2xl cursor-pointer transition-all ${
-                        selectedRole === "goalkeeper"
-                          ? "border-blue-600 bg-blue-50 shadow-lg"
-                          : "border-blue-200 hover:border-blue-300"
+                      whileHover={{
+                        scale:
+                          selectedSchedule?.availableGkSlots === 0 ? 1 : 1.02,
+                      }}
+                      onClick={() =>
+                        selectedSchedule?.availableGkSlots !== 0 &&
+                        setSelectedRole("goalkeeper")
+                      }
+                      className={`p-6 border-2 rounded-2xl transition-all relative ${
+                        selectedSchedule?.availableGkSlots === 0
+                          ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
+                          : selectedRole === "goalkeeper"
+                          ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
+                          : "border-blue-200 hover:border-blue-300 cursor-pointer"
                       }`}
                     >
-                      <Shield className="w-8 h-8 mb-3 text-blue-600" />
-                      <h4 className="mb-2 text-blue-600">Goalkeeper</h4>
-                      <div className="text-gray-600">
+                      <Shield
+                        className={`w-8 h-8 mb-3 ${
+                          selectedSchedule?.availableGkSlots === 0
+                            ? "text-gray-400"
+                            : "text-blue-600"
+                        }`}
+                      />
+                      <h4
+                        className={`mb-2 ${
+                          selectedSchedule?.availableGkSlots === 0
+                            ? "text-gray-500"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        Goalkeeper
+                      </h4>
+                      <div
+                        className={
+                          selectedSchedule?.availableGkSlots === 0
+                            ? "text-gray-500"
+                            : "text-gray-600"
+                        }
+                      >
                         IDR {selectedSchedule?.feeGk}
                       </div>
+                      {selectedSchedule?.availableGkSlots === 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                          FULL
+                        </span>
+                      )}
                     </motion.div>
 
                     <motion.div
@@ -715,7 +764,6 @@ export default function CheckoutPage() {
                     />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-gray-600 mb-2">
                     PIC WhatsApp Number

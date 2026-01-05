@@ -41,6 +41,9 @@ export default function SchedulePage() {
         typeMatch: schedule.typeMatch,
         facilities: schedule.facilities,
         image: schedule.imageUrl,
+        canRegistTeam: schedule.canRegistTeam,
+        availableGkSlots: schedule.availableGkSlots,
+        availablePlayerSlots: schedule.availablePlayerSlots,
       })),
     [schedules]
   );

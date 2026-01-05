@@ -183,6 +183,9 @@ export default function SchedulesCarousel() {
     typeMatch: schedule.typeMatch,
     facilities: schedule.facilities,
     image: schedule.imageUrl,
+    canRegistTeam: schedule.canRegistTeam,
+    availableGkSlots: schedule.availableGkSlots,
+    availablePlayerSlots: schedule.availablePlayerSlots,
   }));
 
   // Responsive items per page: 1 for mobile, 2 for desktop

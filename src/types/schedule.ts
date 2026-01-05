@@ -16,6 +16,9 @@ export interface Schedule {
   gmapLink: string;
   address: string;
   facilities: Facilites[];
+  canRegistTeam: boolean;
+  availableGkSlots: number;
+  availablePlayerSlots: number;
 }
 
 export interface ScheduleDetail extends Schedule {

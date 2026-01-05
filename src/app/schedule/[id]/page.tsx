@@ -523,7 +523,7 @@ export default function ScheduleDetailPage() {
                           className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
                           variant="primary"
                           size="lg"
-                          onClick={handleBooking}
+                          onClick={() => handleBooking(schedule)}
                           disabled={Number(schedule.openSlots) === 0}
                         >
                           {Number(schedule.openSlots) === 0
