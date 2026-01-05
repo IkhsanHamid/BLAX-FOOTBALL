@@ -305,9 +305,9 @@ export default function SchedulesCarousel() {
   // Filter buttons data
   const filterButtons = [
     { label: "Semua", value: "Semua" },
-    { label: "Football", value: "Football" },
-    { label: "Mini Soccer", value: "Mini Soccer" },
-    { label: "Padel", value: "Padel" },
+    { label: "Football", value: "FOOTBALL" },
+    { label: "Mini Soccer", value: "MINI-SOCCER" },
+    { label: "Padel", value: "PADEL" },
   ];
 
   // Show message if no schedules available
