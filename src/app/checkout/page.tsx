@@ -700,19 +700,55 @@ export default function CheckoutPage() {
                     )}
 
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => setSelectedRole("player")}
-                      className={`p-6 border-2 rounded-2xl cursor-pointer transition-all ${
-                        selectedRole === "player"
-                          ? "border-blue-600 bg-blue-50 shadow-lg"
-                          : "border-blue-200 hover:border-blue-300"
+                      whileHover={{
+                        scale:
+                          selectedSchedule?.availablePlayerSlots === 0
+                            ? 1
+                            : 1.02,
+                      }}
+                      onClick={() =>
+                        selectedSchedule?.availablePlayerSlots !== 0 &&
+                        setSelectedRole("player")
+                      }
+                      className={`p-6 border-2 rounded-2xl transition-all relative ${
+                        selectedSchedule?.availablePlayerSlots === 0
+                          ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
+                          : selectedRole === "player"
+                          ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
+                          : "border-blue-200 hover:border-blue-300 cursor-pointer"
                       }`}
                     >
-                      <User className="w-8 h-8 mb-3 text-blue-600" />
-                      <h4 className="mb-2 text-blue-600">Player</h4>
-                      <div className="text-gray-600">
+                      <User
+                        className={`w-8 h-8 mb-3 ${
+                          selectedSchedule?.availablePlayerSlots === 0
+                            ? "text-gray-400"
+                            : "text-blue-600"
+                        }`}
+                      />
+                      <h4
+                        className={`mb-2 ${
+                          selectedSchedule?.availablePlayerSlots === 0
+                            ? "text-gray-500"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        Player
+                      </h4>
+                      <div
+                        className={
+                          selectedSchedule?.availablePlayerSlots === 0
+                            ? "text-gray-500"
+                            : "text-gray-600"
+                        }
+                      >
                         IDR {selectedSchedule?.feePlayer}
                       </div>
+
+                      {selectedSchedule?.availablePlayerSlots === 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                          FULL
+                        </span>
+                      )}
                     </motion.div>
                   </div>
                 </div>
