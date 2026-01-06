@@ -508,11 +508,11 @@ export default function GalleryPage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <div className="text-sm text-gray-500">
-                    📞 Support: +62 21 1234 5678
+                    📞 Support: +62 813 8504 2622
                   </div>
-                  <div className="text-sm text-gray-500">
+                  {/* <div className="text-sm text-gray-500">
                     📧 Email: support@blaxfootball.com
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
