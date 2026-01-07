@@ -44,7 +44,8 @@ export default function GalleriesManagement() {
   const [formData, setFormData] = useState<GalleriesRequest>({
     scheduleId: "",
     linkPhotos: "",
-    linkVideos: "",
+    linkVideosMatch: "",
+    linkVideosSlowmo: "",
     expiredAt: "",
   });
 
@@ -96,8 +97,18 @@ export default function GalleriesManagement() {
       errors.linkPhotos = "Please enter a valid Google Drive link";
     }
 
-    if (formData.linkVideos && !isValidGDriveUrl(formData.linkVideos)) {
-      errors.linkVideos = "Please enter a valid Google Drive link";
+    if (
+      formData.linkVideosMatch &&
+      !isValidGDriveUrl(formData.linkVideosMatch)
+    ) {
+      errors.linkVideosMatch = "Please enter a valid Google Drive link";
+    }
+
+    if (
+      formData.linkVideosSlowmo &&
+      !isValidGDriveUrl(formData.linkVideosSlowmo)
+    ) {
+      errors.linkVideosSlowmo = "Please enter a valid Google Drive link";
     }
 
     if (!formData.expiredAt) {
@@ -132,7 +143,6 @@ export default function GalleriesManagement() {
 
       const payload = {
         ...formData,
-        linkVideos: formData.linkVideos || undefined,
         linkVideosMatch: formData.linkVideosMatch || undefined,
         linkVideosSlowmo: formData.linkVideosSlowmo || undefined,
       };
@@ -163,7 +173,8 @@ export default function GalleriesManagement() {
     setFormData({
       scheduleId: gallery.id,
       linkPhotos: gallery.linkPhotos,
-      linkVideos: gallery.linkVideos || "",
+      linkVideosMatch: gallery.linkVideosMatch || "",
+      linkVideosSlowmo: gallery.linkVideosSlowmo || "",
       expiredAt: gallery.expiredAt.split("T")[0],
     });
     setShowDialog(true);
@@ -192,7 +203,8 @@ export default function GalleriesManagement() {
     setFormData({
       scheduleId: "",
       linkPhotos: "",
-      linkVideos: "",
+      linkVideosMatch: "",
+      linkVideosSlowmo: "",
       expiredAt: "",
     });
     setFormErrors({});
@@ -274,7 +286,6 @@ export default function GalleriesManagement() {
                     <TableHead>Schedule</TableHead>
                     <TableHead>Tanggal & Jam</TableHead>
                     <TableHead>Link Foto</TableHead>
-                    <TableHead>Link Video</TableHead>
                     <TableHead>Link Video Match</TableHead>
                     <TableHead>Link Video Slowmo</TableHead>
                     <TableHead>Expired At</TableHead>
@@ -316,20 +327,6 @@ export default function GalleriesManagement() {
                           >
                             View Photos
                           </a>
-                        </TableCell>
-                        <TableCell>
-                          {gallery.linkVideos ? (
-                            <a
-                              href={gallery.linkVideos}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              View Videos
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
                         </TableCell>
                         <TableCell>
                           {gallery.linkVideosMatch ? (
@@ -465,7 +462,7 @@ export default function GalleriesManagement() {
             </div>
 
             {/* Link Videos (Optional) */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Link Google Drive Video (Opsional)
               </label>
@@ -487,7 +484,7 @@ export default function GalleriesManagement() {
                 Masukkan link folder Google Drive yang berisi video (tidak
                 wajib)
               </p>
-            </div>
+            </div> */}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -495,7 +492,7 @@ export default function GalleriesManagement() {
               </label>
               <Input
                 type="url"
-                value={formData.linkVideos ? formData.linkVideos : ""}
+                value={formData.linkVideosMatch ? formData.linkVideosMatch : ""}
                 onChange={(e) =>
                   handleInputChange("linkVideosMatch", e.target.value)
                 }
@@ -519,7 +516,9 @@ export default function GalleriesManagement() {
               </label>
               <Input
                 type="url"
-                value={formData.linkVideos ? formData.linkVideos : ""}
+                value={
+                  formData.linkVideosSlowmo ? formData.linkVideosSlowmo : ""
+                }
                 onChange={(e) =>
                   handleInputChange("linkVideosSlowmo", e.target.value)
                 }
