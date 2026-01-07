@@ -170,7 +170,7 @@ export default function GalleryPage() {
   const handleOpenLink = (
     link: string | undefined,
     name: string,
-    type: "photo" | "video"
+    type: "photo" | "video" | "video_match" | "video_slowmo"
   ) => {
     if (link && link.trim() !== "") {
       window.open(link, "_blank");
@@ -372,57 +372,67 @@ export default function GalleryPage() {
                 key={`${photo.scheduleName}-${photo.date}-${index}`}
                 className="hover:shadow-lg transition-all duration-200 border border-blue-100 hover:border-blue-200"
               >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1">
-                      {/* Session Icon */}
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-md">
-                        <FolderOpen className="w-6 h-6 text-white" />
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    {/* LEFT CONTENT */}
+                    <div className="flex gap-3 sm:gap-4 flex-1 min-w-0">
+                      {/* Icon */}
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-md shrink-0">
+                        <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                       </div>
 
-                      {/* Session Info */}
-                      <div className="pt-4 flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                           {photo.scheduleName.toUpperCase()}{" "}
                           {formatDate(photo.date)}
                         </h3>
 
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4 text-green-500" />
                             <span>{photo.time} WIB</span>
                           </div>
 
-                          <div className="flex items-center space-x-1">
-                            <MapPin className="w-4 h-4 text-purple-500" />
+                          <div className="flex items-center gap-1 min-w-0">
+                            <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
                             <span className="truncate">{photo.venue}</span>
                           </div>
                         </div>
 
-                        <div className="mt-2 flex gap-2">
-                          {photo.linkPhotos &&
-                            photo.linkPhotos.trim() !== "" && (
-                              <Badge
-                                variant="outline"
-                                className="bg-green-50 text-green-700 border-green-200"
-                              >
-                                Foto tersedia
-                              </Badge>
-                            )}
-                          {photo.linkVideos &&
-                            photo.linkVideos.trim() !== "" && (
-                              <Badge
-                                variant="outline"
-                                className="bg-purple-50 text-purple-700 border-purple-200"
-                              >
-                                Video tersedia
-                              </Badge>
-                            )}
+                        {/* Badges */}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {photo.linkPhotos?.trim() && (
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-700 border-green-200 text-xs"
+                            >
+                              Foto tersedia
+                            </Badge>
+                          )}
+
+                          {photo.linkVideosMatch?.trim() && (
+                            <Badge
+                              variant="outline"
+                              className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                            >
+                              Video Match tersedia
+                            </Badge>
+                          )}
+
+                          {photo.linkVideosSlowmo?.trim() && (
+                            <Badge
+                              variant="outline"
+                              className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs"
+                            >
+                              Video Slowmo tersedia
+                            </Badge>
+                          )}
                         </div>
 
-                        {/* Thank You Message */}
+                        {/* Message */}
                         <div className="mt-3 pt-3 border-t border-gray-100">
-                          <p className="text-sm text-gray-600 italic">
+                          <p className="text-xs sm:text-sm text-gray-600 italic">
                             Terima kasih sudah ikut meramaikan event
                             BlaxFootball. Maaf jika masih ada kekurangan.
                           </p>
@@ -430,9 +440,9 @@ export default function GalleryPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2 ml-4">
-                      {photo.linkPhotos && photo.linkPhotos.trim() !== "" && (
+                    {/* RIGHT ACTIONS */}
+                    <div className="flex sm:flex-col gap-2 sm:ml-4">
+                      {photo.linkPhotos?.trim() && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -443,35 +453,56 @@ export default function GalleryPage() {
                               "photo"
                             )
                           }
-                          className="flex items-center border-green-200 text-green-700 hover:bg-green-50"
+                          className="flex-1 sm:flex-none border-green-200 text-green-700 hover:bg-green-50"
                         >
-                          <ImageIcon className="w-4 h-4 mr-1" />
+                          <ImageIcon className="w-4 h-4 sm:mr-1" />
                           <span className="hidden sm:inline">Photos</span>
                         </Button>
                       )}
 
-                      {photo.linkVideos && photo.linkVideos.trim() !== "" && (
+                      {photo.linkVideosMatch?.trim() && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
                             handleOpenLink(
-                              photo.linkVideos,
+                              photo.linkVideosMatch,
                               photo.scheduleName,
-                              "video"
+                              "video_match"
                             )
                           }
-                          className="flex items-center border-purple-200 text-purple-700 hover:bg-purple-50"
+                          className="flex-1 sm:flex-none border-purple-200 text-purple-700 hover:bg-purple-50"
                         >
-                          <Video className="w-4 h-4 mr-1" />
-                          <span className="hidden sm:inline">Videos</span>
+                          <Video className="w-4 h-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Match</span>
                         </Button>
                       )}
 
-                      {(!photo.linkPhotos || photo.linkPhotos.trim() === "") &&
-                        (!photo.linkVideos ||
-                          photo.linkVideos.trim() === "") && (
-                          <Badge variant="outline" className="text-gray-500">
+                      {photo.linkVideosSlowmo?.trim() && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleOpenLink(
+                              photo.linkVideosSlowmo,
+                              photo.scheduleName,
+                              "video_slowmo"
+                            )
+                          }
+                          className="flex-1 sm:flex-none border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          <Video className="w-4 h-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Slowmo</span>
+                        </Button>
+                      )}
+
+                      {!photo.linkPhotos?.trim() &&
+                        !photo.linkVideosMatch?.trim() &&
+                        !photo.linkVideosSlowmo?.trim() && (
+                          <Badge
+                            variant="outline"
+                            className="text-gray-500 text-xs justify-center"
+                          >
                             Coming Soon
                           </Badge>
                         )}
