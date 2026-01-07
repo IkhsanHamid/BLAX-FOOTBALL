@@ -209,7 +209,7 @@ class AdminService {
   async editStaff(id: string, data: Users) {
     try {
       const response = await apiClient.put(
-        `/api/v1/users/updateStaff/${id}`,
+        `/api/v1/users/updateUser?userId=${id}`,
         data
       );
       return response.data;
@@ -300,10 +300,11 @@ class AdminService {
     }
   }
 
-  async lockSlots(scheduleId: string, slot: number) {
+  async lockSlots(scheduleId: string, slotGk: number, slotPlayer: number) {
     try {
       const response = await apiClient.put(`/api/v1/matches/lock-slots`, {
-        slot,
+        slotGk,
+        slotPlayer,
         scheduleId,
       });
       return response.data;

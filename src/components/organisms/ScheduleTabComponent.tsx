@@ -185,7 +185,10 @@ export default function ScheduleTab({
     useState<ScheduleOverview | null>(null);
   const [scheduleForm, setScheduleForm] =
     useState<ScheduleForm>(initialFormState);
-  const [lockSlotCount, setLockSlotCount] = useState("");
+  const [lockSlotCounts, setLockSlotCounts] = useState({
+    gk: "",
+    player: "",
+  });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -360,7 +363,7 @@ export default function ScheduleTab({
 
   const handleLockSlots = useCallback((schedule: ScheduleOverview) => {
     setLockingSchedule(schedule);
-    setLockSlotCount("");
+    setLockSlotCounts({ gk: "", player: "" }); // Reset kedua nilai
     setShowLockDialog(true);
   }, []);
 
@@ -369,29 +372,67 @@ export default function ScheduleTab({
 
     setIsLoadingLocked(true);
 
-    const count = parseInt(lockSlotCount);
-    const availableSlots =
+    const countGk = parseInt(lockSlotCounts.gk) || 0;
+    const countPlayer = parseInt(lockSlotCounts.player) || 0;
+
+    // Validasi
+    if (countGk < 0 || countPlayer < 0) {
+      showError("Error", "Please enter valid numbers");
+      setIsLoadingLocked(false);
+      return;
+    }
+
+    if (countGk === 0 && countPlayer === 0) {
+      showError("Error", "Please enter at least one slot to lock");
+      setIsLoadingLocked(false);
+      return;
+    }
+
+    // Hitung available slots
+    const availableSlotsGk =
       lockingSchedule.totalSlots -
       lockingSchedule.bookedSlots -
-      lockingSchedule.lockedSlots;
+      (lockingSchedule.lockedSlotsGk || 0);
 
-    if (isNaN(count) || count < 0) {
-      showError("Error", "Please enter a valid number");
+    const availableSlotsPlayer =
+      lockingSchedule.totalSlots -
+      lockingSchedule.bookedSlots -
+      (lockingSchedule.lockedSlotsPlayer || 0);
+
+    if (countGk > availableSlotsGk) {
+      showError("Error", `Only ${availableSlotsGk} GK slots available to lock`);
+      setIsLoadingLocked(false);
       return;
     }
 
-    if (count > availableSlots) {
-      showError("Error", `Only ${availableSlots} slots available to lock`);
+    if (countPlayer > availableSlotsPlayer) {
+      showError(
+        "Error",
+        `Only ${availableSlotsPlayer} player slots available to lock`
+      );
+      setIsLoadingLocked(false);
       return;
     }
 
-    await adminService.lockSlots(lockingSchedule.id, count);
-
-    setShowLockDialog(false);
-    setLockingSchedule(null);
-    setLockSlotCount("");
-    showSuccess("Slots locked successfully!");
-  }, [lockingSchedule, lockSlotCount]);
+    try {
+      await adminService.lockSlots(lockingSchedule.id, countGk, countPlayer);
+      setShowLockDialog(false);
+      setLockingSchedule(null);
+      setLockSlotCounts({ gk: "", player: "" });
+      showSuccess("Slots locked successfully!");
+      fetchScheduleOverview();
+    } catch (error) {
+      showError("Error", "Failed to lock slots");
+    } finally {
+      setIsLoadingLocked(false);
+    }
+  }, [
+    lockingSchedule,
+    lockSlotCounts,
+    showError,
+    showSuccess,
+    fetchScheduleOverview,
+  ]);
 
   // Form Validation
   const validateForm = useCallback((): boolean => {
@@ -751,8 +792,14 @@ export default function ScheduleTab({
                   const isDisabled =
                     schedule.status === "CANCELLED" ||
                     schedule.status === "COMPLETED";
+                  // UPDATE: Hitung total locked slots dari GK dan Player
+                  const totalLockedSlots =
+                    (schedule.lockedSlotsGk || 0) +
+                    (schedule.lockedSlotsPlayer || 0);
+
+                  // UPDATE: Tambahkan total locked slots ke dalam perhitungan
                   const bookingPercentage = Math.round(
-                    ((schedule.bookedSlots + schedule.lockedSlots) /
+                    ((schedule.bookedSlots + totalLockedSlots) /
                       schedule.totalSlots) *
                       100
                   );
@@ -785,20 +832,31 @@ export default function ScheduleTab({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium">
-                            {schedule.bookedSlots + schedule.lockedSlots}/
-                            {schedule.totalSlots}
-                          </span>
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full"
-                              style={{ width: `${bookingPercentage}%` }}
-                            />
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium">
+                              {schedule.bookedSlots +
+                                (schedule.lockedSlotsGk || 0) +
+                                (schedule.lockedSlotsPlayer || 0)}
+                              /{schedule.totalSlots}
+                            </span>
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-green-600 h-2 rounded-full"
+                                style={{ width: `${bookingPercentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {bookingPercentage}%
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {bookingPercentage}%
-                          </span>
+                          {((schedule.lockedSlotsGk || 0) > 0 ||
+                            (schedule.lockedSlotsPlayer || 0) > 0) && (
+                            <div className="text-xs text-yellow-600">
+                              Locked: {schedule.lockedSlotsGk || 0} GK,{" "}
+                              {schedule.lockedSlotsPlayer || 0} Player
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       {user?.role === "Owner" && (
@@ -1235,9 +1293,19 @@ export default function ScheduleTab({
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Already Locked:</span>
+                      <span className="text-gray-600">
+                        Already Locked (GK):
+                      </span>
                       <span className="font-medium text-yellow-600">
-                        {lockingSchedule.lockedSlots}
+                        {lockingSchedule.lockedSlotsGk || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        Already Locked (Player):
+                      </span>
+                      <span className="font-medium text-yellow-600">
+                        {lockingSchedule.lockedSlotsPlayer || 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm pt-2 border-t">
@@ -1245,32 +1313,63 @@ export default function ScheduleTab({
                       <span className="font-medium text-blue-600">
                         {lockingSchedule.totalSlots -
                           lockingSchedule.bookedSlots -
-                          lockingSchedule.lockedSlots}
+                          (lockingSchedule.lockedSlotsGk || 0) -
+                          (lockingSchedule.lockedSlotsPlayer || 0)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Number of Slots to Lock{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="Enter number of slots"
-                    value={lockSlotCount}
-                    onChange={(e) => setLockSlotCount(e.target.value)}
-                    min="1"
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Maximum:{" "}
-                    {lockingSchedule.totalSlots -
-                      lockingSchedule.bookedSlots -
-                      lockingSchedule.lockedSlots}{" "}
-                    slots
-                  </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      GK Slots to Lock
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={lockSlotCounts.gk}
+                      onChange={(e) =>
+                        setLockSlotCounts((prev) => ({
+                          ...prev,
+                          gk: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Max:{" "}
+                      {lockingSchedule.totalSlots -
+                        lockingSchedule.bookedSlots -
+                        (lockingSchedule.lockedSlotsGk || 0)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Player Slots to Lock
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={lockSlotCounts.player}
+                      onChange={(e) =>
+                        setLockSlotCounts((prev) => ({
+                          ...prev,
+                          player: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Max:{" "}
+                      {lockingSchedule.totalSlots -
+                        lockingSchedule.bookedSlots -
+                        (lockingSchedule.lockedSlotsPlayer || 0)}
+                    </p>
+                  </div>
                 </div>
               </>
             )}
@@ -1282,8 +1381,9 @@ export default function ScheduleTab({
                 onClick={() => {
                   setShowLockDialog(false);
                   setLockingSchedule(null);
-                  setLockSlotCount("");
+                  setLockSlotCounts({ gk: "", player: "" });
                 }}
+                disabled={isLoadingLocked}
               >
                 Cancel
               </Button>
@@ -1291,13 +1391,16 @@ export default function ScheduleTab({
                 variant="black"
                 size="sm"
                 onClick={handleConfirmLockSlots}
-                disabled={
-                  !lockSlotCount ||
-                  parseInt(lockSlotCount) < 0 ||
-                  isLoadingLocked
-                }
+                disabled={isLoadingLocked}
               >
-                Lock Slots
+                {isLoadingLocked ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Locking...
+                  </>
+                ) : (
+                  "Lock Slots"
+                )}
               </Button>
             </div>
           </div>
