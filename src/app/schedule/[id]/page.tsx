@@ -275,7 +275,7 @@ export default function ScheduleDetailPage() {
         const diffInHours = diffInMs / (1000 * 60 * 60);
 
         // Allow booking if match is more than 2 hours away
-        return diffInHours >= 2;
+        return diffInHours >= 3;
       } catch (error) {
         console.error("Error checking booking time:", error);
         return true; // Default to allowing booking if there's an error
