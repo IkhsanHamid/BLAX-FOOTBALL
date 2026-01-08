@@ -1,8 +1,8 @@
 export interface GalleriesRequest {
   scheduleId: string;
   linkVideos?: string;
-  linkVideosMatch?: string;
-  linkVideosSlowmo?: string;
+  linkVideosMatch?: string | null;
+  linkVideosSlowmo?: string | null;
   linkPhotos: string;
   expiredAt: string;
 }
@@ -14,6 +14,7 @@ export interface GalleryData {
   date: string;
   time: string;
   linkVideos?: string;
+  scheduleId: string;
   linkVideosMatch?: string;
   linkVideosSlowmo?: string;
   linkPhotos: string;

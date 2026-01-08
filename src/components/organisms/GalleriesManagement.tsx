@@ -99,6 +99,7 @@ export default function GalleriesManagement() {
 
     if (
       formData.linkVideosMatch &&
+      formData.linkVideosMatch.trim() &&
       !isValidGDriveUrl(formData.linkVideosMatch)
     ) {
       errors.linkVideosMatch = "Please enter a valid Google Drive link";
@@ -106,6 +107,7 @@ export default function GalleriesManagement() {
 
     if (
       formData.linkVideosSlowmo &&
+      formData.linkVideosSlowmo.trim() &&
       !isValidGDriveUrl(formData.linkVideosSlowmo)
     ) {
       errors.linkVideosSlowmo = "Please enter a valid Google Drive link";
@@ -141,10 +143,17 @@ export default function GalleriesManagement() {
     try {
       setSubmitting(true);
 
+      // Kirim null jika field video kosong
       const payload = {
-        ...formData,
-        linkVideosMatch: formData.linkVideosMatch || undefined,
-        linkVideosSlowmo: formData.linkVideosSlowmo || undefined,
+        scheduleId: formData.scheduleId,
+        linkPhotos: formData.linkPhotos,
+        linkVideosMatch: formData.linkVideosMatch?.trim()
+          ? formData.linkVideosMatch
+          : null,
+        linkVideosSlowmo: formData.linkVideosSlowmo?.trim()
+          ? formData.linkVideosSlowmo
+          : null,
+        expiredAt: formData.expiredAt,
       };
 
       if (editingGallery) {
@@ -156,7 +165,9 @@ export default function GalleriesManagement() {
       }
 
       handleCloseDialog();
-      fetchGalleries();
+
+      // Auto refresh setelah berhasil submit
+      await fetchGalleries();
     } catch (error) {
       console.error("Error saving gallery:", error);
       showError(
@@ -171,7 +182,7 @@ export default function GalleriesManagement() {
   const handleEdit = (gallery: GalleryData) => {
     setEditingGallery(gallery);
     setFormData({
-      scheduleId: gallery.id,
+      scheduleId: gallery.scheduleId,
       linkPhotos: gallery.linkPhotos,
       linkVideosMatch: gallery.linkVideosMatch || "",
       linkVideosSlowmo: gallery.linkVideosSlowmo || "",
@@ -188,7 +199,9 @@ export default function GalleriesManagement() {
       await adminService.deleteGallery(deleteConfirmation.gallery.id);
       showSuccess("Success", "Gallery deleted successfully");
       setDeleteConfirmation({ isOpen: false, gallery: null });
-      fetchGalleries();
+
+      // Auto refresh setelah delete
+      await fetchGalleries();
     } catch (error) {
       console.error("Error deleting gallery:", error);
       showError("Error", "Failed to delete gallery");
@@ -461,31 +474,6 @@ export default function GalleriesManagement() {
               </p>
             </div>
 
-            {/* Link Videos (Optional) */}
-            {/* <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Link Google Drive Video (Opsional)
-              </label>
-              <Input
-                type="url"
-                value={formData.linkVideos ? formData.linkVideos : ""}
-                onChange={(e) =>
-                  handleInputChange("linkVideos", e.target.value)
-                }
-                placeholder="https://drive.google.com/..."
-                className={formErrors.linkVideos ? "border-red-500" : ""}
-              />
-              {formErrors.linkVideos && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.linkVideos}
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Masukkan link folder Google Drive yang berisi video (tidak
-                wajib)
-              </p>
-            </div> */}
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Link Google Drive Video Match (Opsional)
@@ -497,11 +485,11 @@ export default function GalleriesManagement() {
                   handleInputChange("linkVideosMatch", e.target.value)
                 }
                 placeholder="https://drive.google.com/..."
-                className={formErrors.linkVideos ? "border-red-500" : ""}
+                className={formErrors.linkVideosMatch ? "border-red-500" : ""}
               />
-              {formErrors.linkVideos && (
+              {formErrors.linkVideosMatch && (
                 <p className="text-red-500 text-sm mt-1">
-                  {formErrors.linkVideos}
+                  {formErrors.linkVideosMatch}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
@@ -523,11 +511,11 @@ export default function GalleriesManagement() {
                   handleInputChange("linkVideosSlowmo", e.target.value)
                 }
                 placeholder="https://drive.google.com/..."
-                className={formErrors.linkVideos ? "border-red-500" : ""}
+                className={formErrors.linkVideosSlowmo ? "border-red-500" : ""}
               />
-              {formErrors.linkVideos && (
+              {formErrors.linkVideosSlowmo && (
                 <p className="text-red-500 text-sm mt-1">
-                  {formErrors.linkVideos}
+                  {formErrors.linkVideosSlowmo}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
