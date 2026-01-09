@@ -76,6 +76,13 @@ class BookingService {
 
     return result.data;
   }
+
+  async checkExistingBooking(scheduleId: string) {
+    const response = await apiClient.get(
+      `/api/v1/booking/check-existing/${scheduleId}`
+    );
+    return response.data;
+  }
 }
 
 export const bookingService = new BookingService();
