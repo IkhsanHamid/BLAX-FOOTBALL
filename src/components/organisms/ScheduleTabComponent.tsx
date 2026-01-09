@@ -375,18 +375,18 @@ export default function ScheduleTab({
     const countGk = parseInt(lockSlotCounts.gk) || 0;
     const countPlayer = parseInt(lockSlotCounts.player) || 0;
 
-    // Validasi
-    if (countGk < 0 || countPlayer < 0) {
-      showError("Error", "Please enter valid numbers");
-      setIsLoadingLocked(false);
-      return;
-    }
+    // // Validasi
+    // if (countGk < 0 || countPlayer < 0) {
+    //   showError("Error", "Please enter valid numbers");
+    //   setIsLoadingLocked(false);
+    //   return;
+    // }
 
-    if (countGk === 0 && countPlayer === 0) {
-      showError("Error", "Please enter at least one slot to lock");
-      setIsLoadingLocked(false);
-      return;
-    }
+    // if (countGk === 0 && countPlayer === 0) {
+    //   showError("Error", "Please enter at least one slot to lock");
+    //   setIsLoadingLocked(false);
+    //   return;
+    // }
 
     // Hitung available slots
     const availableSlotsGk =
