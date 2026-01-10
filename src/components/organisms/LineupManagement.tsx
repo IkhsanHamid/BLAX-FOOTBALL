@@ -46,6 +46,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { adminService } from "@/utils/admin";
 
 // ========== TYPES ==========
 interface SortablePlayerCardProps {
@@ -72,8 +73,9 @@ interface TeamColors {
 }
 
 // ========== CONSTANTS ==========
-const TEAM_COLORS: TeamColors[] = [
-  {
+// Mapping warna berdasarkan nama tim dari backend
+const TEAM_COLOR_MAP: Record<string, TeamColors> = {
+  MERAH: {
     gradient: "from-rose-50 to-white",
     border: "border-rose-200",
     bg: "bg-rose-50/50",
@@ -81,7 +83,15 @@ const TEAM_COLORS: TeamColors[] = [
     icon: "from-rose-500 to-red-600",
     dragOver: "border-rose-400 bg-rose-50",
   },
-  {
+  PUTIH: {
+    gradient: "from-gray-50 to-white",
+    border: "border-gray-200",
+    bg: "bg-gray-50/50",
+    badge: "bg-gray-100 text-gray-700",
+    icon: "from-gray-400 to-gray-600",
+    dragOver: "border-gray-400 bg-gray-50",
+  },
+  BIRU: {
     gradient: "from-sky-50 to-white",
     border: "border-sky-200",
     bg: "bg-sky-50/50",
@@ -89,7 +99,31 @@ const TEAM_COLORS: TeamColors[] = [
     icon: "from-sky-500 to-blue-600",
     dragOver: "border-sky-400 bg-sky-50",
   },
-  {
+  KUNING: {
+    gradient: "from-amber-50 to-white",
+    border: "border-amber-200",
+    bg: "bg-amber-50/50",
+    badge: "bg-amber-100 text-amber-700",
+    icon: "from-amber-500 to-yellow-600",
+    dragOver: "border-amber-400 bg-amber-50",
+  },
+  "BIRU MUDA": {
+    gradient: "from-cyan-50 to-white",
+    border: "border-cyan-200",
+    bg: "bg-cyan-50/50",
+    badge: "bg-cyan-100 text-cyan-700",
+    icon: "from-cyan-400 to-cyan-600",
+    dragOver: "border-cyan-400 bg-cyan-50",
+  },
+  HITAM: {
+    gradient: "from-slate-50 to-white",
+    border: "border-slate-300",
+    bg: "bg-slate-50/50",
+    badge: "bg-slate-100 text-slate-800",
+    icon: "from-slate-600 to-slate-800",
+    dragOver: "border-slate-400 bg-slate-50",
+  },
+  HIJAU: {
     gradient: "from-emerald-50 to-white",
     border: "border-emerald-200",
     bg: "bg-emerald-50/50",
@@ -97,7 +131,15 @@ const TEAM_COLORS: TeamColors[] = [
     icon: "from-emerald-500 to-green-600",
     dragOver: "border-emerald-400 bg-emerald-50",
   },
-  {
+  ORANYE: {
+    gradient: "from-orange-50 to-white",
+    border: "border-orange-200",
+    bg: "bg-orange-50/50",
+    badge: "bg-orange-100 text-orange-700",
+    icon: "from-orange-500 to-orange-600",
+    dragOver: "border-orange-400 bg-orange-50",
+  },
+  UNGU: {
     gradient: "from-purple-50 to-white",
     border: "border-purple-200",
     bg: "bg-purple-50/50",
@@ -105,6 +147,28 @@ const TEAM_COLORS: TeamColors[] = [
     icon: "from-purple-500 to-indigo-600",
     dragOver: "border-purple-400 bg-purple-50",
   },
+  PINK: {
+    gradient: "from-pink-50 to-white",
+    border: "border-pink-200",
+    bg: "bg-pink-50/50",
+    badge: "bg-pink-100 text-pink-700",
+    icon: "from-pink-500 to-pink-600",
+    dragOver: "border-pink-400 bg-pink-50",
+  },
+};
+
+// Default colors for fallback - matching backend order
+const DEFAULT_TEAM_COLORS: TeamColors[] = [
+  TEAM_COLOR_MAP.MERAH, // 1
+  TEAM_COLOR_MAP.PUTIH, // 2
+  TEAM_COLOR_MAP.BIRU, // 3
+  TEAM_COLOR_MAP.KUNING, // 4
+  TEAM_COLOR_MAP["BIRU MUDA"], // 5
+  TEAM_COLOR_MAP.HITAM, // 6
+  TEAM_COLOR_MAP.HIJAU, // 7
+  TEAM_COLOR_MAP.ORANYE, // 8
+  TEAM_COLOR_MAP.UNGU, // 9
+  TEAM_COLOR_MAP.PINK, // 10
 ];
 
 const STATUS_COLORS = {
@@ -114,17 +178,26 @@ const STATUS_COLORS = {
 } as const;
 
 // ========== UTILITY FUNCTIONS ==========
-const getTeamLetter = (index: number): string =>
-  String.fromCharCode(65 + index);
-const getTeamColor = (index: number): TeamColors =>
-  TEAM_COLORS[index % TEAM_COLORS.length];
+const getTeamColor = (teamName: string, index: number): TeamColors => {
+  // Try to get color from team name mapping
+  const upperTeamName = teamName.toUpperCase();
+  if (TEAM_COLOR_MAP[upperTeamName]) {
+    return TEAM_COLOR_MAP[upperTeamName];
+  }
+
+  // Fallback to index-based color
+  return DEFAULT_TEAM_COLORS[index % DEFAULT_TEAM_COLORS.length];
+};
+
 const getStatusColor = (status: string) =>
   STATUS_COLORS[status as keyof typeof STATUS_COLORS] ||
   "bg-gray-50 text-gray-700 border-gray-200";
+
 const getPlayersPerTeam = (lineup: LineupMatch): number => {
   if (!lineup.totalSlots || !lineup.totalTeams) return 0;
   return Math.floor(lineup.totalSlots / lineup.totalTeams);
 };
+
 const getAllPlayers = (lineup: LineupMatch): LineupPlayer[] => {
   if (!lineup.teams) return [];
   return Object.values(lineup.teams).flat();
@@ -314,7 +387,9 @@ export default function LineupManagement() {
 
   const { showError, showSuccess, showWarning } = useNotifications();
 
-  // FIXED: Add TouchSensor for mobile support
+  const [editingTeamName, setEditingTeamName] = useState<string | null>(null);
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: 8 },
@@ -335,20 +410,22 @@ export default function LineupManagement() {
   useEffect(() => {
     if (selectedLineup) {
       const initialExpanded: Record<string, boolean> = {};
-      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-        initialExpanded[getTeamLetter(i)] = true;
-      }
-      setExpandedTeams(initialExpanded);
+      const initialTeamNames: Record<string, string> = {};
 
       if (
-        !selectedLineup.teams ||
-        Object.keys(selectedLineup.teams).length === 0
+        selectedLineup.teams &&
+        Object.keys(selectedLineup.teams).length > 0
       ) {
-        const teams: Record<string, LineupPlayer[]> = {};
-        for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-          teams[getTeamLetter(i)] = [];
-        }
-        setSelectedLineup({ ...selectedLineup, teams });
+        Object.keys(selectedLineup.teams).forEach((teamName) => {
+          initialExpanded[teamName] = true;
+          initialTeamNames[teamName] = teamName;
+        });
+
+        setExpandedTeams(initialExpanded);
+        setTeamNames(initialTeamNames);
+      } else {
+        setExpandedTeams({});
+        setTeamNames({});
       }
     }
   }, [selectedLineup?.id]);
@@ -358,24 +435,49 @@ export default function LineupManagement() {
     try {
       setLoading(true);
       const data = await lineupService.fetchLineups();
-      const processedData = data.map((lineup) => {
-        if (!lineup.teams || Object.keys(lineup.teams).length === 0) {
-          const teams: Record<string, LineupPlayer[]> = {};
-          for (let i = 0; i < (lineup.totalTeams || 2); i++) {
-            teams[getTeamLetter(i)] = [];
-          }
-          return { ...lineup, teams };
-        }
-        return lineup;
-      });
-      setLineups(processedData);
-      if (processedData.length > 0) setSelectedLineup(processedData[0]);
+      console.log("data", data);
+
+      // Data sudah dalam format yang benar dari service
+      // Tidak perlu transform lagi karena sudah menggunakan nama warna tim
+      setLineups(data);
+      if (data.length > 0) setSelectedLineup(data[0]);
     } catch (error) {
       showError("Error", "Failed to load lineups");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSaveTeamName = useCallback(
+    async (teamKey: string, newName: string) => {
+      if (!selectedLineup || !newName.trim()) return;
+
+      try {
+        const updatedNames = { ...teamNames, [teamKey]: newName.trim() };
+        setTeamNames(updatedNames);
+        setEditingTeamName(null);
+
+        await adminService.changeNameTeam(
+          selectedLineup.id,
+          newName.trim(),
+          teamKey
+        );
+
+        showSuccess(
+          "Team name updated",
+          `Team ${teamKey} renamed successfully`
+        );
+      } catch (error) {
+        showError("Error", "Failed to update team name");
+        setTeamNames((prev) => {
+          const reverted = { ...prev };
+          delete reverted[teamKey];
+          return reverted;
+        });
+      }
+    },
+    [selectedLineup, teamNames, showSuccess, showError]
+  );
 
   const handleLockLineup = async () => {
     if (!selectedLineup) return;
@@ -384,10 +486,8 @@ export default function LineupManagement() {
       setIsLocking(true);
       const newLockStatus = !selectedLineup.lockLineup;
 
-      // Call API to update lock status
       await lineupService.updateLockLineup(selectedLineup.id, newLockStatus);
 
-      // Update local state
       const updatedLineup = { ...selectedLineup, lockLineup: newLockStatus };
       setSelectedLineup(updatedLineup);
       setLineups((prev) =>
@@ -415,20 +515,13 @@ export default function LineupManagement() {
     try {
       setIsExporting(true);
 
-      // Dynamic import xlsx library
       const XLSX = await import("xlsx");
-
-      // Create workbook
       const wb = XLSX.utils.book_new();
-
-      // Prepare data for the sheet
       const data: any[][] = [];
 
-      // Add title
       data.push([selectedLineup.scheduleName]);
       data.push([]);
 
-      // Add match information
       data.push(["Match Information"]);
       data.push(["Date", formatDate(selectedLineup.date)]);
       data.push(["Time", selectedLineup.time]);
@@ -436,16 +529,17 @@ export default function LineupManagement() {
       data.push([]);
       data.push([]);
 
-      // Add teams data
-      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-        const teamKey = getTeamLetter(i);
+      // Use actual team names from lineup.teams
+      const teamKeys = selectedLineup.teams
+        ? Object.keys(selectedLineup.teams)
+        : [];
+
+      teamKeys.forEach((teamKey) => {
         const teamPlayers = selectedLineup.teams[teamKey] || [];
 
-        // Team header
         data.push([`TEAM ${teamKey}`]);
         data.push(["No", "Player Name", "Position", "Phone Number"]);
 
-        // Add players
         if (teamPlayers.length > 0) {
           teamPlayers.forEach((player, idx) => {
             data.push([idx + 1, player.name, player.position, player.phone]);
@@ -454,23 +548,14 @@ export default function LineupManagement() {
           data.push(["-", "No players assigned", "-", "-"]);
         }
 
-        // Add spacing between teams
         data.push([]);
         data.push([]);
-      }
+      });
 
-      // Create worksheet
       const ws = XLSX.utils.aoa_to_sheet(data);
 
-      // Set column widths
-      ws["!cols"] = [
-        { wch: 8 }, // No
-        { wch: 30 }, // Player Name
-        { wch: 12 }, // Position
-        { wch: 18 }, // Phone Number
-      ];
+      ws["!cols"] = [{ wch: 8 }, { wch: 30 }, { wch: 12 }, { wch: 18 }];
 
-      // Styling for title (A1)
       ws["A1"] = {
         v: selectedLineup.scheduleName,
         t: "s",
@@ -480,107 +565,21 @@ export default function LineupManagement() {
         },
       };
 
-      // Merge cells for title
       ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
 
-      // Style match information section
-      const matchInfoStart = 2;
-      for (let i = 0; i < 4; i++) {
-        const cellRef = XLSX.utils.encode_cell({ r: matchInfoStart + i, c: 0 });
-        if (!ws[cellRef]) continue;
-        ws[cellRef].s = {
-          font: { bold: true },
-          fill: { fgColor: { rgb: "E3F2FD" } },
-        };
-      }
-
-      // Style team headers and player table headers
-      let currentRow = matchInfoStart + 5;
-      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-        const teamKey = getTeamLetter(i);
-        const teamPlayers = selectedLineup.teams[teamKey] || [];
-
-        // Team header styling
-        const teamHeaderRef = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
-        if (ws[teamHeaderRef]) {
-          ws[teamHeaderRef].s = {
-            font: { bold: true, sz: 14 },
-            fill: { fgColor: { rgb: "BBDEFB" } },
-            alignment: { horizontal: "left" },
-          };
-
-          // Merge team header across columns
-          if (!ws["!merges"]) ws["!merges"] = [];
-          ws["!merges"].push({
-            s: { r: currentRow, c: 0 },
-            e: { r: currentRow, c: 3 },
-          });
-        }
-
-        // Column headers styling
-        currentRow++;
-        for (let col = 0; col < 4; col++) {
-          const headerRef = XLSX.utils.encode_cell({ r: currentRow, c: col });
-          if (ws[headerRef]) {
-            ws[headerRef].s = {
-              font: { bold: true },
-              fill: { fgColor: { rgb: "90CAF9" } },
-              alignment: { horizontal: "center" },
-              border: {
-                top: { style: "thin", color: { rgb: "000000" } },
-                bottom: { style: "thin", color: { rgb: "000000" } },
-                left: { style: "thin", color: { rgb: "000000" } },
-                right: { style: "thin", color: { rgb: "000000" } },
-              },
-            };
-          }
-        }
-
-        // Player rows styling
-        currentRow++;
-        const playerCount = teamPlayers.length > 0 ? teamPlayers.length : 1;
-        for (let p = 0; p < playerCount; p++) {
-          for (let col = 0; col < 4; col++) {
-            const cellRef = XLSX.utils.encode_cell({
-              r: currentRow + p,
-              c: col,
-            });
-            if (ws[cellRef]) {
-              ws[cellRef].s = {
-                alignment: { horizontal: col === 0 ? "center" : "left" },
-                border: {
-                  top: { style: "thin", color: { rgb: "CCCCCC" } },
-                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                  left: { style: "thin", color: { rgb: "CCCCCC" } },
-                  right: { style: "thin", color: { rgb: "CCCCCC" } },
-                },
-              };
-            }
-          }
-        }
-
-        currentRow += playerCount + 2; // Move to next team
-      }
-
-      // Add worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, "Lineup");
 
-      // Generate file name
       const fileName = `Lineup_${selectedLineup.scheduleName.replace(
         /[^a-z0-9]/gi,
         "_"
       )}_${new Date().getTime()}.xlsx`;
 
-      // Write file
       XLSX.writeFile(wb, fileName);
 
       showSuccess("Export Successful", "Lineup has been exported to Excel");
     } catch (error) {
       console.error("Export error:", error);
-      showError(
-        "Error",
-        "Failed to export lineup. Make sure you have internet connection."
-      );
+      showError("Error", "Failed to export lineup");
     } finally {
       setIsExporting(false);
     }
@@ -636,7 +635,6 @@ export default function LineupManagement() {
 
       if (!over || !selectedLineup || active.id === over.id) return;
 
-      // Check if lineup is locked
       if (selectedLineup.lockLineup) {
         showWarning("Lineup Locked", "Cannot move players. Lineup is locked.");
         return;
@@ -653,8 +651,11 @@ export default function LineupManagement() {
       let targetIndex = -1;
 
       // Check if dropped on container
-      for (let i = 0; i < (selectedLineup.totalTeams || 2); i++) {
-        const teamKey = getTeamLetter(i);
+      const teamKeys = selectedLineup.teams
+        ? Object.keys(selectedLineup.teams)
+        : [];
+
+      for (const teamKey of teamKeys) {
         if (overId === `team-${teamKey}-container`) {
           targetTeam = teamKey;
           targetIndex = selectedLineup.teams[teamKey]?.length || 0;
@@ -795,15 +796,26 @@ export default function LineupManagement() {
   const renderTeamCards = useMemo(() => {
     if (!selectedLineup) return null;
 
-    const totalTeams = selectedLineup.totalTeams || 2;
     const maxPlayersPerTeam = getPlayersPerTeam(selectedLineup);
     const isLocked = selectedLineup.lockLineup || false;
 
+    const teamKeys = selectedLineup.teams
+      ? Object.keys(selectedLineup.teams)
+      : [];
+
+    if (teamKeys.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-600">No teams available</p>
+        </div>
+      );
+    }
+
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-        {Array.from({ length: totalTeams }, (_, i) => {
-          const teamKey = getTeamLetter(i);
-          const teamColor = getTeamColor(i);
+        {teamKeys.map((teamKey, i) => {
+          const teamColor = getTeamColor(teamKey, i);
           const teamPlayers = selectedLineup.teams[teamKey] || [];
           const isExpanded = expandedTeams[teamKey] ?? true;
           const hasGK = teamPlayers.some((p) => p.position === "GK");
@@ -831,22 +843,69 @@ export default function LineupManagement() {
               >
                 <CardHeader className={`border-b ${teamColor.bg} p-3 sm:p-4`}>
                   <button
-                    onClick={() => toggleTeamExpansion(teamKey)}
+                    onClick={() => {
+                      if (editingTeamName !== teamKey) {
+                        toggleTeamExpansion(teamKey);
+                      }
+                    }}
                     className="w-full"
                   >
                     <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1">
                         <div
                           className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${teamColor.icon} rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0`}
                         >
                           <span className="text-white font-bold text-base sm:text-lg">
-                            {teamKey}
+                            {teamKey.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <div className="text-left">
-                          <div className="font-bold text-sm sm:text-base">
-                            Team {teamKey}
-                          </div>
+                        <div className="text-left flex-1">
+                          {editingTeamName === teamKey ? (
+                            <input
+                              type="text"
+                              defaultValue={teamKey}
+                              onBlur={(e) => {
+                                const newValue = e.target.value.trim();
+                                if (newValue && newValue !== teamKey) {
+                                  handleSaveTeamName(teamKey, newValue);
+                                } else {
+                                  setEditingTeamName(null);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  const newValue = e.currentTarget.value.trim();
+                                  if (newValue && newValue !== teamKey) {
+                                    handleSaveTeamName(teamKey, newValue);
+                                  } else {
+                                    setEditingTeamName(null);
+                                  }
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingTeamName(null);
+                                }
+                              }}
+                              autoFocus
+                              className="font-bold text-sm sm:text-base border-2 border-blue-500 rounded px-2 py-1 w-full max-w-[200px] outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <div
+                              className="font-bold text-sm sm:text-base cursor-pointer hover:text-blue-600 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isLocked) setEditingTeamName(teamKey);
+                              }}
+                              title={
+                                isLocked
+                                  ? "Unlock lineup to edit"
+                                  : "Click to edit team name"
+                              }
+                            >
+                              {teamKey}
+                            </div>
+                          )}
                           <div className="text-xs font-normal text-gray-600">
                             {teamPlayers.length}/{maxPlayersPerTeam} players
                             {hasGK && " • Has GK"}
@@ -931,6 +990,8 @@ export default function LineupManagement() {
     overId,
     canAcceptPlayer,
     toggleTeamExpansion,
+    editingTeamName,
+    handleSaveTeamName,
   ]);
 
   // ========== LOADING STATE ==========

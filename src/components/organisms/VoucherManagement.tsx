@@ -162,6 +162,9 @@ export default function VoucherManagement(): JSX.Element {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [loadingAssignments, setLoadingAssignments] = useState<boolean>(false);
 
+  const [userSearchTerm, setUserSearchTerm] = useState<string>("");
+  const [searchingUsers, setSearchingUsers] = useState<boolean>(false);
+
   const { showSuccess, showError } = useNotifications();
 
   // Fetch vouchers
@@ -187,16 +190,27 @@ export default function VoucherManagement(): JSX.Element {
   }, [fetchVouchers]);
 
   // Fetch available users - ganti dengan API call yang sesuai
-  const fetchAvailableUsers = useCallback(async (): Promise<void> => {
-    try {
-      // TODO: Ganti dengan API call yang sesuai
-      const response = await adminService.listMemberUser();
-      setAvailableUsers(response);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      showError("Error", "Failed to load users");
-    }
-  }, [showError]);
+  const fetchAvailableUsers = useCallback(
+    async (search: string): Promise<void> => {
+      if (!search || search.trim().length < 2) {
+        setAvailableUsers([]);
+        return;
+      }
+
+      try {
+        setSearchingUsers(true);
+        const response = await adminService.listMemberUser(search);
+        setAvailableUsers(response);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        showError("Error", "Failed to load users");
+        setAvailableUsers([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    },
+    [showError]
+  );
 
   // Fetch assigned users for a voucher
   const fetchAssignedUsers = useCallback(
@@ -218,15 +232,19 @@ export default function VoucherManagement(): JSX.Element {
 
   useEffect(() => {
     if (showAssignDialog && assigningVoucher) {
-      fetchAvailableUsers();
       fetchAssignedUsers(assigningVoucher.id);
     }
-  }, [
-    showAssignDialog,
-    assigningVoucher,
-    fetchAvailableUsers,
-    fetchAssignedUsers,
-  ]);
+  }, [showAssignDialog, assigningVoucher, fetchAssignedUsers]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearchTerm && showAssignDialog) {
+        fetchAvailableUsers(userSearchTerm);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [userSearchTerm, showAssignDialog, fetchAvailableUsers]);
 
   // Filter vouchers
   const filteredVouchers = useMemo((): Voucher[] => {
@@ -402,6 +420,8 @@ export default function VoucherManagement(): JSX.Element {
     setAssigningVoucher(null);
     setSelectedUserId("");
     setAssignedUsers([]);
+    setUserSearchTerm("");
+    setAvailableUsers([]);
   }, []);
 
   const handleAssignVoucher = async (): Promise<void> => {
@@ -442,6 +462,9 @@ export default function VoucherManagement(): JSX.Element {
 
       setAssignedUsers((prev) => [...prev, newAssignment]);
       setSelectedUserId("");
+      setSelectedUserId("");
+      setUserSearchTerm("");
+      setAvailableUsers([]);
 
       showSuccess(
         "Berhasil",
@@ -691,9 +714,12 @@ export default function VoucherManagement(): JSX.Element {
         availableUsers={availableUsers}
         assignedUsers={assignedUsers}
         selectedUserId={selectedUserId}
+        userSearchTerm={userSearchTerm}
+        searchingUsers={searchingUsers}
         loading={loadingAssignments}
         onClose={handleCloseAssignDialog}
         onSelectUser={setSelectedUserId}
+        onSearchUser={setUserSearchTerm}
         onAssign={handleAssignVoucher}
         onRemoveAssignment={handleRemoveAssignment}
       />
@@ -1229,9 +1255,12 @@ interface AssignVoucherDialogProps {
   availableUsers: User[];
   assignedUsers: AssignedVoucher[];
   selectedUserId: string;
+  userSearchTerm: string;
+  searchingUsers: boolean;
   loading: boolean;
   onClose: () => void;
   onSelectUser: (userId: string) => void;
+  onSearchUser: (search: string) => void;
   onAssign: () => void;
   onRemoveAssignment: (assignmentId: string, userName: string) => void;
 }
@@ -1247,6 +1276,9 @@ function AssignVoucherDialog({
   onSelectUser,
   onAssign,
   onRemoveAssignment,
+  onSearchUser,
+  userSearchTerm,
+  searchingUsers,
 }: AssignVoucherDialogProps): JSX.Element | null {
   if (!open || !voucher) return null;
 
@@ -1254,6 +1286,11 @@ function AssignVoucherDialog({
   const unassignedUsers = availableUsers.filter(
     (u) => !assignedUserIds.includes(u.id)
   );
+
+  const handleUserSelect = (userId: string) => {
+    onSelectUser(userId);
+    onSearchUser(""); // Clear search after selection
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -1291,35 +1328,118 @@ function AssignVoucherDialog({
             <h4 className="text-sm font-semibold text-gray-900">
               Assign ke User Baru
             </h4>
-            <div className="flex gap-2">
-              <select
-                value={selectedUserId}
-                onChange={(e) => onSelectUser(e.target.value)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                disabled={unassignedUsers.length === 0}
-              >
-                <option value="">
-                  {unassignedUsers.length === 0
-                    ? "Semua user sudah di-assign"
-                    : "Pilih user..."}
-                </option>
-                {unassignedUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </option>
-                ))}
-              </select>
-              <Button
-                variant="black"
-                size="sm"
-                onClick={onAssign}
-                disabled={!selectedUserId || loading}
-                className="whitespace-nowrap"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Assign
-              </Button>
+
+            {/* Search User Input */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Cari user (minimal 2 karakter)..."
+                  value={userSearchTerm}
+                  onChange={(e) => onSearchUser(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                {searchingUsers && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Search Results */}
+              {userSearchTerm.length >= 2 && (
+                <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto bg-white">
+                  {searchingUsers ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto"></div>
+                      <p className="text-sm text-gray-600 mt-2">Mencari...</p>
+                    </div>
+                  ) : unassignedUsers.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-gray-600">
+                      {availableUsers.length === 0
+                        ? "Tidak ada user ditemukan"
+                        : "Semua user hasil pencarian sudah di-assign"}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {unassignedUsers.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => handleUserSelect(user.id)}
+                          className={`w-full text-left p-3 hover:bg-purple-50 transition-colors ${
+                            selectedUserId === user.id ? "bg-purple-100" : ""
+                          }`}
+                        >
+                          <p className="font-medium text-gray-900">
+                            {user.name}
+                          </p>
+                          <p className="text-sm text-gray-600">{user.email}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {userSearchTerm.length > 0 && userSearchTerm.length < 2 && (
+                <p className="text-xs text-gray-500">
+                  Ketik minimal 2 karakter untuk mencari user
+                </p>
+              )}
             </div>
+
+            {/* Selected User Display */}
+            {selectedUserId && (
+              <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex-1">
+                  {(() => {
+                    const selectedUser = availableUsers.find(
+                      (u) => u.id === selectedUserId
+                    );
+                    return selectedUser ? (
+                      <>
+                        <p className="font-medium text-gray-900">
+                          {selectedUser.name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.email}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-600">User dipilih</p>
+                    );
+                  })()}
+                </div>
+                <button
+                  onClick={() => onSelectUser("")}
+                  className="ml-2 p-1 text-gray-600 hover:text-gray-900"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Assign Button */}
+            <Button
+              variant="black"
+              size="sm"
+              onClick={onAssign}
+              disabled={!selectedUserId || loading}
+              className="w-full"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assign Voucher
+                </>
+              )}
+            </Button>
           </div>
 
           {/* Assigned Users List */}
