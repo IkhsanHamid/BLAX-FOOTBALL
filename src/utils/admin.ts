@@ -227,8 +227,10 @@ class AdminService {
     }
   }
 
-  async listMemberUser(): Promise<ListUserMember[]> {
-    const response = await apiClient.get(`/api/v1/users/list-membership`);
+  async listMemberUser(search?: string): Promise<ListUserMember[]> {
+    const response = await apiClient.get(
+      `/api/v1/users/list-membership?search=${search}`
+    );
     return response.data;
   }
 
@@ -319,7 +321,7 @@ class AdminService {
       const queryParams = new URLSearchParams();
       if (limit) queryParams.append("limit", limit.toString());
       if (skip) queryParams.append("skip", skip.toString());
-      if (search) queryParams.append("name", search);
+      if (search) queryParams.append("search", search);
 
       const result = await apiClient.get(
         `/api/v1/reschedule/list-available-reschedule?${queryParams}`
@@ -343,7 +345,7 @@ class AdminService {
     const queryParams = new URLSearchParams();
     if (limit) queryParams.append("limit", limit.toString());
     if (skip) queryParams.append("skip", skip.toString());
-    if (search) queryParams.append("name", search);
+    if (search) queryParams.append("search", search);
 
     const result = await apiClient.get(
       `/api/v1/reschedule/histories?${queryParams}`

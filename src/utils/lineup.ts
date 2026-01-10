@@ -119,10 +119,23 @@ export class LineupService {
     });
 
     // ==== Tambahkan tim kosong jika belum ada ====
+    // Urutan warna sesuai backend: MERAH, PUTIH, BIRU, KUNING, BIRU MUDA, HITAM, HIJAU, ORANYE, UNGU, PINK
     const totalTeams = apiResponse.team || Object.keys(groupedTeams).length;
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const teamColors = [
+      "MERAH",
+      "PUTIH",
+      "BIRU",
+      "KUNING",
+      "BIRU MUDA",
+      "HITAM",
+      "HIJAU",
+      "ORANYE",
+      "UNGU",
+      "PINK",
+    ];
+
     for (let i = 0; i < totalTeams; i++) {
-      const teamLabel = alphabet[i];
+      const teamLabel = teamColors[i]; // Gunakan nama warna, bukan A, B, C
       if (!groupedTeams[teamLabel]) {
         groupedTeams[teamLabel] = []; // tim kosong
       }
