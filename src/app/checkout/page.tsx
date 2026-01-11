@@ -44,6 +44,7 @@ export default function CheckoutPage() {
     "goalkeeper" | "player" | null
   >(null);
   const { showSuccess, showError } = useNotifications();
+  const [bookingQuantity, setBookingQuantity] = useState(1);
 
   // Toggle untuk team roster
   const [includeRoster, setIncludeRoster] = useState(false);
@@ -123,6 +124,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     checkExistingBooking();
   }, [user, selectedSchedule]);
+
+  useEffect(() => {
+    setBookingQuantity(1);
+  }, [selectedRole]);
 
   useEffect(() => {
     const paymentIdFromQuery = searchParams.get("paymentId");
@@ -294,11 +299,28 @@ export default function CheckoutPage() {
   const getPrice = () => {
     if (!selectedSchedule) return 0;
     if (bookingType === "individual") {
-      return selectedRole === "goalkeeper"
-        ? selectedSchedule?.feeGk
-        : selectedSchedule?.feePlayer;
+      const pricePerSlot =
+        selectedRole === "goalkeeper"
+          ? selectedSchedule?.feeGk
+          : selectedSchedule?.feePlayer;
+      return Number(pricePerSlot) * bookingQuantity;
     }
     return Number(selectedSchedule?.feePlayer) * getRosterSize();
+  };
+
+  const getMaxQuantity = () => {
+    if (!selectedSchedule) return 1;
+
+    const maxByMatchType =
+      selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
+
+    if (selectedRole === "goalkeeper") {
+      return Math.min(selectedSchedule.availableGkSlots, maxByMatchType);
+    } else if (selectedRole === "player") {
+      return Math.min(selectedSchedule.availablePlayerSlots, maxByMatchType);
+    }
+
+    return 1;
   };
 
   // Handle apply voucher
@@ -383,6 +405,7 @@ export default function CheckoutPage() {
       isTeam: bookingType === "team" && includeRoster,
       voucherCode: appliedVoucher?.code || undefined,
       jerseySize: jerseySize || picJerseySize,
+      quantity: bookingType === "individual" ? bookingQuantity : 1,
     };
 
     // Tambahkan teamRoster jika isTeam true
@@ -802,6 +825,66 @@ export default function CheckoutPage() {
                       </motion.div>
                     </div>
                   </div>
+
+                  <div>
+                    {selectedRole && (
+                      <div>
+                        <label className="block text-gray-600 mb-2">
+                          Jumlah Slot <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-4">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() =>
+                              setBookingQuantity(
+                                Math.max(1, bookingQuantity - 1)
+                              )
+                            }
+                            disabled={bookingQuantity <= 1}
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                              bookingQuantity <= 1
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                          >
+                            -
+                          </motion.button>
+
+                          <div className="flex-1 text-center">
+                            <div className="text-3xl font-bold text-blue-600">
+                              {bookingQuantity}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Max: {getMaxQuantity()} slot
+                            </div>
+                          </div>
+
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() =>
+                              setBookingQuantity(
+                                Math.min(getMaxQuantity(), bookingQuantity + 1)
+                              )
+                            }
+                            disabled={bookingQuantity >= getMaxQuantity()}
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                              bookingQuantity >= getMaxQuantity()
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                          >
+                            +
+                          </motion.button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Maksimal {getMaxQuantity()} slot untuk{" "}
+                          {selectedSchedule?.typeMatch}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
 
@@ -1144,9 +1227,13 @@ export default function CheckoutPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Booking Type</span>
-                    <span className="capitalize">{bookingType}</span>
+                    <span className="capitalize">
+                      {bookingType}
+                      {bookingType === "individual" &&
+                        selectedRole &&
+                        ` (${bookingQuantity}x)`}
+                    </span>
                   </div>
-
                   <div className="flex justify-between">
                     <span>Harga Booking</span>
                     <span>
