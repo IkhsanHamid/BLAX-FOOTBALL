@@ -260,7 +260,7 @@ export default function AuthModal({
       // TODO: Replace with your actual API endpoint
       const verify = await AuthService.verifyOTP(resetEmail, otpString);
 
-      setResetToken(verify);
+      setResetToken(verify.resetToken);
 
       setSuccess("Kode OTP berhasil diverifikasi");
 
