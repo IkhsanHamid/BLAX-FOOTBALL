@@ -375,7 +375,7 @@ export default function GalleryPage() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     {/* LEFT CONTENT */}
-                    <div className="flex gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className="flex gap-3 sm:gap-4 flex-1 min-w-0 mt-5">
                       {/* Icon */}
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-md shrink-0">
                         <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
