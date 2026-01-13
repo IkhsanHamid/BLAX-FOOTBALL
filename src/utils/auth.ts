@@ -120,4 +120,75 @@ export class AuthService {
   static isTokenExpired(expiresAt: number): boolean {
     return Date.now() >= expiresAt * 1000;
   }
+
+  static async requestPasswordReset(email: string) {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/users/send-otp`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to send OTP");
+    }
+
+    return result.data;
+  }
+
+  static async verifyOTP(email: string, otp: string) {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/users/verify-otp`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          otp,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Invalid or expired OTP");
+    }
+
+    return result.data;
+  }
+
+  static async resetPassword(resetToken: string, password: string) {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/users/reset`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          resetToken,
+          password,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Invalid reset password");
+    }
+
+    return result.data;
+  }
 }

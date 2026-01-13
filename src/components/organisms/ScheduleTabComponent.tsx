@@ -375,19 +375,6 @@ export default function ScheduleTab({
     const countGk = parseInt(lockSlotCounts.gk) || 0;
     const countPlayer = parseInt(lockSlotCounts.player) || 0;
 
-    // // Validasi
-    // if (countGk < 0 || countPlayer < 0) {
-    //   showError("Error", "Please enter valid numbers");
-    //   setIsLoadingLocked(false);
-    //   return;
-    // }
-
-    // if (countGk === 0 && countPlayer === 0) {
-    //   showError("Error", "Please enter at least one slot to lock");
-    //   setIsLoadingLocked(false);
-    //   return;
-    // }
-
     // Hitung available slots
     const availableSlotsGk =
       lockingSchedule.totalSlots -
@@ -544,13 +531,13 @@ export default function ScheduleTab({
   const handleEditSchedule = useCallback(
     (schedule: ScheduleOverview) => {
       // Check if within H-3
-      if (isWithinH3(schedule.date)) {
-        showError(
-          "Cannot Edit",
-          "Schedule cannot be edited within 3 days before the event date (H-3)"
-        );
-        return;
-      }
+      // if (isWithinH3(schedule.date)) {
+      //   showError(
+      //     "Cannot Edit",
+      //     "Schedule cannot be edited within 3 days before the event date (H-3)"
+      //   );
+      //   return;
+      // }
 
       const venue = venues.find((v) => v.name === schedule.venue);
       setEditingSchedule(schedule);
@@ -885,7 +872,7 @@ export default function ScheduleTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEditSchedule(schedule)}
-                            disabled={isDisabled || isWithinH3(schedule.date)}
+                            // disabled={isDisabled || isWithinH3(schedule.date)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
