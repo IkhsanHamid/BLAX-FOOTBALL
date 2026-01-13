@@ -10,6 +10,8 @@ import {
   CheckCircle,
   Phone,
   Crown,
+  ArrowLeft,
+  KeyRound,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import Input from "../atoms/Input";
@@ -26,7 +28,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: any, session: any) => void;
-  mode?: "signin" | "signup"; // optional (default signin)
+  mode?: "signin" | "signup";
 }
 
 export default function AuthModal({
@@ -36,7 +38,9 @@ export default function AuthModal({
   mode: initialMode = "signin",
 }: AuthModalProps) {
   // ---- FLEXIBLE MODE ----
-  const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
+  const [authMode, setAuthMode] = useState<
+    "signin" | "signup" | "forgot-password" | "verify-otp" | "reset-password"
+  >(initialMode);
 
   useEffect(() => {
     setAuthMode(initialMode);
@@ -51,14 +55,30 @@ export default function AuthModal({
     name: "",
     confirmPassword: "",
     type: "",
+    otp: "",
+    newPassword: "",
+    confirmNewPassword: "",
   });
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [includeMembership, setIncludeMembership] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [otpValues, setOtpValues] = useState<string[]>([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const otpInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
 
   const { showSuccess } = useNotifications();
   const { setSelectedSignup } = useFormSignup();
@@ -71,14 +91,28 @@ export default function AuthModal({
       name: "",
       confirmPassword: "",
       type: "",
+      otp: "",
+      newPassword: "",
+      confirmNewPassword: "",
     });
     setError("");
     setSuccess("");
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setResetEmail("");
+    setOtpValues(["", "", "", "", "", ""]);
   };
 
-  const handleModeSwitch = (newMode: "signin" | "signup") => {
+  const handleModeSwitch = (
+    newMode:
+      | "signin"
+      | "signup"
+      | "forgot-password"
+      | "verify-otp"
+      | "reset-password"
+  ) => {
     setAuthMode(newMode);
     resetForm();
   };
@@ -116,6 +150,48 @@ export default function AuthModal({
       }
     }
 
+    if (authMode === "forgot-password") {
+      if (!formData.email.trim()) {
+        setError("Email wajib di isi");
+        return false;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError("Format email tidak valid");
+        return false;
+      }
+      return true;
+    }
+
+    if (authMode === "verify-otp") {
+      const otpString = otpValues.join("");
+      if (!otpString.trim()) {
+        setError("Kode OTP wajib di isi");
+        return false;
+      }
+      if (otpString.length !== 6) {
+        setError("Kode OTP harus 6 digit");
+        return false;
+      }
+      return true;
+    }
+
+    if (authMode === "reset-password") {
+      if (!formData.newPassword) {
+        setError("Password baru wajib di isi");
+        return false;
+      }
+      if (formData.newPassword.length < 6) {
+        setError("Password minimal 6 karakter");
+        return false;
+      }
+      if (formData.newPassword !== formData.confirmNewPassword) {
+        setError("Konfirmasi password tidak sesuai");
+        return false;
+      }
+      return true;
+    }
+
     //  no hp
     if (!formData.phone.trim()) {
       setError("No HP wajib di isi");
@@ -142,10 +218,102 @@ export default function AuthModal({
     return true;
   };
 
-  console.log("includemembership", includeMembership);
+  // ---- FORGOT PASSWORD FLOW ----
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // TODO: Replace with your actual API endpoint
+      await AuthService.requestPasswordReset(formData.email);
+
+      setResetEmail(formData.email);
+      setSuccess("Kode OTP telah dikirim ke email Anda");
+
+      setTimeout(() => {
+        setAuthMode("verify-otp");
+        setSuccess("");
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || "Gagal mengirim kode OTP. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const otpString = otpValues.join("");
+      // TODO: Replace with your actual API endpoint
+      const verify = await AuthService.verifyOTP(resetEmail, otpString);
+
+      setResetToken(verify);
+
+      setSuccess("Kode OTP berhasil diverifikasi");
+
+      setTimeout(() => {
+        setAuthMode("reset-password");
+        setSuccess("");
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Kode OTP tidak valid. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // TODO: Replace with your actual API endpoint
+      await AuthService.resetPassword(resetToken, formData.newPassword);
+
+      setSuccess("Password berhasil direset! Silakan login.");
+
+      setTimeout(() => {
+        handleModeSwitch("signin");
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || "Gagal mereset password. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ---- SUBMIT ----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Route to appropriate handler based on mode
+    if (authMode === "forgot-password") {
+      return handleForgotPassword(e);
+    }
+    if (authMode === "verify-otp") {
+      return handleVerifyOTP(e);
+    }
+    if (authMode === "reset-password") {
+      return handleResetPassword(e);
+    }
 
     if (!validateForm()) return;
 
@@ -185,7 +353,6 @@ export default function AuthModal({
             handleModeSwitch("signin");
           }, 2000);
         }
-        setTimeout(() => {}, 2000);
       } else {
         const response = await AuthService.signIn({
           phone: formData.phone,
@@ -227,7 +394,88 @@ export default function AuthModal({
     setError("");
   };
 
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      value = value.slice(-1);
+    }
+
+    if (!/^\d*$/.test(value)) {
+      return;
+    }
+
+    const newOtpValues = [...otpValues];
+    newOtpValues[index] = value;
+    setOtpValues(newOtpValues);
+    setError("");
+
+    // Auto focus next input
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === "Backspace" && !otpValues[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").trim();
+    const digits = pastedData.replace(/\D/g, "").slice(0, 6);
+
+    if (digits.length > 0) {
+      const newOtpValues = [...otpValues];
+      for (let i = 0; i < digits.length && i < 6; i++) {
+        newOtpValues[i] = digits[i];
+      }
+      setOtpValues(newOtpValues);
+
+      const nextIndex = Math.min(digits.length, 5);
+      otpInputRefs.current[nextIndex]?.focus();
+    }
+  };
+
   if (!isOpen) return null;
+
+  // ---- RENDER TITLE & SUBTITLE ----
+  const getTitle = () => {
+    switch (authMode) {
+      case "signin":
+        return "Selamat Datang";
+      case "signup":
+        return "Buat Akun";
+      case "forgot-password":
+        return "Lupa Password";
+      case "verify-otp":
+        return "Verifikasi OTP";
+      case "reset-password":
+        return "Reset Password";
+      default:
+        return "Selamat Datang";
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (authMode) {
+      case "signin":
+        return "Masuk ke akun blax kamu";
+      case "signup":
+        return "Join blax sekarang!";
+      case "forgot-password":
+        return "Masukkan email untuk reset password";
+      case "verify-otp":
+        return "Masukkan kode OTP yang dikirim ke email";
+      case "reset-password":
+        return "Buat password baru untuk akun Anda";
+      default:
+        return "Masuk ke akun blax kamu";
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -249,15 +497,31 @@ export default function AuthModal({
           <X className="h-5 w-5" />
         </button>
 
+        {/* Back button for forgot password flow */}
+        {(authMode === "forgot-password" ||
+          authMode === "verify-otp" ||
+          authMode === "reset-password") && (
+          <button
+            onClick={() => {
+              if (authMode === "verify-otp") {
+                setAuthMode("forgot-password");
+              } else {
+                setAuthMode("signin");
+              }
+              setError("");
+              setSuccess("");
+            }}
+            className="absolute top-4 left-4 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-foreground mb-1">
-            {authMode === "signin" ? "Selamat Datang" : "Buat Akun"}
+            {getTitle()}
           </h2>
-          <p className="text-muted-foreground text-sm">
-            {authMode === "signin"
-              ? "Masuk ke akun blax kamu"
-              : "Join blax sekarang!"}
-          </p>
+          <p className="text-muted-foreground text-sm">{getSubtitle()}</p>
         </div>
 
         {error && (
@@ -275,6 +539,124 @@ export default function AuthModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* FORGOT PASSWORD - Email Input */}
+          {authMode === "forgot-password" && (
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1.5">
+                Email
+              </label>
+              <Input
+                type="email"
+                placeholder="Masukkan email Anda"
+                value={formData.email}
+                onChange={(e) => {
+                  const noSpaces = e.target.value.replace(/\s/g, "");
+                  handleInputChange("email", noSpaces);
+                }}
+                icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+              />
+            </div>
+          )}
+
+          {/* VERIFY OTP */}
+          {authMode === "verify-otp" && (
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-3 text-center">
+                Kode OTP
+              </label>
+              <div className="flex gap-2 justify-center mb-4">
+                {otpValues.map((value, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      otpInputRefs.current[index] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={value}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onPaste={handleOtpPaste}
+                    className="w-12 h-14 text-center text-2xl font-semibold border-2 border-border rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-background"
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Kode OTP telah dikirim ke{" "}
+                <span className="font-medium">{resetEmail}</span>
+              </p>
+            </div>
+          )}
+
+          {/* RESET PASSWORD */}
+          {authMode === "reset-password" && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1.5">
+                  Password Baru
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Min. 6 karakter"
+                    value={formData.newPassword}
+                    onChange={(e) => {
+                      const noSpaces = e.target.value.replace(/\s/g, "");
+                      handleInputChange("newPassword", noSpaces);
+                    }}
+                    icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1.5">
+                  Konfirmasi Password Baru
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmNewPassword ? "text" : "password"}
+                    placeholder="Ulangi password baru"
+                    value={formData.confirmNewPassword}
+                    onChange={(e) => {
+                      const noSpaces = e.target.value.replace(/\s/g, "");
+                      handleInputChange("confirmNewPassword", noSpaces);
+                    }}
+                    icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmNewPassword(!showConfirmNewPassword)
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* SIGNUP FORM */}
           {authMode === "signup" && (
             <div>
               <div>
@@ -307,61 +689,74 @@ export default function AuthModal({
             </div>
           )}
 
-          <div>
+          {/* SIGNIN & SIGNUP - Phone Number */}
+          {(authMode === "signin" || authMode === "signup") && (
             <div>
-              <label className="block text-xs font-medium text-foreground mb-1.5">
-                No HP
-              </label>
-              <Input
-                type="tel"
-                placeholder="08xxxxxxxxxx"
-                value={formData.phone}
-                onChange={(e) => {
-                  const onlyNums = e.target.value.replace(/\D/g, "");
-                  handleInputChange("phone", onlyNums);
-                }}
-                icon={<Phone className="h-4 w-4 text-muted-foreground" />}
-              />
-            </div>
-
-            {authMode === "signup" && (
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1.5">
-                  Password
+                  No HP
                 </label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Min. 6 karakter"
-                    value={formData.password}
-                    onChange={(e) => {
-                      const noSpaces = e.target.value.replace(/\s/g, "");
-                      handleInputChange("password", noSpaces);
-                    }}
-                    icon={<Lock className="h-4 w-4 text-muted-foreground" />}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+                <Input
+                  type="tel"
+                  placeholder="08xxxxxxxxxx"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, "");
+                    handleInputChange("phone", onlyNums);
+                  }}
+                  icon={<Phone className="h-4 w-4 text-muted-foreground" />}
+                />
               </div>
-            )}
-          </div>
 
+              {authMode === "signup" && (
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Min. 6 karakter"
+                      value={formData.password}
+                      onChange={(e) => {
+                        const noSpaces = e.target.value.replace(/\s/g, "");
+                        handleInputChange("password", noSpaces);
+                      }}
+                      icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SIGNIN - Password */}
           {authMode === "signin" && (
             <div>
-              <label className="block text-xs font-medium text-foreground mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-foreground">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleModeSwitch("forgot-password")}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Lupa Password?
+                </button>
+              </div>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
@@ -389,6 +784,7 @@ export default function AuthModal({
             </div>
           )}
 
+          {/* SIGNUP - Confirm Password & Membership */}
           {authMode === "signup" && (
             <>
               <div>
@@ -471,7 +867,7 @@ export default function AuthModal({
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
-                        className="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-2 rounded-lg"
+                        className="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-2 rounded-lg mt-2"
                       >
                         <Crown className="w-4 h-4" />
                         <span className="text-[10px] leading-tight">
@@ -486,6 +882,7 @@ export default function AuthModal({
             </>
           )}
 
+          {/* SUBMIT BUTTON */}
           <Button
             type="submit"
             disabled={loading}
@@ -494,34 +891,58 @@ export default function AuthModal({
             {loading ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin h-5 w-5 border-b-2 border-white mr-2"></div>
-                {authMode === "signin"
-                  ? "Signing In..."
-                  : "Creating Account..."}
+                {authMode === "signin" && "Signing In..."}
+                {authMode === "signup" && "Creating Account..."}
+                {authMode === "forgot-password" && "Mengirim OTP..."}
+                {authMode === "verify-otp" && "Memverifikasi..."}
+                {authMode === "reset-password" && "Mereset Password..."}
               </div>
-            ) : authMode === "signin" ? (
-              "Login"
             ) : (
-              "Buat Akun"
+              <>
+                {authMode === "signin" && "Login"}
+                {authMode === "signup" && "Buat Akun"}
+                {authMode === "forgot-password" && "Kirim Kode OTP"}
+                {authMode === "verify-otp" && "Verifikasi OTP"}
+                {authMode === "reset-password" && "Reset Password"}
+              </>
             )}
           </Button>
         </form>
 
-        <div className="mt-8 text-center">
-          <p className="text-gray-600">
-            {authMode === "signin"
-              ? "Tidak punya akun? "
-              : "Sudah punya akun? "}
-            <button
-              onClick={() =>
-                handleModeSwitch(authMode === "signin" ? "signup" : "signin")
-              }
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              {authMode === "signin" ? "Buat akun" : "Masuk"}
-            </button>
-          </p>
-        </div>
+        {/* MODE SWITCH */}
+        {(authMode === "signin" || authMode === "signup") && (
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
+              {authMode === "signin"
+                ? "Tidak punya akun? "
+                : "Sudah punya akun? "}
+              <button
+                onClick={() =>
+                  handleModeSwitch(authMode === "signin" ? "signup" : "signin")
+                }
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {authMode === "signin" ? "Buat akun" : "Masuk"}
+              </button>
+            </p>
+          </div>
+        )}
 
+        {/* RESEND OTP */}
+        {authMode === "verify-otp" && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+            >
+              Kirim ulang kode OTP
+            </button>
+          </div>
+        )}
+
+        {/* TERMS & PRIVACY */}
         {authMode === "signup" && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Dengan membuat akun, anda setuju dengan{" "}

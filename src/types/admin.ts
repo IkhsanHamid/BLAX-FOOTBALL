@@ -73,6 +73,7 @@ export interface BookingHistory {
   confirmedStatus: number;
   pendingStatus: number;
   failedStatus: number;
+  quantity: number;
 }
 
 export interface BookingHistoryResponse {
