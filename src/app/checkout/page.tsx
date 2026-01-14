@@ -359,31 +359,65 @@ export default function CheckoutPage() {
 
   // Calculate discounts and total
   const calculatePricing = () => {
-    const basePrice = getPrice();
+    const individualPrice =
+      selectedRole === "goalkeeper"
+        ? selectedSchedule?.feeGk
+        : selectedSchedule?.feePlayer;
+
+    let basePrice = 0;
+    let memberDiscount = 0;
+
+    if (bookingType === "team") {
+      // Team booking: tidak ada member discount
+      basePrice = getPrice(); // Team price sudah total
+      memberDiscount = 0;
+    } else {
+      // INDIVIDUAL booking
+      const canGetDiscount = isMember && !hasExistingBooking;
+
+      if (canGetDiscount && bookingQuantity > 0) {
+        // Member discount hanya untuk booking pertama (10%)
+        const firstBookingDiscount = Math.round(Number(individualPrice) * 0.1);
+
+        // Total base price untuk semua quantity
+        basePrice = Number(individualPrice) * bookingQuantity;
+
+        // Member discount hanya untuk 1 booking pertama
+        memberDiscount = firstBookingDiscount;
+      } else {
+        // Tidak ada discount
+        basePrice = Number(individualPrice) * bookingQuantity;
+        memberDiscount = 0;
+      }
+    }
+
     const adminFee = isMember ? 0 : 1000;
 
-    // Member discount 10%
-    const memberDiscount =
-      isMember && !hasExistingBooking ? Number(basePrice) * 0.1 : 0;
+    // Price after member discount
+    const priceAfterMemberDiscount = basePrice - memberDiscount + adminFee;
 
     // Voucher discount
     let voucherDiscount = 0;
     if (appliedVoucher) {
       if (appliedVoucher.type === "PERCENTAGE") {
-        voucherDiscount = Number(basePrice) * (appliedVoucher.nominal / 100);
+        voucherDiscount = Math.round(
+          priceAfterMemberDiscount * (appliedVoucher.nominal / 100)
+        );
       } else {
         voucherDiscount = appliedVoucher.nominal;
       }
     }
 
-    const subtotal = Number(basePrice) - memberDiscount;
-    const total = Math.max(0, subtotal - voucherDiscount + adminFee);
+    const subtotal = priceAfterMemberDiscount;
+    const total = Math.max(0, priceAfterMemberDiscount - voucherDiscount);
+    const totalDiscount = memberDiscount + voucherDiscount;
 
     return {
       basePrice,
       adminFee,
       memberDiscount,
       voucherDiscount,
+      totalDiscount,
       subtotal,
       total,
     };
@@ -1226,7 +1260,7 @@ export default function CheckoutPage() {
                 {/* PRICE */}
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Booking Type</span>
+                    <span className="text-black">Booking Type</span>
                     <span className="capitalize">
                       {bookingType}
                       {bookingType === "individual" &&
@@ -1264,6 +1298,10 @@ export default function CheckoutPage() {
                           *Jika sudah pernah booking di jadwal yang sama,
                           discount tidak berlaku
                         </span>
+                        <span className="text-xs text-gray-500 italic">
+                          *Jika booking lebih dari 1 slot, hanya slot 1 yang
+                          diskon 10%
+                        </span>
                       </div>
                     )}
 
@@ -1272,6 +1310,15 @@ export default function CheckoutPage() {
                       <span>Voucher Discount</span>
                       <span>
                         - IDR {pricing.voucherDiscount.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  )}
+
+                  {pricing.adminFee > 0 && (
+                    <div className="flex justify-between text-black">
+                      <span>Biaya Admin</span>
+                      <span>
+                        IDR {pricing.adminFee.toLocaleString("id-ID")}
                       </span>
                     </div>
                   )}
