@@ -580,44 +580,119 @@ export default function ScheduleDetailPage() {
                 <LineupBlur onUpgradeClick={() => handleClickMembership()} />
               ) : schedule.lineUp && Object.keys(schedule.lineUp).length > 0 ? (
                 /* ✅ MEMBER ATAU H-2 JAM → LINEUP ASLI */
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {Object.entries(schedule.lineUp).map(
-                    ([teamKey, team]: [string, any]) => (
-                      <div
-                        key={teamKey}
-                        className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100"
-                      >
-                        <div className="p-6 border-b border-slate-200">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              Team {teamKey}
-                            </h3>
-                            <Badge
-                              variant="outline"
-                              className="bg-blue-50 text-blue-700 border-blue-200"
-                            >
-                              {(team.PLAYERS?.length || 0) + (team.GK ? 1 : 0)}{" "}
-                              Players
-                            </Badge>
+                <>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-purple-100">
+                    <div className="p-6 border-b border-slate-200">
+                      <h3 className="text-lg font-semibold text-slate-900 flex items-center">
+                        <Calendar className="w-5 h-5 mr-2 text-purple-500" />
+                        Jadwal Pertandingan
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid gap-3">
+                        {[
+                          {
+                            team1: "MERAH",
+                            team2: "BIRU",
+                            color1: "red",
+                            color2: "blue",
+                          },
+                          {
+                            team1: "PUTIH",
+                            team2: "KUNING",
+                            color1: "slate",
+                            color2: "yellow",
+                          },
+                          {
+                            team1: "BIRU MUDA",
+                            team2: "MERAH",
+                            color1: "sky",
+                            color2: "red",
+                          },
+                          {
+                            team1: "BIRU",
+                            team2: "KUNING",
+                            color1: "blue",
+                            color2: "yellow",
+                          },
+                          {
+                            team1: "PUTIH",
+                            team2: "BIRU MUDA",
+                            color1: "slate",
+                            color2: "sky",
+                          },
+                        ].map((match, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-purple-50 rounded-lg border border-purple-100 hover:shadow-md transition-all"
+                          >
+                            <div className="flex items-center space-x-3 flex-1">
+                              <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                                {index + 1}
+                              </div>
+                              <div className="flex items-center space-x-2 flex-1">
+                                <span
+                                  className={`font-bold text-${match.color1}-600 bg-${match.color1}-100 px-3 py-1 rounded-full text-sm`}
+                                >
+                                  {match.team1}
+                                </span>
+                                <span className="text-slate-400 font-bold">
+                                  VS
+                                </span>
+                                <span
+                                  className={`font-bold text-${match.color2}-600 bg-${match.color2}-100 px-3 py-1 rounded-full text-sm`}
+                                >
+                                  {match.team2}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-
-                        <div className="p-6">
-                          <div className="space-y-3">
-                            {team.GK && <PlayerCard player={team.GK} isGK />}
-                            {team.PLAYERS?.map((player: any, index: number) => (
-                              <PlayerCard
-                                key={index}
-                                player={player}
-                                isGK={false}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    )
-                  )}
-                </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {Object.entries(schedule.lineUp).map(
+                      ([teamKey, team]: [string, any]) => (
+                        <div
+                          key={teamKey}
+                          className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100"
+                        >
+                          <div className="p-6 border-b border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold text-slate-900">
+                                Team {teamKey}
+                              </h3>
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                {(team.PLAYERS?.length || 0) +
+                                  (team.GK ? 1 : 0)}{" "}
+                                Players
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="p-6">
+                            <div className="space-y-3">
+                              {team.GK && <PlayerCard player={team.GK} isGK />}
+                              {team.PLAYERS?.map(
+                                (player: any, index: number) => (
+                                  <PlayerCard
+                                    key={index}
+                                    player={player}
+                                    isGK={false}
+                                  />
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </>
               ) : (
                 /* EMPTY STATE */
                 <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-100 p-12 text-center">
