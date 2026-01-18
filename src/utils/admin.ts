@@ -27,6 +27,10 @@ class AdminService {
       offset: number;
       totalPages: number;
       currentPages: number;
+      totalMembership: number;
+      totalUsers: number;
+      totalStaff: number;
+      totalNewThisMonth: number;
     };
   }> {
     try {
@@ -46,6 +50,10 @@ class AdminService {
           offset: result.skip,
           totalPages: result.totalPages,
           currentPages: result.currentPages,
+          totalMembership: result.totalMembership,
+          totalUsers: result.totalUsers,
+          totalStaff: result.totalStaff,
+          totalNewThisMonth: result.totalNewThisMonth,
         },
       };
     } catch (error) {
@@ -58,6 +66,10 @@ class AdminService {
           offset: offset || 0,
           totalPages: 0,
           currentPages: 0,
+          totalMembership: 0,
+          totalUsers: 0,
+          totalStaff: 0,
+          totalNewThisMonth: 0,
         },
       };
     }

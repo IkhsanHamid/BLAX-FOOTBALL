@@ -42,11 +42,11 @@ import Pagination from "../atoms/Pagination";
 import { TableLoadingSkeleton } from "./LoadingSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 
-// --- Static Constants (Moved outside to reduce compile/render overhead) ---
+// Constants
 const ITEMS_PER_PAGE = 10;
 const ACTIVE_DAYS_THRESHOLD = 30;
 
-const initialFormState = {
+const INITIAL_FORM = {
   name: "",
   email: "",
   phone: "",
@@ -87,51 +87,75 @@ const INPUT_FIELDS = [
 ];
 
 export default function UsersTab() {
-  // --- State Management ---
-  const [users, setUsers] = useState<UserManagement[]>([]);
-  const [roles, setRoles] = useState<Roles[]>([]);
-  // Removed filteredUsers state to avoid double renders
-  const [loading, setLoading] = useState(true);
-
-  // Filters
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  // UI Actions
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showUserDialog, setShowUserDialog] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  // Form & Editing
-  const [editingUser, setEditingUser] = useState<UserManagement | null>(null);
-  const [userToDelete, setUserToDelete] = useState<UserManagement | null>(null);
-  const [userForm, setUserForm] = useState(initialFormState);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
 
-  // --- Data Fetching ---
-  const fetchUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Note: SearchTerm used here is from state, but intended for initial load or refresh
-      const result = await adminService.getAllUsers(2000, 0, "");
-      setUsers(result.users);
-    } catch (error) {
-      showError("Error", "Failed to load users");
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
+  // State
+  const [users, setUsers] = useState<UserManagement[]>([]);
+  const [usersStats, setUsersStats] = useState<{
+    totalMembership: number;
+    totalUsers: number;
+    totalStaff: number;
+    totalNewThisMonth: number;
+  }>({
+    totalMembership: 0,
+    totalUsers: 0,
+    totalStaff: 0,
+    totalNewThisMonth: 0,
+  });
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [roles, setRoles] = useState<Roles[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Filters & Pagination
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Dialogs
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserManagement | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserManagement | null>(null);
+
+  // Form
+  const [userForm, setUserForm] = useState(INITIAL_FORM);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Fetch Users
+  const fetchUsers = useCallback(
+    async (page: number = 1) => {
+      try {
+        setLoading(true);
+        const skip = (page - 1) * ITEMS_PER_PAGE;
+
+        // Build search query for backend
+        let searchQuery = searchTerm;
+
+        const result = await adminService.getAllUsers(
+          ITEMS_PER_PAGE,
+          skip,
+          searchQuery
+        );
+        setUsers(result.users);
+        setUsersStats(result.pagination);
+        setTotalUsers(result.pagination.total || result.users.length);
+      } catch (error) {
+        showError("Error", "Failed to load users");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [showError, searchTerm]
+  );
+
+  // Fetch Roles
   const fetchRoles = useCallback(async () => {
     try {
       const rolesData = await adminService.getRoles();
       setRoles(rolesData);
-      // Auto-set default role if form is pristine
       if (rolesData.length > 0 && !userForm.role && !editingUser) {
         setUserForm((prev) => ({ ...prev, role: rolesData[0].id }));
       }
@@ -140,20 +164,28 @@ export default function UsersTab() {
     }
   }, [showError, userForm.role, editingUser]);
 
+  // Effects
   useEffect(() => {
-    fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+    fetchUsers(currentPage);
+  }, [currentPage, searchTerm, fetchUsers]);
 
-  // --- Optimized Helpers (Memoized) ---
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchUsers(1);
+    }
+  }, [roleFilter, statusFilter]);
 
-  // Create a lookup map for roles to avoid .find() loops in the table render (O(1) access)
-  const roleMap = useMemo(() => {
-    return roles.reduce((acc, role) => {
-      acc[role.id] = role.name;
-      return acc;
-    }, {} as Record<string, string>);
-  }, [roles]);
+  // Helpers
+  const roleMap = useMemo(
+    () =>
+      roles.reduce(
+        (acc, role) => ({ ...acc, [role.id]: role.name }),
+        {} as Record<string, string>
+      ),
+    [roles]
+  );
 
   const getRoleName = useCallback(
     (roleId: string) => roleMap[roleId] || roleId,
@@ -166,20 +198,9 @@ export default function UsersTab() {
     return new Date(lastPlayed).getTime() > threshold;
   }, []);
 
-  // --- Filtering Logic (useMemo replaces useEffect + useState) ---
+  // Apply client-side filtering (only for role and status)
   const filteredUsers = useMemo(() => {
     let result = users;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (u) =>
-          // Tambahkan (u.field || "") untuk mencegah error pada data null
-          (u.name || "").toLowerCase().includes(term) ||
-          (u.email || "").toLowerCase().includes(term) ||
-          (u.phone || "").includes(term)
-      );
-    }
 
     if (roleFilter !== "all") {
       result = result.filter((u) => u.role === roleFilter);
@@ -191,139 +212,24 @@ export default function UsersTab() {
     }
 
     return result;
-  }, [users, searchTerm, roleFilter, statusFilter, isUserActive]);
+  }, [users, roleFilter, statusFilter, isUserActive]);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, roleFilter, statusFilter]);
-
-  // --- Stats Calculation (Memoized) ---
+  // Stats (calculate from all users, need to fetch total for accurate stats)
   const stats = useMemo(
     () => ({
-      total: users.filter((u) => u.role !== "Admin").length, // Count users with role player only
-      active: users.filter((u) => u.isMember === true).length, // Count users with isMember true
-      newThisMonth: users.filter(
-        (u) =>
-          new Date(u.createdAt).getTime() >
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-      ).length,
-      totalGames: users.filter((u) => u.role === "Admin").length, // Count users with role admin
+      total: usersStats.totalUsers,
+      active: usersStats.totalMembership,
+      newThisMonth: usersStats.totalNewThisMonth,
+      totalGames: usersStats.totalStaff,
     }),
     [users]
   );
 
-  // --- Handlers ---
-  const handleUserInputChange = useCallback((field: string, value: string) => {
-    setUserForm((prev) => ({ ...prev, [field]: value }));
-    setFormErrors((prev) => (prev[field] ? { ...prev, [field]: "" } : prev));
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setUserForm(
-      roles.length > 0
-        ? { ...initialFormState, role: roles[0].id }
-        : initialFormState
-    );
-    setFormErrors({});
-    setEditingUser(null);
-  }, [roles]);
-
-  const handleOpenUserDialog = useCallback(() => {
-    setShowUserDialog(true);
-    if (roles.length === 0) fetchRoles();
-  }, [roles.length, fetchRoles]);
-
-  const handleEditUser = useCallback(
-    (user: UserManagement) => {
-      setEditingUser(user);
-      setUserForm({
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      });
-      // Ensure roles are loaded if editing immediately
-      if (roles.length === 0) fetchRoles();
-      setShowUserDialog(true);
-    },
-    [roles.length, fetchRoles]
-  );
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    if (!userForm.name.trim()) errors.name = "Name is required";
-    if (!userForm.email.trim()) errors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(userForm.email))
-      errors.email = "Email is invalid";
-    if (!userForm.phone.trim()) errors.phone = "Phone is required";
-    else if (!/^\d{10,15}$/.test(userForm.phone.replace(/\D/g, ""))) {
-      errors.phone = "Phone number must be 10-15 digits";
-    }
-    if (!userForm.role.trim()) errors.role = "Role is required";
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSaveUser = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setActionLoading("save");
-      if (editingUser) {
-        await adminService.editStaff(editingUser.id, {
-          name: userForm.name,
-          email: userForm.email,
-          phone: userForm.phone,
-        });
-        showSuccess("User updated successfully!");
-      } else {
-        await adminService.addStaff({
-          name: userForm.name,
-          email: userForm.email,
-          phone: userForm.phone,
-        });
-        showSuccess("User created successfully!");
-      }
-
-      setShowUserDialog(false);
-      resetForm();
-      fetchUsers();
-    } catch (error: any) {
-      showError("Error", error?.message || "Failed to save user");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-    try {
-      setActionLoading("delete");
-      await adminService.removeUser(userToDelete.id);
-      showSuccess("User deleted successfully!");
-      setShowDeleteConfirm(false);
-      setUserToDelete(null);
-      fetchUsers();
-    } catch (error) {
-      showError("Error", "Failed to delete user");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // --- Derived View Data ---
+  // Pagination - use totalUsers from backend for accurate page count
+  const totalPages = Math.ceil(totalUsers / ITEMS_PER_PAGE);
   const uniqueRoles = useMemo(
     () => [...new Set(users.map((u) => u.role))],
     [users]
-  );
-
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedUsers = useMemo(
-    () => filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE),
-    [filteredUsers, startIndex]
   );
 
   const activeFilters = useMemo(
@@ -348,6 +254,101 @@ export default function UsersTab() {
     [searchTerm, roleFilter, statusFilter, getRoleName]
   );
 
+  // Handlers
+  const handleInputChange = useCallback((field: string, value: string) => {
+    setUserForm((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => (prev[field] ? { ...prev, [field]: "" } : prev));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setUserForm(
+      roles.length > 0 ? { ...INITIAL_FORM, role: roles[0].id } : INITIAL_FORM
+    );
+    setFormErrors({});
+    setEditingUser(null);
+  }, [roles]);
+
+  const openUserDialog = useCallback(() => {
+    setShowUserDialog(true);
+    if (roles.length === 0) fetchRoles();
+  }, [roles.length, fetchRoles]);
+
+  const handleEditUser = useCallback(
+    (user: UserManagement) => {
+      setEditingUser(user);
+      setUserForm({
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      });
+      if (roles.length === 0) fetchRoles();
+      setShowUserDialog(true);
+    },
+    [roles.length, fetchRoles]
+  );
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    if (!userForm.name.trim()) errors.name = "Name is required";
+    if (!userForm.email.trim()) errors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(userForm.email))
+      errors.email = "Email is invalid";
+    if (!userForm.phone.trim()) errors.phone = "Phone is required";
+    else if (!/^\d{10,15}$/.test(userForm.phone.replace(/\D/g, ""))) {
+      errors.phone = "Phone number must be 10-15 digits";
+    }
+    if (!userForm.role.trim()) errors.role = "Role is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSaveUser = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setActionLoading("save");
+      if (editingUser) {
+        await adminService.editStaff(editingUser.id, {
+          name: userForm.name,
+          email: userForm.email,
+          phone: userForm.phone,
+        });
+        showSuccess("User updated successfully!");
+      } else {
+        await adminService.addStaff({
+          name: userForm.name,
+          email: userForm.email,
+          phone: userForm.phone,
+        });
+        showSuccess("User created successfully!");
+      }
+      setShowUserDialog(false);
+      resetForm();
+      fetchUsers(currentPage);
+    } catch (error: any) {
+      showError("Error", error?.message || "Failed to save user");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      setActionLoading("delete");
+      await adminService.removeUser(userToDelete.id);
+      showSuccess("User deleted successfully!");
+      setShowDeleteConfirm(false);
+      setUserToDelete(null);
+      fetchUsers(currentPage);
+    } catch (error) {
+      showError("Error", "Failed to delete user");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (loading) return <TableLoadingSkeleton />;
 
   return (
@@ -366,7 +367,7 @@ export default function UsersTab() {
           <Button
             variant="black"
             size="sm"
-            onClick={handleOpenUserDialog}
+            onClick={openUserDialog}
             className="flex items-center"
           >
             <UserPlus className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
@@ -467,9 +468,12 @@ export default function UsersTab() {
       {/* Results Info */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600">
-          Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}-
-          {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
-          {filteredUsers.length} users
+          Showing{" "}
+          {filteredUsers.length === 0
+            ? 0
+            : (currentPage - 1) * ITEMS_PER_PAGE + 1}
+          -{Math.min(currentPage * ITEMS_PER_PAGE, totalUsers)} of {totalUsers}{" "}
+          users
         </p>
       </div>
 
@@ -490,7 +494,7 @@ export default function UsersTab() {
               {activeFilters.length === 0 && (
                 <Button
                   variant="primary"
-                  onClick={handleOpenUserDialog}
+                  onClick={openUserDialog}
                   className="flex items-center mx-auto"
                 >
                   <UserPlus className="w-4 h-4 mr-2" /> Add First User
@@ -512,7 +516,7 @@ export default function UsersTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedUsers.map((u) => {
+                {filteredUsers.map((u) => {
                   const isActive = isUserActive(u.lastPlayed);
                   return (
                     <TableRow key={u.id}>
@@ -571,30 +575,13 @@ export default function UsersTab() {
                           <span className="font-medium">
                             {u.totalPoints || 0}
                           </span>
-                          {/* {(u.totalPoints || 0) >= 10 && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
-                            >
-                              VIP
-                            </Badge>
-                          )} */}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          {/* <Trophy className="w-4 h-4 text-yellow-500" /> */}
                           <span className="font-medium">
                             {u.gamesPlayed || 0}
                           </span>
-                          {/* {(u.totalPoints || 0) >= 10 && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
-                            >
-                              VIP
-                            </Badge>
-                          )} */}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -639,26 +626,22 @@ export default function UsersTab() {
                               variant="ghost"
                               onClick={() => handleEditUser(u)}
                               className="hover:bg-yellow-50"
-                              // disabled={u.role !== "Admin" && user?.role !== "Owner"}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </div>
                           {user?.role === "Owner" && (
-                            <div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setUserToDelete(u);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="hover:bg-red-50 text-red-600"
-                                // disabled={user?.role !== "Owner"}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setUserToDelete(u);
+                                setShowDeleteConfirm(true);
+                              }}
+                              className="hover:bg-red-50 text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -698,9 +681,7 @@ export default function UsersTab() {
                   <Input
                     type={type}
                     value={userForm[field as keyof typeof userForm]}
-                    onChange={(e) =>
-                      handleUserInputChange(field, e.target.value)
-                    }
+                    onChange={(e) => handleInputChange(field, e.target.value)}
                     placeholder={placeholder}
                     className={formErrors[field] ? "border-red-500" : ""}
                   />
