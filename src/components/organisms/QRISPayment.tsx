@@ -87,7 +87,7 @@ export function QRISPaymentPage({
         setPaymentStatus("expired");
         showError(
           "error",
-          "Pembayaran telah kadaluarsa silahkan login kembali"
+          "Pembayaran telah kadaluarsa silahkan login kembali",
         );
         router.push("/");
         return "expired";
@@ -106,7 +106,7 @@ export function QRISPaymentPage({
       console.error("Error fetching payment data:", error);
       showError(
         "Payment Error",
-        error?.message || "Failed to fetch payment data"
+        error?.message || "Failed to fetch payment data",
       );
       setPaymentData(null);
       return "error";
@@ -159,7 +159,7 @@ export function QRISPaymentPage({
       const now = new Date();
       const expiredAt = new Date(paymentData.expired_at);
       const diffInSeconds = Math.floor(
-        (expiredAt.getTime() - now.getTime()) / 1000
+        (expiredAt.getTime() - now.getTime()) / 1000,
       );
       return Math.max(0, diffInSeconds);
     };
@@ -309,7 +309,7 @@ export function QRISPaymentPage({
       console.error("Error refreshing payment:", error);
       showError(
         "Payment Error",
-        error?.message || "Failed to refresh payment data"
+        error?.message || "Failed to refresh payment data",
       );
     } finally {
       setIsRefreshing(false);
@@ -320,10 +320,12 @@ export function QRISPaymentPage({
     const phoneNumber = "6281385042622";
     const message = encodeURIComponent(
       `Hi Admin Blax Football! Saya butuh bantuan dalam melakukan pembayaran ${
-        paymentType === "booking" ? "booking" : "membership"
+        paymentType === "booking"
+          ? `booking ${"bookId" in paymentData! ? paymentData?.bookId : ""}`
+          : "membership"
       }. Jumlah transaksi: ${
         amount ? formatCurrency(amount) : formatCurrency(paymentData?.total!)
-      }`
+      }`,
     );
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
   };
