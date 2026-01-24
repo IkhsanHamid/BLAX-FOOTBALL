@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Search,
   Edit,
@@ -14,6 +20,7 @@ import {
   Trophy,
   Crown,
   Loader2,
+  X,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -45,6 +52,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Constants
 const ITEMS_PER_PAGE = 10;
 const ACTIVE_DAYS_THRESHOLD = 30;
+const DEBOUNCE_DELAY = 500; // 500ms delay untuk search
 
 const INITIAL_FORM = {
   name: "",
@@ -105,11 +113,14 @@ export default function UsersTab() {
   });
   const [totalUsers, setTotalUsers] = useState(0);
   const [roles, setRoles] = useState<Roles[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Filters & Pagination
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Input value (immediate)
+  const [searchTerm, setSearchTerm] = useState(""); // Actual search term (debounced)
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,20 +135,50 @@ export default function UsersTab() {
   const [userForm, setUserForm] = useState(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Refs for debouncing
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced search effect
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Show searching indicator only if there's input
+    if (searchInput) {
+      setSearching(true);
+    }
+
+    // Set new timer
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setSearching(false);
+    }, DEBOUNCE_DELAY);
+
+    // Cleanup
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchInput]);
+
   // Fetch Users
   const fetchUsers = useCallback(
-    async (page: number = 1) => {
+    async (page: number = 1, isInitial: boolean = false) => {
       try {
-        setLoading(true);
+        if (isInitial) {
+          setInitialLoading(true);
+        } else {
+          setTableLoading(true);
+        }
         const skip = (page - 1) * ITEMS_PER_PAGE;
-
-        // Build search query for backend
-        let searchQuery = searchTerm;
 
         const result = await adminService.getAllUsers(
           ITEMS_PER_PAGE,
           skip,
-          searchQuery
+          searchTerm,
         );
         setUsers(result.users);
         setUsersStats(result.pagination);
@@ -145,10 +186,14 @@ export default function UsersTab() {
       } catch (error) {
         showError("Error", "Failed to load users");
       } finally {
-        setLoading(false);
+        if (isInitial) {
+          setInitialLoading(false);
+        } else {
+          setTableLoading(false);
+        }
       }
     },
-    [showError, searchTerm]
+    [showError, searchTerm],
   );
 
   // Fetch Roles
@@ -166,14 +211,24 @@ export default function UsersTab() {
 
   // Effects
   useEffect(() => {
-    fetchUsers(currentPage);
-  }, [currentPage, searchTerm, fetchUsers]);
+    // Initial load
+    if (initialLoading) {
+      fetchUsers(1, true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Don't run on initial mount
+    if (!initialLoading) {
+      fetchUsers(currentPage, false);
+    }
+  }, [currentPage, searchTerm, fetchUsers, initialLoading]);
 
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
-    } else {
-      fetchUsers(1);
+    } else if (!initialLoading) {
+      fetchUsers(1, false);
     }
   }, [roleFilter, statusFilter]);
 
@@ -182,14 +237,14 @@ export default function UsersTab() {
     () =>
       roles.reduce(
         (acc, role) => ({ ...acc, [role.id]: role.name }),
-        {} as Record<string, string>
+        {} as Record<string, string>,
       ),
-    [roles]
+    [roles],
   );
 
   const getRoleName = useCallback(
     (roleId: string) => roleMap[roleId] || roleId,
-    [roleMap]
+    [roleMap],
   );
 
   const isUserActive = useCallback((lastPlayed: string | null) => {
@@ -214,7 +269,7 @@ export default function UsersTab() {
     return result;
   }, [users, roleFilter, statusFilter, isUserActive]);
 
-  // Stats (calculate from all users, need to fetch total for accurate stats)
+  // Stats
   const stats = useMemo(
     () => ({
       total: usersStats.totalUsers,
@@ -222,14 +277,14 @@ export default function UsersTab() {
       newThisMonth: usersStats.totalNewThisMonth,
       totalGames: usersStats.totalStaff,
     }),
-    [users]
+    [usersStats],
   );
 
-  // Pagination - use totalUsers from backend for accurate page count
+  // Pagination
   const totalPages = Math.ceil(totalUsers / ITEMS_PER_PAGE);
   const uniqueRoles = useMemo(
     () => [...new Set(users.map((u) => u.role))],
-    [users]
+    [users],
   );
 
   const activeFilters = useMemo(
@@ -238,7 +293,10 @@ export default function UsersTab() {
         searchTerm && {
           label: "Search",
           value: searchTerm,
-          clear: () => setSearchTerm(""),
+          clear: () => {
+            setSearchInput("");
+            setSearchTerm("");
+          },
         },
         roleFilter !== "all" && {
           label: "Role",
@@ -251,10 +309,23 @@ export default function UsersTab() {
           clear: () => setStatusFilter("all"),
         },
       ].filter(Boolean),
-    [searchTerm, roleFilter, statusFilter, getRoleName]
+    [searchTerm, roleFilter, statusFilter, getRoleName],
   );
 
   // Handlers
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    // Reset to page 1 when searching
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchTerm("");
+  };
+
   const handleInputChange = useCallback((field: string, value: string) => {
     setUserForm((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => (prev[field] ? { ...prev, [field]: "" } : prev));
@@ -262,7 +333,7 @@ export default function UsersTab() {
 
   const resetForm = useCallback(() => {
     setUserForm(
-      roles.length > 0 ? { ...INITIAL_FORM, role: roles[0].id } : INITIAL_FORM
+      roles.length > 0 ? { ...INITIAL_FORM, role: roles[0].id } : INITIAL_FORM,
     );
     setFormErrors({});
     setEditingUser(null);
@@ -285,7 +356,7 @@ export default function UsersTab() {
       if (roles.length === 0) fetchRoles();
       setShowUserDialog(true);
     },
-    [roles.length, fetchRoles]
+    [roles.length, fetchRoles],
   );
 
   const validateForm = () => {
@@ -325,7 +396,7 @@ export default function UsersTab() {
       }
       setShowUserDialog(false);
       resetForm();
-      fetchUsers(currentPage);
+      fetchUsers(currentPage, false);
     } catch (error: any) {
       showError("Error", error?.message || "Failed to save user");
     } finally {
@@ -341,7 +412,7 @@ export default function UsersTab() {
       showSuccess("User deleted successfully!");
       setShowDeleteConfirm(false);
       setUserToDelete(null);
-      fetchUsers(currentPage);
+      fetchUsers(currentPage, false);
     } catch (error) {
       showError("Error", "Failed to delete user");
     } finally {
@@ -349,7 +420,7 @@ export default function UsersTab() {
     }
   };
 
-  if (loading) return <TableLoadingSkeleton />;
+  if (initialLoading) return <TableLoadingSkeleton />;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -410,10 +481,26 @@ export default function UsersTab() {
               <input
                 type="text"
                 placeholder="Search users by name, email, or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+              {/* Clear button */}
+              {searchInput && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-9 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+              {/* Searching indicator */}
+              {searching && (
+                <div className="absolute right-10 top-9 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                </div>
+              )}
             </div>
 
             <div className="pt-4 flex flex-col sm:flex-row gap-4">
@@ -480,7 +567,63 @@ export default function UsersTab() {
       {/* Users Table */}
       <Card>
         <CardContent className="p-0">
-          {filteredUsers.length === 0 ? (
+          {tableLoading ? (
+            <div className="overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Total Points</TableHead>
+                    <TableHead>Total Games</TableHead>
+                    <TableHead>Last Activity</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...Array(5)].map((_, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                          <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <div className="h-3 bg-gray-200 rounded w-40 animate-pulse" />
+                          <div className="h-3 bg-gray-200 rounded w-32 animate-pulse" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-200 rounded w-20 animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-200 rounded w-12 animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-200 rounded w-16 animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
+                          <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : filteredUsers.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -546,7 +689,7 @@ export default function UsersTab() {
                             <a
                               href={`https://wa.me/${u.phone.replace(
                                 /^0/,
-                                "62"
+                                "62",
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
