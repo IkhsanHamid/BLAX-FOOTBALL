@@ -147,12 +147,10 @@ export default function ImageUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*" // Lebih universal untuk mobile
+          accept="image/*"
           onChange={handleFileChange}
           disabled={disabled || uploading}
           className="hidden"
-          // Tambahkan capture untuk akses kamera di mobile
-          {...(isMobile ? { capture: "environment" } : {})}
         />
 
         {/* Upload Area */}
