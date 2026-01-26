@@ -34,7 +34,7 @@ export default function GalleriesManagement() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editingGallery, setEditingGallery] = useState<GalleryData | null>(
-    null
+    null,
   );
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -172,7 +172,9 @@ export default function GalleriesManagement() {
       console.error("Error saving gallery:", error);
       showError(
         "Error",
-        editingGallery ? "Failed to update gallery" : "Failed to create gallery"
+        editingGallery
+          ? "Failed to update gallery"
+          : "Failed to create gallery",
       );
     } finally {
       setSubmitting(false);
@@ -231,7 +233,7 @@ export default function GalleriesManagement() {
   };
 
   const filteredGalleries = galleries.filter((gallery) =>
-    gallery.scheduleName.toLowerCase().includes(searchTerm.toLowerCase())
+    gallery.scheduleName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const formatDate = (dateString: string) => {
@@ -434,7 +436,9 @@ export default function GalleriesManagement() {
                 <option value="">Pilih Schedule</option>
                 {schedules.map((schedule) => (
                   <option key={schedule.id} value={schedule.id}>
-                    {schedule.name}
+                    {schedule.name} -{" "}
+                    {new Date(schedule.date).toLocaleDateString("id-ID")} -{" "}
+                    {schedule.time}
                   </option>
                 ))}
               </select>
@@ -567,8 +571,8 @@ export default function GalleriesManagement() {
                     ? "Updating..."
                     : "Creating..."
                   : editingGallery
-                  ? "Update Gallery"
-                  : "Buat Gallery"}
+                    ? "Update Gallery"
+                    : "Buat Gallery"}
               </Button>
             </div>
           </div>
