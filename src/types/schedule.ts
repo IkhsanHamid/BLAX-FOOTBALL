@@ -62,4 +62,6 @@ export interface ScheduleOverview {
 export interface ListSchedule {
   id: string;
   name: string;
+  date: string;
+  time: string;
 }
