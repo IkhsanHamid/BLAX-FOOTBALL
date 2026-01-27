@@ -18,7 +18,7 @@ class AdminService {
   async getAllUsers(
     limit?: number,
     offset?: number,
-    search?: string
+    search?: string,
   ): Promise<{
     users: UserManagement[];
     pagination: {
@@ -40,7 +40,7 @@ class AdminService {
       if (search) queryParams.append("name", search);
 
       const result = await apiClient.get(
-        `/api/v1/users/allUsers?${queryParams}`
+        `/api/v1/users/allUsers?${queryParams}`,
       );
       return {
         users: result.data || [],
@@ -78,7 +78,7 @@ class AdminService {
   async scheduleOverview(
     startDate?: String,
     endDate?: String,
-    venue?: string
+    venue?: string,
   ): Promise<ScheduleOverview[]> {
     const queryParams = new URLSearchParams();
 
@@ -87,7 +87,7 @@ class AdminService {
     if (venue) queryParams.append("venue", venue.toString());
 
     const response = await apiClient.get(
-      `/api/v1/matches/schedules-overview?${queryParams}`
+      `/api/v1/matches/schedules-overview?${queryParams}`,
     );
 
     return response.data;
@@ -107,7 +107,7 @@ class AdminService {
     try {
       const response = await apiClient.put(
         `/api/v1/news/update-news/${id}`,
-        newsData
+        newsData,
       );
       return response.data;
     } catch (error) {
@@ -120,7 +120,7 @@ class AdminService {
     try {
       const response = await apiClient.post(
         "/api/v1/matches/add-schedules",
-        scheduleData
+        scheduleData,
       );
       return response.data;
     } catch (error) {
@@ -133,7 +133,7 @@ class AdminService {
     try {
       const response = await apiClient.put(
         `/api/v1/matches/update-schedule?id=${id}`,
-        scheduleData
+        scheduleData,
       );
       return response.data;
     } catch (error) {
@@ -145,7 +145,7 @@ class AdminService {
   async deleteSchedule(id: string): Promise<any> {
     try {
       const response = await apiClient.delete(
-        `/api/v1/matches/delete-schedule?id=${id}`
+        `/api/v1/matches/delete-schedule?id=${id}`,
       );
       return response.data;
     } catch (error) {
@@ -166,16 +166,27 @@ class AdminService {
 
   async reportBooking(
     startDate?: string,
-    endDate?: string
+    endDate?: string,
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
       if (startDate) queryParams.append("startDate", startDate.toString());
       if (endDate) queryParams.append("endDate", endDate.toString());
       const response = await apiClient.get(
-        "/api/v1/reports/booking-reports?" + queryParams
+        "/api/v1/reports/booking-reports?" + queryParams,
       );
 
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getScheduleBookings(scheduleId: string) {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/reports/booking-report-detail/${scheduleId}`,
+      );
       return response.data;
     } catch (error) {
       throw error;
@@ -188,7 +199,7 @@ class AdminService {
     status?: string,
     search?: string,
     skip?: number,
-    limit?: number
+    limit?: number,
   ): Promise<BookingHistoryResponse> {
     try {
       const queryParams = new URLSearchParams();
@@ -200,7 +211,7 @@ class AdminService {
       if (limit) queryParams.append("limit", limit.toString());
 
       const response = await apiClient.get(
-        "/api/v1/booking/recent-booking?" + queryParams
+        "/api/v1/booking/recent-booking?" + queryParams,
       );
       return response;
     } catch (error) {
@@ -222,7 +233,7 @@ class AdminService {
     try {
       const response = await apiClient.put(
         `/api/v1/users/updateUser?userId=${id}`,
-        data
+        data,
       );
       return response.data;
     } catch (error) {
@@ -241,7 +252,7 @@ class AdminService {
 
   async listMemberUser(search?: string): Promise<ListUserMember[]> {
     const response = await apiClient.get(
-      `/api/v1/users/list-membership?search=${search}`
+      `/api/v1/users/list-membership?search=${search}`,
     );
     return response.data;
   }
@@ -250,7 +261,7 @@ class AdminService {
     try {
       const response = await apiClient.post(
         `/api/v1/galleries/add-gallery`,
-        payload
+        payload,
       );
       return response.data;
     } catch (error) {
@@ -262,7 +273,7 @@ class AdminService {
   async galleriesDatas(
     scheduleId?: string,
     skip?: number,
-    limit?: number
+    limit?: number,
   ): Promise<GalleryData[]> {
     try {
       const queryParams = new URLSearchParams();
@@ -270,7 +281,7 @@ class AdminService {
       if (skip) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
       const response = await apiClient.get(
-        `/api/v1/galleries/galleries-data?${queryParams}`
+        `/api/v1/galleries/galleries-data?${queryParams}`,
       );
       return response.data;
     } catch (error: any) {
@@ -292,7 +303,7 @@ class AdminService {
   async deleteGallery(id: string) {
     try {
       const response = await apiClient.delete(
-        `/api/v1/galleries/delete-gallery/${id}`
+        `/api/v1/galleries/delete-gallery/${id}`,
       );
       return response.data;
     } catch (error) {
@@ -305,7 +316,7 @@ class AdminService {
     try {
       const response = await apiClient.put(
         `/api/v1/galleries/update-gallery/${id}`,
-        payload
+        payload,
       );
       return response.data;
     } catch (error) {
@@ -336,7 +347,7 @@ class AdminService {
       if (search) queryParams.append("search", search);
 
       const result = await apiClient.get(
-        `/api/v1/reschedule/list-available-reschedule?${queryParams}`
+        `/api/v1/reschedule/list-available-reschedule?${queryParams}`,
       );
 
       return result;
@@ -360,7 +371,7 @@ class AdminService {
     if (search) queryParams.append("search", search);
 
     const result = await apiClient.get(
-      `/api/v1/reschedule/histories?${queryParams}`
+      `/api/v1/reschedule/histories?${queryParams}`,
     );
 
     return result;
@@ -369,7 +380,7 @@ class AdminService {
   async changeNameTeam(
     scheduleId: string,
     nameTeam: string,
-    teamExist: string
+    teamExist: string,
   ) {
     const result = await apiClient.post(`/api/v1/lineup/name-team`, {
       scheduleId,

@@ -25,13 +25,60 @@ import { saveAs } from "file-saver";
 import autoTable from "jspdf-autotable";
 import { ReportBooking } from "@/types/admin";
 import { adminService } from "@/utils/admin";
+import BookingDetailModal from "../molecules/BookingDetailModal";
 
-export default function ReportsTab() {
-  const [loading, setLoading] = useState(false);
-  const [dateRange, setDateRange] = useState("7d");
+// ========================================
+// TYPE DEFINITIONS
+// ========================================
+
+interface BookingDetail {
+  bookId: string;
+  userName: string;
+  userPhone: string;
+  isMember: boolean;
+  quantity: number;
+  bookingType: "INDIVIDUAL" | "TEAM";
+  totalAmount?: number;
+  adminFee?: string;
+  discountAmount?: string;
+}
+
+interface Schedule {
+  scheduleId: string;
+  name: string;
+  date: string;
+  time: string;
+  venue: string;
+  typeMatch: string;
+  status: boolean;
+  players: number;
+  revenue: number;
+}
+
+interface Stats {
+  totalBooking: number;
+  totalRevenue: number;
+  totalPlayers: number;
+  activeBookings: number;
+  completedBookings: number;
+  averageRevenue: number;
+}
+
+// ========================================
+// MAIN REPORTS TAB COMPONENT
+// ========================================
+
+export default function ReportsTab(): JSX.Element {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [dateRange, setDateRange] = useState<string>("7d");
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
+    null,
+  );
+  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const [bookingDetails, setBookingDetails] = useState<BookingDetail[]>([]);
 
   // Initialize with last 7 days
-  const getDefaultDates = () => {
+  const getDefaultDates = (): { startDate: string; endDate: string } => {
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -41,8 +88,10 @@ export default function ReportsTab() {
     };
   };
 
-  const [startDate, setStartDate] = useState(getDefaultDates().startDate);
-  const [endDate, setEndDate] = useState(getDefaultDates().endDate);
+  const [startDate, setStartDate] = useState<string>(
+    getDefaultDates().startDate,
+  );
+  const [endDate, setEndDate] = useState<string>(getDefaultDates().endDate);
   const [reportData, setReportData] = useState<ReportBooking | null>(null);
   const { showSuccess, showError } = useNotifications();
 
@@ -50,14 +99,14 @@ export default function ReportsTab() {
     handleRefreshData();
   }, []);
 
-  const handleRefreshData = async () => {
+  const handleRefreshData = async (): Promise<void> => {
     if (!startDate || !endDate) return;
 
     setLoading(true);
     try {
       const reportResponse = await adminService.reportBooking(
         startDate,
-        endDate
+        endDate,
       );
 
       setReportData(reportResponse);
@@ -67,12 +116,12 @@ export default function ReportsTab() {
       if (error.message.includes("fetch")) {
         showError(
           "Network Error",
-          "Tidak dapat terhubung ke server. Pastikan server berjalan di localhost:3100"
+          "Tidak dapat terhubung ke server. Pastikan server berjalan di localhost:3100",
         );
       } else if (error.message.includes("404")) {
         showError(
           "API Not Found",
-          "Endpoint API tidak ditemukan. Periksa URL API"
+          "Endpoint API tidak ditemukan. Periksa URL API",
         );
       } else if (error.message.includes("500")) {
         showError("Server Error", "Server mengalami error internal");
@@ -84,7 +133,7 @@ export default function ReportsTab() {
     }
   };
 
-  const generatePDFReport = () => {
+  const generatePDFReport = (): void => {
     if (!reportData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
@@ -108,7 +157,7 @@ export default function ReportsTab() {
       doc.setTextColor(40, 40, 40);
       doc.text("Ringkasan", 20, 65);
 
-      const summaryData = [
+      const summaryData: (string | number)[][] = [
         ["Total Booking", reportData.totalBooking.toString()],
         [
           "Total Pendapatan",
@@ -135,21 +184,23 @@ export default function ReportsTab() {
       });
 
       // Schedule details
-      const lastY = doc.lastAutoTable?.finalY || 75;
+      const lastY: number = (doc as any).lastAutoTable?.finalY || 75;
 
       doc.setFontSize(14);
       doc.setTextColor(40, 40, 40);
       doc.text("Detail Jadwal", 20, lastY + 20);
 
-      const scheduleData = reportData.schedules.map((schedule) => [
-        new Date(schedule.date).toLocaleDateString("id-ID"),
-        schedule.name,
-        schedule.venue,
-        schedule.typeMatch,
-        schedule.players.toString(),
-        `Rp ${schedule.revenue.toLocaleString("id-ID")}`,
-        schedule.status ? "Aktif" : "Selesai",
-      ]);
+      const scheduleData: (string | number)[][] = reportData.schedules.map(
+        (schedule) => [
+          new Date(schedule.date).toLocaleDateString("id-ID"),
+          schedule.name,
+          schedule.venue,
+          schedule.typeMatch,
+          schedule.players.toString(),
+          `Rp ${schedule.revenue.toLocaleString("id-ID")}`,
+          schedule.status ? "Aktif" : "Selesai",
+        ],
+      );
 
       autoTable(doc, {
         startY: lastY + 30,
@@ -171,17 +222,17 @@ export default function ReportsTab() {
       });
 
       // Footer
-      const pageCount = doc.getNumberOfPages();
+      const pageCount: number = (doc as any).getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(10);
         doc.setTextColor(150, 150, 150);
         doc.text(
           `Generated on ${new Date().toLocaleDateString(
-            "id-ID"
+            "id-ID",
           )} - Page ${i} of ${pageCount}`,
           20,
-          doc.internal.pageSize.height - 10
+          (doc as any).internal.pageSize.height - 10,
         );
       }
 
@@ -193,7 +244,7 @@ export default function ReportsTab() {
     }
   };
 
-  const generateExcelReport = () => {
+  const generateExcelReport = (): void => {
     if (!reportData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
@@ -204,7 +255,7 @@ export default function ReportsTab() {
       const wb = XLSX.utils.book_new();
 
       // Summary sheet
-      const summaryData = [
+      const summaryData: (string | number)[][] = [
         ["Metrik", "Nilai"],
         ["Total Booking", reportData.totalBooking],
         ["Total Pendapatan", reportData.totalRevenue],
@@ -220,7 +271,7 @@ export default function ReportsTab() {
       XLSX.utils.book_append_sheet(wb, summaryWS, "Ringkasan");
 
       // Schedule sheet
-      const scheduleHeaders = [
+      const scheduleHeaders: string[] = [
         "ID Jadwal",
         "Nama",
         "Tanggal",
@@ -232,7 +283,7 @@ export default function ReportsTab() {
         "Pendapatan",
       ];
 
-      const scheduleData = [
+      const scheduleData: (string | number | boolean)[][] = [
         scheduleHeaders,
         ...reportData.schedules.map((schedule) => [
           schedule.scheduleId,
@@ -264,7 +315,7 @@ export default function ReportsTab() {
     }
   };
 
-  const handleDateRangeChange = (range: string) => {
+  const handleDateRangeChange = (range: string): void => {
     setDateRange(range);
 
     if (range !== "custom") {
@@ -290,8 +341,29 @@ export default function ReportsTab() {
     }
   };
 
+  const handleScheduleClick = async (schedule: Schedule): Promise<void> => {
+    setSelectedSchedule(schedule);
+    setShowDetailModal(true);
+
+    try {
+      const bookings = await adminService.getScheduleBookings(
+        schedule.scheduleId,
+      );
+      setBookingDetails(bookings);
+    } catch (error) {
+      showError("Error", "Gagal memuat detail booking");
+      setBookingDetails([]);
+    }
+  };
+
+  const handleCloseModal = (): void => {
+    setShowDetailModal(false);
+    setSelectedSchedule(null);
+    setBookingDetails([]);
+  };
+
   // Calculate derived statistics
-  const getStats = () => {
+  const getStats = (): Stats => {
     if (!reportData) {
       return {
         totalBooking: 0,
@@ -305,7 +377,7 @@ export default function ReportsTab() {
 
     const activeBookings = reportData.schedules.filter((s) => s.status).length;
     const completedBookings = reportData.schedules.filter(
-      (s) => !s.status
+      (s) => !s.status,
     ).length;
     const averageRevenue =
       reportData.totalBooking > 0
@@ -322,7 +394,7 @@ export default function ReportsTab() {
     };
   };
 
-  const stats = getStats();
+  const stats: Stats = getStats();
 
   return (
     <div className="space-y-6">
@@ -551,7 +623,7 @@ export default function ReportsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {reportData.schedules.map((schedule) => (
+                  {reportData.schedules.map((schedule: Schedule) => (
                     <tr key={schedule.scheduleId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -563,9 +635,13 @@ export default function ReportsTab() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <button
+                          onClick={() => handleScheduleClick(schedule)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center transition-colors"
+                        >
                           {schedule.name}
-                        </div>
+                          <Eye className="w-4 h-4 ml-2" />
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -643,6 +719,15 @@ export default function ReportsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Booking Detail Modal */}
+      {showDetailModal && selectedSchedule && (
+        <BookingDetailModal
+          schedule={selectedSchedule}
+          bookings={bookingDetails}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
