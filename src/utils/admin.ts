@@ -169,6 +169,7 @@ class AdminService {
     endDate?: string,
     skip?: 0 | number,
     limit?: 10 | number,
+    venueId?: string,
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
@@ -176,6 +177,7 @@ class AdminService {
       if (endDate) queryParams.append("endDate", endDate.toString());
       if (skip) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
+      if (venueId) queryParams.append("venueId", venueId.toString());
 
       const response = await apiClient.get(
         "/api/v1/reports/booking-reports?" + queryParams,
