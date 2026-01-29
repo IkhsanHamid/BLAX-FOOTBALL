@@ -3,63 +3,89 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   BarChart3,
-  Download,
   FileText,
   Calendar,
   TrendingUp,
   Users,
   DollarSign,
+  Activity,
   RefreshCw,
   FileSpreadsheet,
-  CreditCard,
-  CheckCircle,
-  Clock,
+  Eye,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../atoms/Card";
+import { useNotifications } from "./NotificationContainer";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import autoTable from "jspdf-autotable";
+import { ReportBooking } from "@/types/admin";
 import { adminService } from "@/utils/admin";
-import { useNotifications } from "../organisms/NotificationContainer";
+import BookingDetailModal from "../molecules/BookingDetailModal";
 
 // ========================================
 // TYPE DEFINITIONS
 // ========================================
 
-interface MembershipPayment {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  status: "SUCCESS" | "FAILED" | "PENDING";
-  amount: number;
-  payAt: string;
-  validUntil: string;
-  isActive: boolean;
+interface BookingDetail {
+  bookId: string;
+  userName: string;
+  userPhone: string;
+  isMember: boolean;
+  quantity: number;
+  bookingType: "INDIVIDUAL" | "TEAM";
+  totalAmount?: number;
+  adminFee?: string;
+  discountAmount?: string;
 }
 
-interface MembershipReportTabProps {
+interface Schedule {
+  scheduleId: string;
+  name: string;
+  date: string;
+  time: string;
+  venue: string;
+  typeMatch: string;
+  status: boolean;
+  players: number;
+  revenue: number;
+}
+
+interface Stats {
+  totalBooking: number;
+  totalRevenue: number;
+  totalPlayers: number;
+  activeBookings: number;
+  completedBookings: number;
+  averageRevenue: number;
+}
+
+interface ScheduleReportTabProps {
   startDate: string;
   endDate: string;
+  venueId: string;
   onRefreshRequest?: () => void;
 }
 
 // ========================================
-// MEMBERSHIP REPORT TAB COMPONENT
+// SCHEDULE REPORT TAB COMPONENT
 // ========================================
 
-export default function MembershipReportTab({
+export default function ScheduleReportTab({
   startDate,
   endDate,
+  venueId,
   onRefreshRequest,
-}: MembershipReportTabProps): JSX.Element {
+}: ScheduleReportTabProps): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
-  const [membershipPayments, setMembershipPayments] = useState<
-    MembershipPayment[]
-  >([]);
+  const [reportData, setReportData] = useState<ReportBooking | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
+    null,
+  );
+  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const [bookingDetails, setBookingDetails] = useState<BookingDetail[]>([]);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -71,8 +97,8 @@ export default function MembershipReportTab({
   const abortControllerRef = useRef<AbortController | null>(null);
   const isInitialMount = useRef(true);
 
-  // Fetch membership data
-  const fetchMembershipData = async (): Promise<void> => {
+  // Fetch schedule report data
+  const fetchScheduleData = async (): Promise<void> => {
     if (!startDate || !endDate) return;
 
     // Cancel previous request
@@ -84,21 +110,21 @@ export default function MembershipReportTab({
     setLoading(true);
     try {
       const skip = (currentPage - 1) * itemsPerPage;
-      const membershipData = await adminService.membershipReport(
+      const reportResponse = await adminService.reportBooking(
         startDate,
         endDate,
-        "",
-        Number(skip),
+        skip,
         itemsPerPage,
+        venueId,
       );
+      setReportData(reportResponse);
 
-      setMembershipPayments(membershipData.data || []);
-
-      if (membershipData.totalPages) {
-        setTotalPages(membershipData.totalPages);
+      // Update pagination info if available
+      if (reportResponse.totalPages) {
+        setTotalPages(reportResponse.totalPages);
       }
-      if (membershipData.totalData !== undefined) {
-        setTotalData(membershipData.totalData);
+      if (reportResponse.total !== undefined) {
+        setTotalData(reportResponse.total);
       }
 
       if (!isInitialMount.current) {
@@ -121,10 +147,7 @@ export default function MembershipReportTab({
       } else if (error.message.includes("500")) {
         showError("Server Error", "Server mengalami error internal");
       } else {
-        showError(
-          "Error",
-          `Gagal memuat data pembayaran membership: ${error.message}`,
-        );
+        showError("Error", `Gagal memuat data laporan: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -134,7 +157,7 @@ export default function MembershipReportTab({
 
   // Initial load
   useEffect(() => {
-    fetchMembershipData();
+    fetchScheduleData();
 
     // Cleanup
     return () => {
@@ -144,16 +167,16 @@ export default function MembershipReportTab({
     };
   }, []);
 
-  // Refetch when pagination or date range changes
+  // Refetch when pagination or filters change
   useEffect(() => {
     if (!isInitialMount.current) {
-      fetchMembershipData();
+      fetchScheduleData();
     }
-  }, [currentPage, itemsPerPage, startDate, endDate]);
+  }, [currentPage, itemsPerPage, startDate, endDate, venueId]);
 
   // Generate PDF Report
   const generatePDF = (): void => {
-    if (!membershipPayments.length) {
+    if (!reportData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
     }
@@ -164,27 +187,33 @@ export default function MembershipReportTab({
       // Header
       doc.setFontSize(20);
       doc.setTextColor(40, 40, 40);
-      doc.text("Blax Football - History Pembayaran Membership", 20, 30);
+      doc.text("Blax Football - Laporan Booking", 20, 30);
 
       // Date range
       doc.setFontSize(12);
       doc.setTextColor(100, 100, 100);
       doc.text(`Periode: ${startDate} - ${endDate}`, 20, 45);
 
-      // Summary
-      const totalAmount = membershipPayments.reduce(
-        (sum, p) => sum + p.amount,
-        0,
-      );
-      const activeCount = membershipPayments.filter((p) => p.isActive).length;
-
+      // Summary section
       doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
       doc.text("Ringkasan", 20, 65);
 
       const summaryData: (string | number)[][] = [
-        ["Total Transaksi", membershipPayments.length.toString()],
-        ["Total Pendapatan", `Rp ${totalAmount.toLocaleString("id-ID")}`],
-        ["Member Aktif", activeCount.toString()],
+        ["Total Booking", reportData.totalBooking.toString()],
+        [
+          "Total Pendapatan",
+          `Rp ${reportData.totalRevenue.toLocaleString("id-ID")}`,
+        ],
+        ["Total Pemain", reportData.totalPlayers.toString()],
+        [
+          "Jadwal Aktif",
+          reportData.schedules.filter((s) => s.status).length.toString(),
+        ],
+        [
+          "Jadwal Selesai",
+          reportData.schedules.filter((s) => !s.status).length.toString(),
+        ],
       ];
 
       autoTable(doc, {
@@ -192,24 +221,26 @@ export default function MembershipReportTab({
         head: [["Metrik", "Nilai"]],
         body: summaryData,
         theme: "grid",
-        headStyles: { fillColor: [16, 185, 129] },
+        headStyles: { fillColor: [59, 130, 246] },
         margin: { left: 20, right: 20 },
       });
 
-      // Payment details
+      // Schedule details
       const lastY: number = (doc as any).lastAutoTable?.finalY || 75;
 
       doc.setFontSize(14);
-      doc.text("Detail Pembayaran", 20, lastY + 20);
+      doc.setTextColor(40, 40, 40);
+      doc.text("Detail Jadwal", 20, lastY + 20);
 
-      const paymentData: (string | number)[][] = membershipPayments.map(
-        (payment) => [
-          payment.name,
-          payment.phone,
-          `Rp ${payment.amount.toLocaleString("id-ID")}`,
-          new Date(payment.payAt).toLocaleDateString("id-ID"),
-          new Date(payment.validUntil).toLocaleDateString("id-ID"),
-          payment.status,
+      const scheduleData: (string | number)[][] = reportData.schedules.map(
+        (schedule) => [
+          new Date(schedule.date).toLocaleDateString("id-ID"),
+          schedule.name,
+          schedule.venue,
+          schedule.typeMatch,
+          schedule.players.toString(),
+          `Rp ${schedule.revenue.toLocaleString("id-ID")}`,
+          schedule.status ? "Aktif" : "Selesai",
         ],
       );
 
@@ -217,17 +248,18 @@ export default function MembershipReportTab({
         startY: lastY + 30,
         head: [
           [
+            "Tanggal",
             "Nama",
-            "No. HP",
-            "Nominal",
-            "Tanggal Bayar",
-            "Valid Sampai",
+            "Venue",
+            "Tipe",
+            "Pemain",
+            "Pendapatan",
             "Status",
           ],
         ],
-        body: paymentData,
+        body: scheduleData,
         theme: "grid",
-        headStyles: { fillColor: [16, 185, 129] },
+        headStyles: { fillColor: [59, 130, 246] },
         margin: { left: 20, right: 20 },
       });
 
@@ -246,7 +278,7 @@ export default function MembershipReportTab({
         );
       }
 
-      doc.save(`membership-payments-${startDate}-to-${endDate}.pdf`);
+      doc.save(`blax-football-report-${startDate}-to-${endDate}.pdf`);
       showSuccess("PDF Report Generated", "Report berhasil diunduh");
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -256,7 +288,7 @@ export default function MembershipReportTab({
 
   // Generate Excel Report
   const generateExcel = (): void => {
-    if (!membershipPayments.length) {
+    if (!reportData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
     }
@@ -265,57 +297,58 @@ export default function MembershipReportTab({
       const wb = XLSX.utils.book_new();
 
       // Summary sheet
-      const totalAmount = membershipPayments.reduce(
-        (sum, p) => sum + p.amount,
-        0,
-      );
-      const activeCount = membershipPayments.filter((p) => p.isActive).length;
-
       const summaryData: (string | number)[][] = [
         ["Metrik", "Nilai"],
-        ["Total Transaksi", membershipPayments.length],
-        ["Total Pendapatan", totalAmount],
-        ["Member Aktif", activeCount],
+        ["Total Booking", reportData.totalBooking],
+        ["Total Pendapatan", reportData.totalRevenue],
+        ["Total Pemain", reportData.totalPlayers],
+        ["Jadwal Aktif", reportData.schedules.filter((s) => s.status).length],
+        [
+          "Jadwal Selesai",
+          reportData.schedules.filter((s) => !s.status).length,
+        ],
       ];
 
       const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(wb, summaryWS, "Ringkasan");
 
-      // Payment sheet
-      const paymentHeaders: string[] = [
-        "ID",
+      // Schedule sheet
+      const scheduleHeaders: string[] = [
+        "ID Jadwal",
         "Nama",
-        "No. HP",
-        "Nominal Bayar",
-        "Tanggal Bayar",
-        "Valid Sampai",
-        "Status Pembayaran",
-        "Status Membership",
+        "Tanggal",
+        "Waktu",
+        "Venue",
+        "Tipe Match",
+        "Status",
+        "Jumlah Pemain",
+        "Pendapatan",
       ];
 
-      const paymentData: (string | number)[][] = [
-        paymentHeaders,
-        ...membershipPayments.map((payment) => [
-          payment.id,
-          payment.name,
-          payment.phone,
-          payment.amount,
-          payment.payAt,
-          payment.validUntil,
-          payment.status,
-          payment.isActive ? "Aktif" : "Tidak Aktif",
+      const scheduleData: (string | number | boolean)[][] = [
+        scheduleHeaders,
+        ...reportData.schedules.map((schedule) => [
+          schedule.scheduleId,
+          schedule.name,
+          schedule.date,
+          schedule.time,
+          schedule.venue,
+          schedule.typeMatch,
+          schedule.status ? "Aktif" : "Selesai",
+          schedule.players,
+          schedule.revenue,
         ]),
       ];
 
-      const paymentWS = XLSX.utils.aoa_to_sheet(paymentData);
-      XLSX.utils.book_append_sheet(wb, paymentWS, "History Pembayaran");
+      const scheduleWS = XLSX.utils.aoa_to_sheet(scheduleData);
+      XLSX.utils.book_append_sheet(wb, scheduleWS, "Detail Jadwal");
 
       const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const data = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
-      saveAs(data, `membership-payments-${startDate}-to-${endDate}.xlsx`);
+      saveAs(data, `blax-football-report-${startDate}-to-${endDate}.xlsx`);
       showSuccess("Excel Report Generated", "Report berhasil diunduh");
     } catch (error) {
       console.error("Error generating Excel:", error);
@@ -323,51 +356,25 @@ export default function MembershipReportTab({
     }
   };
 
-  // Calculate statistics
-  const getStats = () => {
-    const totalTransactions = membershipPayments.length;
-    const totalRevenue = membershipPayments.reduce(
-      (sum, p) => sum + p.amount,
-      0,
-    );
-    const activeMembers = membershipPayments.filter((p) => p.isActive).length;
-    const averagePayment =
-      totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+  const handleScheduleClick = async (schedule: Schedule): Promise<void> => {
+    setSelectedSchedule(schedule);
+    setShowDetailModal(true);
 
-    return {
-      totalTransactions,
-      totalRevenue,
-      activeMembers,
-      averagePayment,
-    };
-  };
-
-  const stats = getStats();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "SUCCESS":
-        return "bg-green-100 text-green-800";
-      case "FAILED":
-        return "bg-red-100 text-red-800";
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+    try {
+      const bookings = await adminService.getScheduleBookings(
+        schedule.scheduleId,
+      );
+      setBookingDetails(bookings);
+    } catch (error) {
+      showError("Error", "Gagal memuat detail booking");
+      setBookingDetails([]);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "SUCCESS":
-        return <CheckCircle className="w-3 h-3" />;
-      case "FAILED":
-        return <Clock className="w-3 h-3" />;
-      case "PENDING":
-        return <Clock className="w-3 h-3" />;
-      default:
-        return null;
-    }
+  const handleCloseModal = (): void => {
+    setShowDetailModal(false);
+    setSelectedSchedule(null);
+    setBookingDetails([]);
   };
 
   const handlePageChange = (newPage: number): void => {
@@ -376,30 +383,101 @@ export default function MembershipReportTab({
 
   const handleLimitChange = (newLimit: number): void => {
     setItemsPerPage(newLimit);
-    setCurrentPage(1); // Reset to first page when limit changes
+    setCurrentPage(1);
   };
+
+  // Calculate statistics
+  const getStats = (): Stats => {
+    if (!reportData) {
+      return {
+        totalBooking: 0,
+        totalRevenue: 0,
+        totalPlayers: 0,
+        activeBookings: 0,
+        completedBookings: 0,
+        averageRevenue: 0,
+      };
+    }
+
+    const activeBookings = reportData.schedules.filter((s) => s.status).length;
+    const completedBookings = reportData.schedules.filter(
+      (s) => !s.status,
+    ).length;
+    const averageRevenue =
+      reportData.totalBooking > 0
+        ? reportData.totalRevenue / reportData.totalBooking
+        : 0;
+
+    return {
+      totalBooking: reportData.totalBooking,
+      totalRevenue: reportData.totalRevenue,
+      totalPlayers: reportData.totalPlayers,
+      activeBookings,
+      completedBookings,
+      averageRevenue,
+    };
+  };
+
+  const stats: Stats = getStats();
 
   return (
     <div className="space-y-6">
+      {/* Header with Export Buttons */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Laporan Jadwal Booking
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Analisis performa dan statistik booking jadwal
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={generatePDF}
+            disabled={!reportData}
+            className="flex items-center"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Export PDF
+          </Button>
+
+          <Button
+            variant="black"
+            size="sm"
+            onClick={generateExcel}
+            disabled={!reportData}
+            className="flex items-center bg-green-600 hover:bg-green-700"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Export Excel
+          </Button>
+        </div>
+      </div>
+
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="hover:shadow-lg transition-shadow duration-200">
           <CardContent className="p-6">
             <div className="pt-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Total Transaksi
+                  Total Booking
                 </p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {stats.totalTransactions}
+                  {stats.totalBooking}
                 </p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <CreditCard className="w-3 h-3 mr-1" />
-                  Pembayaran membership
+                <p className="text-xs text-blue-600 flex items-center mt-1">
+                  <Activity className="w-3 h-3 mr-1" />
+                  {stats.activeBookings} aktif, {stats.completedBookings}{" "}
+                  selesai
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CreditCard className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Calendar className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -415,35 +493,14 @@ export default function MembershipReportTab({
                 <p className="text-3xl font-bold text-gray-900">
                   Rp {(stats.totalRevenue / 1000000).toFixed(1)}M
                 </p>
-                <p className="text-xs text-emerald-600 flex items-center mt-1">
+                <p className="text-xs text-green-600 flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
-                  Dari membership
+                  Rata-rata: Rp {Math.round(stats.averageRevenue / 1000)}K per
+                  booking
                 </p>
               </div>
-              <div className="p-3 bg-emerald-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-200">
-          <CardContent className="p-6">
-            <div className="pt-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Member Aktif
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {stats.activeMembers}
-                </p>
-                <p className="text-xs text-blue-600 flex items-center mt-1">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Status aktif
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-green-100 rounded-lg">
+                <DollarSign className="w-4 h-4 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -454,41 +511,42 @@ export default function MembershipReportTab({
             <div className="pt-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Rata-rata Bayar
+                  Total Pemain
                 </p>
                 <p className="text-3xl font-bold text-gray-900">
-                  Rp {Math.round(stats.averagePayment / 1000)}K
+                  {stats.totalPlayers}
                 </p>
                 <p className="text-xs text-purple-600 flex items-center mt-1">
-                  <BarChart3 className="w-3 h-3 mr-1" />
-                  Per transaksi
+                  <Users className="w-3 h-3 mr-1" />
+                  {stats.totalBooking > 0
+                    ? Math.round(stats.totalPlayers / stats.totalBooking)
+                    : 0}{" "}
+                  rata-rata per sesi
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-purple-600" />
+                <Users className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payment Table */}
+      {/* Schedule Table */}
       <Card>
         <CardHeader>
-          <CardTitle>History Pembayaran Membership</CardTitle>
+          <CardTitle>Detail Laporan Jadwal</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center h-32">
-              <RefreshCw className="w-6 h-6 animate-spin text-green-500" />
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
               <span className="ml-2 text-gray-600">Memuat data...</span>
             </div>
-          ) : !membershipPayments.length ? (
+          ) : !reportData ? (
             <div className="text-center py-8">
-              <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">
-                Belum ada data pembayaran membership
-              </p>
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">Belum ada data laporan</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -496,19 +554,22 @@ export default function MembershipReportTab({
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nama User
+                      Tanggal
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      No. HP
+                      Nama
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nominal Bayar
+                      Venue
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tanggal Bayar
+                      Tipe
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Valid Sampai
+                      Pemain
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pendapatan
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -516,75 +577,59 @@ export default function MembershipReportTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {membershipPayments.map((payment: MembershipPayment) => (
+                  {reportData.schedules.map((schedule: Schedule) => (
                     <tr
-                      key={payment.id}
+                      key={schedule.scheduleId}
                       className="hover:bg-gray-50 transition-colors"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {payment.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {payment.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {payment.email}
-                            </div>
-                          </div>
+                          <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                          {new Date(schedule.date).toLocaleDateString("id-ID")}
                         </div>
+                        <div className="text-xs text-gray-500">
+                          {schedule.time}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleScheduleClick(schedule)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center transition-colors"
+                        >
+                          {schedule.name}
+                          <Eye className="w-4 h-4 ml-2" />
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {payment.phone}
+                          {schedule.venue}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-green-600">
-                          Rp {payment.amount.toLocaleString("id-ID")}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {schedule.typeMatch}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 text-gray-400 mr-2" />
+                          {schedule.players}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                          {new Date(payment.payAt).toLocaleDateString("id-ID", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(payment.payAt).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                          {new Date(payment.validUntil).toLocaleDateString(
-                            "id-ID",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )}
+                        <div className="text-sm font-medium text-green-600">
+                          Rp {schedule.revenue.toLocaleString("id-ID")}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                            payment.status,
-                          )}`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            schedule.status
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
                         >
-                          {getStatusIcon(payment.status)}
-                          {payment.status}
+                          {schedule.status ? "Aktif" : "Selesai"}
                         </span>
                       </td>
                     </tr>
@@ -597,7 +642,7 @@ export default function MembershipReportTab({
       </Card>
 
       {/* Pagination */}
-      {membershipPayments.length > 0 && (
+      {reportData && reportData.schedules.length > 0 && (
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -607,7 +652,7 @@ export default function MembershipReportTab({
                 <select
                   value={itemsPerPage}
                   onChange={(e) => handleLimitChange(Number(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                  className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value={5}>5</option>
                   <option value={10}>10</option>
@@ -658,7 +703,7 @@ export default function MembershipReportTab({
                           disabled={loading}
                           className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                             currentPage === pageNum
-                              ? "bg-green-600 text-white"
+                              ? "bg-blue-600 text-white"
                               : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
                           }`}
                         >
@@ -684,41 +729,14 @@ export default function MembershipReportTab({
         </Card>
       )}
 
-      {/* Export Summary */}
-      <Card className="border-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-        <CardContent className="p-6">
-          <div className="pt-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-green-900">
-                Opsi Export History Membership
-              </h3>
-              <p className="text-sm text-green-700">
-                Generate laporan komprehensif dalam format yang Anda inginkan
-              </p>
-            </div>
-            <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                onClick={generatePDF}
-                disabled={!membershipPayments.length}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                PDF Report
-              </Button>
-              <Button
-                variant="outline"
-                onClick={generateExcel}
-                disabled={!membershipPayments.length}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel Report
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Booking Detail Modal */}
+      {showDetailModal && selectedSchedule && (
+        <BookingDetailModal
+          schedule={selectedSchedule}
+          bookings={bookingDetails}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
