@@ -61,6 +61,11 @@ export function QRISPaymentPage({
   };
   const paymentLabel = PAYMENT_LABEL[paymentType] ?? "Pembayaran";
 
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
+
   // Fetch payment data with proper error handling and loading state
   const fetchPaymentData = useCallback(async () => {
     // Skip fetch if payment already settled
@@ -351,9 +356,9 @@ export function QRISPaymentPage({
         />
         <div className="max-w-4xl mx-auto mt-10">
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.3 }}
             className="mb-12 text-center"
           >
             <h1 className="text-2xl md:text-3xl font-bold text-blue-600 mb-4">
@@ -372,9 +377,9 @@ export function QRISPaymentPage({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - QR Code */}
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="bg-white border border-blue-200 rounded-3xl p-8 shadow-xl"
             >
               {/* Header */}
@@ -545,9 +550,9 @@ export function QRISPaymentPage({
             <div className="space-y-6">
               {/* Payment Details */}
               <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
                 className="bg-white border border-blue-200 rounded-3xl p-8 shadow-xl"
               >
                 <h3 className="mb-6 text-blue-600 font-semibold">
@@ -650,9 +655,9 @@ export function QRISPaymentPage({
 
               {/* Instructions */}
               <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
                 className="bg-white border border-blue-200 rounded-3xl p-8 shadow-xl"
               >
                 <h3 className="mb-6 text-blue-600 font-semibold">
@@ -724,9 +729,9 @@ export function QRISPaymentPage({
 
               {/* WhatsApp Chat Button */}
               <motion.button
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleWhatsAppChat}
