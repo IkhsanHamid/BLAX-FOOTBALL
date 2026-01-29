@@ -40,6 +40,11 @@ export interface ReportBooking {
   totalRevenue: number;
   totalPlayers: number;
   schedules: ScheduleBookingReports[];
+  skip: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  currentPage: number;
 }
 
 export interface ScheduleBookingReports {

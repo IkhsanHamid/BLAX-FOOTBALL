@@ -167,11 +167,16 @@ class AdminService {
   async reportBooking(
     startDate?: string,
     endDate?: string,
+    skip?: 0 | number,
+    limit?: 10 | number,
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
       if (startDate) queryParams.append("startDate", startDate.toString());
       if (endDate) queryParams.append("endDate", endDate.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
       const response = await apiClient.get(
         "/api/v1/reports/booking-reports?" + queryParams,
       );
@@ -193,6 +198,32 @@ class AdminService {
     }
   }
 
+  async membershipReport(
+    startDate: string,
+    endDate: string,
+    name?: string,
+    skip?: 0 | number,
+    limit?: 10 | number,
+    orderBy?: "desc" | string,
+  ) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (startDate) queryParams.append("startDate", startDate.toString());
+      if (endDate) queryParams.append("endDate", endDate.toString());
+      if (name) queryParams.append("name", name.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+      if (orderBy) queryParams.append("orderBy", orderBy.toString());
+
+      const response = await apiClient.get(
+        "/api/v1/reports/membership-detail?" + queryParams,
+      );
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
   async historyRecentBooking(
     startDate?: string,
     endDate?: string,
