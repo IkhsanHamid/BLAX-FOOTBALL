@@ -74,11 +74,6 @@ export interface BookingHistory {
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
   bookedAt: string;
   paymentAt: string;
-  totalBookings: number;
-  confirmedStatus: number;
-  pendingStatus: number;
-  failedStatus: number;
-  quantity: number;
 }
 
 export interface BookingHistoryResponse {

@@ -33,8 +33,13 @@ interface BookingHistoryResponse {
   message: string;
   skip: number;
   limit: number;
-  totalData: number;
   data: BookingHistory[];
+  summary: {
+    totalBooking: number;
+    totalConfirm: number;
+    totalPending: number;
+    totalFailed: number;
+  };
 }
 
 // Debounce hook
@@ -114,7 +119,7 @@ export default function BookingHistoryTab() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    null
+    null,
   );
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -152,29 +157,17 @@ export default function BookingHistoryTab() {
         statusFilter || undefined,
         debouncedSearchTerm || undefined,
         skip,
-        itemsPerPage
+        itemsPerPage,
       )) as unknown as BookingHistoryResponse;
 
       if (response.status && response.data) {
         setBookings(response.data);
-        setTotalCount(response.totalData);
-
-        // Calculate stats from current page data
-        const successCount = response.data.filter(
-          (b) => b.paymentStatus === "PAID"
-        ).length;
-        const pendingCount = response.data.filter(
-          (b) => b.paymentStatus === "PENDING"
-        ).length;
-        const failedCount = response.data.filter(
-          (b) => b.paymentStatus === "FAILED" || b.paymentStatus === "EXPIRED"
-        ).length;
-
+        setTotalCount(response.summary.totalBooking);
         setStats({
-          total: response.totalData,
-          confirmed: successCount,
-          pending: pendingCount,
-          failed: failedCount,
+          total: response.summary.totalBooking,
+          confirmed: response.summary.totalConfirm,
+          pending: response.summary.totalPending,
+          failed: response.summary.totalFailed,
         });
       } else {
         setBookings([]);
@@ -242,7 +235,6 @@ export default function BookingHistoryTab() {
       PAID: "bg-green-100 text-green-800 border-green-200",
       PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
       FAILED: "bg-red-100 text-red-800 border-red-200",
-      EXPIRED: "bg-gray-100 text-gray-800 border-gray-200",
     };
     return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -253,7 +245,6 @@ export default function BookingHistoryTab() {
       PAID: <CheckCircle className="w-3 h-3" />,
       PENDING: <Clock className="w-3 h-3" />,
       FAILED: <XCircle className="w-3 h-3" />,
-      EXPIRED: <XCircle className="w-3 h-3" />,
     };
     return icons[status] || <AlertCircle className="w-3 h-3" />;
   };
@@ -392,7 +383,6 @@ export default function BookingHistoryTab() {
                   <option value="SUCCESS">Success</option>
                   <option value="PENDING">Pending</option>
                   <option value="FAILED">Failed</option>
-                  <option value="EXPIRED">Expired</option>
                 </select>
 
                 <select
@@ -520,7 +510,7 @@ export default function BookingHistoryTab() {
                               <a
                                 href={`https://wa.me/${booking.customerPhone.replace(
                                   /^0/,
-                                  "62"
+                                  "62",
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -575,7 +565,7 @@ export default function BookingHistoryTab() {
                           <Badge
                             variant="outline"
                             className={`flex items-center space-x-1 ${getStatusColor(
-                              booking.paymentStatus
+                              booking.paymentStatus,
                             )}`}
                           >
                             {getStatusIcon(booking.paymentStatus)}
@@ -590,7 +580,7 @@ export default function BookingHistoryTab() {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
-                              }
+                              },
                             )}{" "}
                             -{" "}
                             {new Date(booking.bookedAt).toLocaleTimeString(
@@ -598,7 +588,7 @@ export default function BookingHistoryTab() {
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              }
+                              },
                             )}
                           </div>
                         </TableCell>
@@ -610,7 +600,7 @@ export default function BookingHistoryTab() {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
-                              }
+                              },
                             )}{" "}
                             -{" "}
                             {new Date(booking.paymentAt).toLocaleTimeString(
@@ -618,7 +608,7 @@ export default function BookingHistoryTab() {
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              }
+                              },
                             )}
                           </div>
                         </TableCell>
@@ -712,7 +702,7 @@ export default function BookingHistoryTab() {
                         >
                           {page}
                         </Button>
-                      )
+                      ),
                     )}
                   </div>
                 )}
@@ -750,7 +740,7 @@ export default function BookingHistoryTab() {
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
                       const page = parseInt(
-                        (e.target as HTMLInputElement).value
+                        (e.target as HTMLInputElement).value,
                       );
                       if (page >= 1 && page <= totalPages) {
                         setCurrentPage(page);
