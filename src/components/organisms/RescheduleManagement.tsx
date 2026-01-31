@@ -62,33 +62,6 @@ interface RescheduleRequest {
   createdBy: string;
 }
 
-// const STATS_CONFIG = [
-//   {
-//     key: "total",
-//     label: "Total Reschedule",
-//     icon: Calendar,
-//     color: "blue",
-//   },
-//   {
-//     key: "thisMonth",
-//     label: "This Month",
-//     icon: Clock,
-//     color: "purple",
-//   },
-//   {
-//     key: "thisWeek",
-//     label: "This Week",
-//     icon: AlertCircle,
-//     color: "green",
-//   },
-//   {
-//     key: "today",
-//     label: "Today",
-//     icon: FileText,
-//     color: "yellow",
-//   },
-// ];
-
 export default function RescheduleManagementComponent() {
   const { showSuccess, showError } = useNotifications();
 
@@ -105,6 +78,7 @@ export default function RescheduleManagementComponent() {
     reason: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
   // History States
   const [rescheduleHistory, setRescheduleHistory] = useState<
@@ -144,7 +118,7 @@ export default function RescheduleManagementComponent() {
       const result = await adminService.listAvailReschedule(
         skip,
         ITEMS_PER_PAGE,
-        searchBooking
+        searchBooking,
       );
 
       if (result?.status && result?.data) {
@@ -170,7 +144,7 @@ export default function RescheduleManagementComponent() {
       console.error("Error fetching available bookings:", error);
       showError(
         "Error",
-        error?.message || "Failed to fetch available bookings"
+        error?.message || "Failed to fetch available bookings",
       );
       setAvailableBookings([]);
       setBookingsPagination({
@@ -213,7 +187,7 @@ export default function RescheduleManagementComponent() {
       const result = await adminService.historyReschedule(
         skip,
         ITEMS_PER_PAGE,
-        searchHistory
+        searchHistory,
       );
 
       if (result?.status && result?.data) {
@@ -239,7 +213,7 @@ export default function RescheduleManagementComponent() {
       console.error("Error fetching reschedule history:", error);
       showError(
         "Error",
-        error?.message || "Failed to fetch reschedule history"
+        error?.message || "Failed to fetch reschedule history",
       );
       setRescheduleHistory([]);
       setHistoryPagination({
@@ -288,10 +262,10 @@ export default function RescheduleManagementComponent() {
     return {
       total: rescheduleHistory.length,
       thisMonth: rescheduleHistory.filter(
-        (r) => new Date(r.createdAt) >= monthStart
+        (r) => new Date(r.createdAt) >= monthStart,
       ).length,
       thisWeek: rescheduleHistory.filter(
-        (r) => new Date(r.createdAt) >= weekStart
+        (r) => new Date(r.createdAt) >= weekStart,
       ).length,
       today: rescheduleHistory.filter((r) => new Date(r.createdAt) >= today)
         .length,
@@ -306,6 +280,7 @@ export default function RescheduleManagementComponent() {
     setSelectedBooking(booking);
     setRescheduleForm({ reason: "" });
     setFormErrors({});
+    setShowRescheduleModal(true);
   };
 
   const handleFormChange = (field: string, value: string) => {
@@ -336,6 +311,7 @@ export default function RescheduleManagementComponent() {
       showSuccess("Reschedule record created successfully!");
       setSelectedBooking(null);
       setRescheduleForm({ reason: "" });
+      setShowRescheduleModal(false);
       setActiveTab("history");
       fetchRescheduleHistory();
     } catch (error) {
@@ -343,6 +319,13 @@ export default function RescheduleManagementComponent() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleCloseRescheduleModal = () => {
+    setShowRescheduleModal(false);
+    setSelectedBooking(null);
+    setRescheduleForm({ reason: "" });
+    setFormErrors({});
   };
 
   const handleViewDetail = (request: RescheduleRequest) => {
@@ -375,30 +358,6 @@ export default function RescheduleManagementComponent() {
           Catat dan kelola data reschedule booking
         </p>
       </div>
-
-      {/* Stats Cards */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {STATS_CONFIG.map(({ key, label, icon: Icon, color }) => (
-          <Card
-            key={key}
-            className="hover:shadow-lg transition-shadow duration-200"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    {stats[key as keyof typeof stats]}
-                  </p>
-                </div>
-                <div className={`p-3 bg-${color}-100 rounded-lg`}>
-                  <Icon className={`w-6 h-6 text-${color}-600`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div> */}
 
       {/* Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
@@ -471,11 +430,7 @@ export default function RescheduleManagementComponent() {
                       <div
                         key={booking.id}
                         onClick={() => handleSelectBooking(booking)}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          selectedBooking?.id === booking.id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className="p-4 border rounded-lg cursor-pointer transition-all border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -524,66 +479,6 @@ export default function RescheduleManagementComponent() {
               )}
             </CardContent>
           </Card>
-
-          {/* Reschedule Form */}
-          {selectedBooking && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 mt-4">
-                  Reschedule Details
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Reason for Reschedule *
-                    </label>
-                    <textarea
-                      value={rescheduleForm.reason}
-                      onChange={(e) =>
-                        handleFormChange("reason", e.target.value)
-                      }
-                      placeholder="Jelaskan alasan reschedule (minimal 10 karakter)..."
-                      rows={4}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        formErrors.reason ? "border-red-500" : "border-gray-300"
-                      }`}
-                    />
-                    {formErrors.reason && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {formErrors.reason}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedBooking(null)}
-                      disabled={actionLoading === "submit"}
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="black"
-                      onClick={handleSubmitReschedule}
-                      disabled={actionLoading === "submit"}
-                      size="sm"
-                    >
-                      {actionLoading === "submit" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        "Submit Reschedule Request"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
 
@@ -705,6 +600,116 @@ export default function RescheduleManagementComponent() {
         </div>
       )}
 
+      {/* Reschedule Form Modal */}
+      <Dialog
+        open={showRescheduleModal}
+        onOpenChange={handleCloseRescheduleModal}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Reschedule Record</DialogTitle>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-6">
+              {/* Booking Information */}
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                  Booking Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">
+                      Booking ID
+                    </label>
+                    <p className="mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {selectedBooking.bookId}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">
+                      Player Name
+                    </label>
+                    <p className="mt-1 font-medium text-sm">
+                      {selectedBooking.playerName}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">
+                      Date
+                    </label>
+                    <p className="mt-1 text-sm">
+                      {formatDate(selectedBooking.date)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">
+                      Time
+                    </label>
+                    <p className="mt-1 text-sm">{selectedBooking.time}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600">
+                      Venue
+                    </label>
+                    <p className="mt-1 text-sm">{selectedBooking.venueName}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reason Input */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Reason for Reschedule *
+                </label>
+                <textarea
+                  value={rescheduleForm.reason}
+                  onChange={(e) => handleFormChange("reason", e.target.value)}
+                  placeholder="Jelaskan alasan reschedule (minimal 10 karakter)..."
+                  rows={4}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    formErrors.reason ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {formErrors.reason && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.reason}
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseRescheduleModal}
+                  disabled={actionLoading === "submit"}
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="black"
+                  onClick={handleSubmitReschedule}
+                  disabled={actionLoading === "submit"}
+                  size="sm"
+                >
+                  {actionLoading === "submit" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="max-w-2xl">
@@ -793,21 +798,6 @@ export default function RescheduleManagementComponent() {
                 >
                   Close
                 </Button>
-                {/* <Button
-                  variant="outline"
-                  onClick={() => handleDeleteRecord(selectedRequest.id)}
-                  disabled={actionLoading === "delete"}
-                  className="text-red-600 hover:bg-red-50 border-red-300"
-                >
-                  {actionLoading === "delete" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete Record"
-                  )}
-                </Button> */}
               </div>
             </div>
           )}
