@@ -226,6 +226,34 @@ class AdminService {
       throw error;
     }
   }
+
+  async memberStatsReport(
+    sortBy?: string,
+    sortType?: string,
+    skip?: 0 | number,
+    limit?: 10 | number,
+    name?: string,
+    memberStatus?: string,
+  ) {
+    const queryParams = new URLSearchParams();
+
+    if (name) queryParams.append("name", name);
+    if (skip !== undefined) queryParams.append("skip", skip.toString());
+    if (limit) queryParams.append("limit", limit.toString());
+    if (sortBy) queryParams.append("sortBy", sortBy);
+    if (sortType) queryParams.append("sortType", sortType);
+    if (memberStatus) queryParams.append("memberStatus", memberStatus);
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString
+      ? `/api/v1/reports/members-statistic?${queryString}`
+      : "/api/v1/reports/members-statistic";
+
+    const response = await apiClient.get(endpoint);
+
+    return response;
+  }
+
   async historyRecentBooking(
     startDate?: string,
     endDate?: string,

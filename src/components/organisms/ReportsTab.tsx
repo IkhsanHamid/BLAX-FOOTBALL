@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Calendar, CreditCard, RefreshCw, Filter } from "lucide-react";
+import { Calendar, CreditCard, RefreshCw, Filter, Users } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent } from "../atoms/Card";
 import { useNotifications } from "./NotificationContainer";
 import ScheduleReportTab from "./ScheduleReportTab";
 import { masterDataService } from "@/utils/masterData";
 import MembershipReportTab from "./MembershipTabReport";
+import MemberStatisticTab from "./MemberStatsTab";
 
 // ========================================
 // TYPE DEFINITIONS
@@ -19,7 +20,7 @@ interface Venue {
   address?: string;
 }
 
-type TabType = "schedules" | "membership";
+type TabType = "schedules" | "membership" | "member-statistic";
 
 // ========================================
 // MAIN REPORTS TAB COMPONENT
@@ -169,93 +170,111 @@ export default function ReportsTab(): JSX.Element {
               <span>History Membership</span>
             </div>
           </button>
+          <button
+            onClick={() => setActiveTab("member-statistic")}
+            className={`
+              py-4 px-1 border-b-2 font-medium text-sm transition-colors
+              ${
+                activeTab === "member-statistic"
+                  ? "border-purple-500 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }
+            `}
+          >
+            <div className="flex items-center space-x-2">
+              <Users className="w-5 h-5" />
+              <span>Statistik Member</span>
+            </div>
+          </button>
         </nav>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="pt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Rentang Tanggal
-              </label>
-              <select
-                value={dateRange}
-                onChange={(e) => handleDateRangeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="7d">7 hari terakhir</option>
-                <option value="30d">30 hari terakhir</option>
-                <option value="90d">90 hari terakhir</option>
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tanggal Mulai
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tanggal Selesai
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Venue Filter - Only show for Schedules tab */}
-            {activeTab === "schedules" && (
+      {/* Filters - Only show for schedules and membership tabs */}
+      {activeTab !== "member-statistic" && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="pt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Filter Venue
+                  Rentang Tanggal
                 </label>
                 <select
-                  value={selectedVenueId}
-                  onChange={(e) => setSelectedVenueId(e.target.value)}
-                  disabled={loadingVenues}
+                  value={dateRange}
+                  onChange={(e) => handleDateRangeChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">Semua Venue</option>
-                  {venues.map((venue) => (
-                    <option key={venue.id} value={venue.id}>
-                      {venue.name}
-                    </option>
-                  ))}
+                  <option value="7d">7 hari terakhir</option>
+                  <option value="30d">30 hari terakhir</option>
+                  <option value="90d">90 hari terakhir</option>
+                  <option value="custom">Custom Range</option>
                 </select>
               </div>
-            )}
 
-            {/* Empty div for spacing when venue filter is hidden */}
-            {activeTab === "membership" && <div></div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tanggal Mulai
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
-            <div className="flex items-end">
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleRefresh}
-                disabled={loading || !startDate || !endDate}
-                className="w-full flex items-center justify-center"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                {loading ? "Memfilter..." : "Terapkan Filter"}
-              </Button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tanggal Selesai
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Venue Filter - Only show for Schedules tab */}
+              {activeTab === "schedules" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter Venue
+                  </label>
+                  <select
+                    value={selectedVenueId}
+                    onChange={(e) => setSelectedVenueId(e.target.value)}
+                    disabled={loadingVenues}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Semua Venue</option>
+                    {venues.map((venue) => (
+                      <option key={venue.id} value={venue.id}>
+                        {venue.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Empty div for spacing when venue filter is hidden */}
+              {activeTab === "membership" && <div></div>}
+
+              <div className="flex items-end">
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleRefresh}
+                  disabled={loading || !startDate || !endDate}
+                  className="w-full flex items-center justify-center"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  {loading ? "Memfilter..." : "Terapkan Filter"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tab Content */}
       {activeTab === "schedules" ? (
@@ -265,9 +284,15 @@ export default function ReportsTab(): JSX.Element {
           endDate={endDate}
           venueId={selectedVenueId}
         />
-      ) : (
+      ) : activeTab === "membership" ? (
         <MembershipReportTab
           key={`membership-${refreshKey}`}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      ) : (
+        <MemberStatisticTab
+          key={`member-statistic-${refreshKey}`}
           startDate={startDate}
           endDate={endDate}
         />
