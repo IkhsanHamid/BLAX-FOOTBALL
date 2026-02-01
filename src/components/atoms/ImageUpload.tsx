@@ -48,39 +48,39 @@ export default function ImageUpload({
   }, [value]);
 
   const validateFile = (file: File): string | null => {
-    console.log("=== FILE VALIDATION ===");
-    console.log("File name:", file.name);
-    console.log("File type:", file.type);
-    console.log("File size:", file.size);
-    console.log("=====================");
+    console.log("Validating file:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
 
-    // Validasi size minimum (avoid corrupted files)
-    if (file.size < 100) {
-      return "File seems to be corrupted or too small";
+    // Validasi type - lebih fleksibel untuk mobile
+    if (!file.type.startsWith("image/")) {
+      return "Please select an image file";
     }
 
-    // Validasi size maximum
+    // Validasi specific types jika ada
+    if (acceptedTypes.length > 0 && !acceptedTypes.includes(file.type)) {
+      // Fallback: cek extension jika MIME type tidak match (masalah di beberapa browser)
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      const acceptedExtensions = acceptedTypes.map(
+        (type) => type.split("/")[1],
+      );
+
+      if (!extension || !acceptedExtensions.includes(extension)) {
+        return `File type not supported. Please use: ${acceptedExtensions.join(", ")}`;
+      }
+    }
+
+    // Validasi size
     const maxSizeBytes = maxSize * 1024 * 1024;
     if (file.size > maxSizeBytes) {
       return `File size too large. Maximum size is ${maxSize}MB`;
     }
 
-    // Validasi type - Safari iOS kadang tidak mengirim MIME type yang benar
-    if (file.type) {
-      // Jika ada MIME type, validasi
-      if (!file.type.startsWith("image/")) {
-        return "Please select an image file";
-      }
-    } else {
-      // Safari iOS kadang tidak set MIME type, validasi dari extension
-      const extension = file.name.split(".").pop()?.toLowerCase();
-      const validExtensions = ["jpg", "jpeg", "png", "gif", "heic", "heif"];
-
-      if (!extension || !validExtensions.includes(extension)) {
-        return `Invalid file format. Supported: ${validExtensions.join(", ")}`;
-      }
-
-      console.log("File type empty, validating by extension:", extension);
+    // Validasi file size minimum (avoid corrupted files)
+    if (file.size < 1024) {
+      return "File seems to be corrupted or too small";
     }
 
     return null;
@@ -88,30 +88,21 @@ export default function ImageUpload({
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      console.log("=== FILE CHANGE EVENT ===");
-      console.log("Event target:", event.target);
-      console.log("Files:", event.target.files);
-
       const file = event.target.files?.[0];
+
+      console.log("File selected:", file);
 
       if (!file) {
         console.log("No file selected");
         return;
       }
 
-      console.log("File selected:", {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-      });
-
       setValidationError("");
-      const validationErr = validateFile(file);
+      const error = validateFile(file);
 
-      if (validationErr) {
-        console.error("Validation error:", validationErr);
-        setValidationError(validationErr);
+      if (error) {
+        console.error("Validation error:", error);
+        setValidationError(error);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -119,21 +110,18 @@ export default function ImageUpload({
       }
 
       setUploading(true);
-      console.log("File validation passed, processing...");
 
       // Simulate upload process
       setTimeout(() => {
-        console.log("Calling onChange with file:", file);
+        console.log("File validated and ready:", file);
         onChange(file);
         setUploading(false);
-      }, 300);
+      }, 500);
     },
-    [onChange, maxSize],
+    [onChange, maxSize, acceptedTypes],
   );
 
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log("Removing file");
+  const handleRemove = () => {
     onChange(null);
     setPreview("");
     setValidationError("");
@@ -142,59 +130,36 @@ export default function ImageUpload({
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (disabled || uploading) {
-      console.log("Click ignored - disabled or uploading");
-      return;
-    }
-
-    console.log("Opening file picker");
-
-    // Reset input value untuk memastikan onChange trigger bahkan jika file sama
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
+  const handleClick = () => {
+    if (disabled || uploading) return;
+    fileInputRef.current?.click();
   };
 
-  // Detect browser
-  const isSafari =
+  // Detect if mobile
+  const isMobile =
     typeof window !== "undefined" &&
-    /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isIOS =
-    typeof window !== "undefined" &&
-    /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-  console.log("Browser detection:", { isSafari, isIOS });
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="space-y-4">
-        {/* Hidden File Input */}
+        {/* Hidden File Input - PENTING untuk mobile */}
         <input
           ref={fileInputRef}
           type="file"
-          // PENTING: Untuk Safari iOS, gunakan multiple accepted formats
-          accept="image/jpeg,image/jpg,image/png,image/gif,image/heic,image/heif,image/*"
+          accept="image/*"
           onChange={handleFileChange}
           disabled={disabled || uploading}
           className="hidden"
-          style={{ display: "none" }}
-          // JANGAN gunakan capture - biarkan user pilih
         />
 
-        {/* Upload Area - Gunakan button untuk better compatibility */}
-        <button
-          type="button"
+        {/* Upload Area */}
+        <div
           onClick={handleClick}
-          disabled={disabled || uploading}
           className={`
-            w-full relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200
-            ${disabled || uploading ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400 active:border-blue-400 cursor-pointer"}
-            ${error || validationError ? "border-red-300 bg-red-50" : "border-gray-300 bg-white"}
+            relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200
+            ${disabled || uploading ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400 active:border-blue-400"}
+            ${error || validationError ? "border-red-300 bg-red-50" : "border-gray-300"}
           `}
         >
           {uploading ? (
@@ -202,7 +167,7 @@ export default function ImageUpload({
               <Loader2 className="w-12 h-12 text-blue-500 mx-auto animate-spin" />
               <div>
                 <p className="text-lg font-medium text-gray-900">
-                  Processing...
+                  Uploading...
                 </p>
                 <p className="text-sm text-gray-600">
                   Please wait while we process your image
@@ -212,7 +177,7 @@ export default function ImageUpload({
           ) : (
             <div className="space-y-3">
               <div className="w-12 h-12 mx-auto text-gray-400">
-                {isIOS ? (
+                {isMobile ? (
                   <Camera className="w-full h-full" />
                 ) : (
                   <Upload className="w-full h-full" />
@@ -220,18 +185,20 @@ export default function ImageUpload({
               </div>
               <div>
                 <p className="text-lg font-medium text-gray-900">
-                  {isIOS ? "Select Photo" : "Upload an image"}
+                  {isMobile
+                    ? "Take photo or choose from gallery"
+                    : "Upload an image"}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Tap to select from camera or gallery
+                  {isMobile ? "Tap to select" : "Click to browse"}
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  JPG, PNG, GIF{isIOS ? ", HEIC" : ""} • Max {maxSize}MB
+                  Supports: JPG, PNG, GIF • Max size: {maxSize}MB
                 </p>
               </div>
             </div>
           )}
-        </button>
+        </div>
 
         {/* Error Message */}
         {(error || validationError) && (
@@ -250,8 +217,8 @@ export default function ImageUpload({
               src={preview}
               alt="Preview"
               className="w-full h-48 object-cover"
-              onError={(e) => {
-                console.error("Failed to load preview image");
+              onError={() => {
+                console.error("Failed to load preview");
                 setPreview("");
               }}
             />
@@ -261,41 +228,30 @@ export default function ImageUpload({
               type="button"
               onClick={handleRemove}
               disabled={disabled}
-              className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full transition-colors shadow-lg z-10"
+              className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full transition-colors shadow-lg"
             >
               <X className="w-4 h-4" />
             </button>
 
             {/* Success Indicator */}
-            <div className="absolute bottom-2 left-2 flex items-center space-x-2 bg-green-500 text-white px-3 py-1.5 rounded-full text-xs sm:text-sm">
+            <div className="absolute bottom-2 left-2 flex items-center space-x-2 bg-green-500 text-white px-3 py-1 rounded-full text-sm">
               <CheckCircle className="w-4 h-4" />
-              <span>Ready to upload</span>
+              <span>Image loaded</span>
             </div>
           </div>
 
           {/* Image Info */}
           {value instanceof File && (
-            <div className="mt-2 text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span className="font-medium">Name:</span>
-                  <span
-                    className="truncate ml-2 max-w-[200px]"
-                    title={value.name}
-                  >
-                    {value.name}
-                  </span>
+            <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <span className="font-medium">File:</span>{" "}
+                  <span className="break-all">{value.name}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Size:</span>
-                  <span>{(value.size / 1024 / 1024).toFixed(2)} MB</span>
+                <div>
+                  <span className="font-medium">Size:</span>{" "}
+                  {(value.size / 1024 / 1024).toFixed(2)} MB
                 </div>
-                {value.type && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">Type:</span>
-                    <span>{value.type}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}
