@@ -72,6 +72,7 @@ export default function MembershipReportTab({
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalData, setTotalData] = useState<number>(0);
+  const [totalActive, setTotalActive] = useState<number>(0);
 
   const { showSuccess, showError } = useNotifications();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -93,12 +94,14 @@ export default function MembershipReportTab({
       const membershipData = await adminService.membershipReport(
         startDate,
         endDate,
-        searchQuery, // Use searchQuery here
+        searchQuery,
         Number(skip),
         itemsPerPage,
       );
 
       setMembershipPayments(membershipData.data || []);
+
+      setTotalActive(membershipData.totalActive);
 
       if (membershipData.totalPages) {
         setTotalPages(membershipData.totalPages);
@@ -179,18 +182,17 @@ export default function MembershipReportTab({
 
       // Summary
       const totalAmount = membershipPayments.reduce(
-        (sum, p) => sum + p.amount,
+        (sum, p) => p.amount * totalData,
         0,
       );
-      const activeCount = membershipPayments.filter((p) => p.isActive).length;
 
       doc.setFontSize(14);
       doc.text("Ringkasan", 20, 65);
 
       const summaryData: (string | number)[][] = [
-        ["Total Transaksi", membershipPayments.length.toString()],
+        ["Total Transaksi", totalData],
         ["Total Pendapatan", `Rp ${totalAmount.toLocaleString("id-ID")}`],
-        ["Member Aktif", activeCount.toString()],
+        ["Member Aktif", totalActive],
       ];
 
       autoTable(doc, {
@@ -279,9 +281,9 @@ export default function MembershipReportTab({
 
       const summaryData: (string | number)[][] = [
         ["Metrik", "Nilai"],
-        ["Total Transaksi", membershipPayments.length],
+        ["Total Transaksi", totalData],
         ["Total Pendapatan", totalAmount],
-        ["Member Aktif", activeCount],
+        ["Member Aktif", totalActive],
       ];
 
       const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
@@ -329,12 +331,12 @@ export default function MembershipReportTab({
 
   // Calculate statistics
   const getStats = () => {
-    const totalTransactions = membershipPayments.length;
+    const totalTransactions = totalData;
     const totalRevenue = membershipPayments.reduce(
-      (sum, p) => sum + p.amount,
+      (sum, p) => p.amount * totalData,
       0,
     );
-    const activeMembers = membershipPayments.filter((p) => p.isActive).length;
+    const activeMembers = totalActive;
     const averagePayment =
       totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
