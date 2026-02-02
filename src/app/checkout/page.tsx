@@ -26,8 +26,11 @@ import { voucherService } from "@/utils/voucher";
 import PaymentSuccessModal from "@/components/molecules/SuccessPaymentModal";
 
 // Fungsi validasi input
-const noSpace = (value: string) => value.replace(/\s+/g, "");
-const onlyNumbers = (value: string) => value.replace(/\D/g, "");
+const noSpace = (value: string) => {
+  // Hapus spasi ganda dan batasi 100 karakter
+  return value.replace(/\s{2,}/g, " ").slice(0, 100);
+};
+const onlyNumbers = (value: string) => value.replace(/\D/g, "").slice(0, 100);
 const validateEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validatePhone = (phone: string) =>
@@ -38,7 +41,7 @@ const JERSEY_SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const [bookingType, setBookingType] = useState<"individual" | "team">(
-    "individual"
+    "individual",
   );
   const [selectedRole, setSelectedRole] = useState<
     "goalkeeper" | "player" | null
@@ -93,7 +96,7 @@ export default function CheckoutPage() {
       phone: "",
       email: "",
       jerseySize: "",
-    }))
+    })),
   );
 
   // Tambahkan setelah state yang sudah ada (sekitar baris 56)
@@ -147,7 +150,7 @@ export default function CheckoutPage() {
           phone: "",
           email: "",
           jerseySize: "",
-        }))
+        })),
       );
 
       // Reset to individual if PADEL
@@ -166,7 +169,7 @@ export default function CheckoutPage() {
     setIsCheckingExistingBooking(true);
     try {
       const response = await bookingService.checkExistingBooking(
-        selectedSchedule.id
+        selectedSchedule.id,
       );
       setHasExistingBooking(response);
     } catch (error) {
@@ -213,7 +216,7 @@ export default function CheckoutPage() {
           validateName(p.name) &&
           validatePhone(p.phone) &&
           validateEmail(p.email) &&
-          p.jerseySize !== ""
+          p.jerseySize !== "",
       );
 
       return isPicValid && allPlayersComplete;
@@ -223,7 +226,7 @@ export default function CheckoutPage() {
   const handlePlayerChange = (
     index: number,
     field: "name" | "phone" | "email" | "jerseySize",
-    value: string
+    value: string,
   ) => {
     const updated = [...players];
     if (field === "name") {
@@ -233,7 +236,7 @@ export default function CheckoutPage() {
 
       // Validasi phone duplikat
       const duplicateIndex = updated.findIndex(
-        (p, i) => i !== index && p.phone && p.phone === onlyNumbers(value)
+        (p, i) => i !== index && p.phone && p.phone === onlyNumbers(value),
       );
 
       const newErrors = { ...phoneErrors };
@@ -249,7 +252,9 @@ export default function CheckoutPage() {
           if (keyIndex !== index) {
             const hasDuplicate = updated.some(
               (p, i) =>
-                i !== keyIndex && p.phone && p.phone === updated[keyIndex].phone
+                i !== keyIndex &&
+                p.phone &&
+                p.phone === updated[keyIndex].phone,
             );
             if (!hasDuplicate) {
               delete newErrors[keyIndex];
@@ -264,7 +269,7 @@ export default function CheckoutPage() {
 
       // Validasi email duplikat
       const duplicateIndex = updated.findIndex(
-        (p, i) => i !== index && p.email && p.email === noSpace(value)
+        (p, i) => i !== index && p.email && p.email === noSpace(value),
       );
 
       const newErrors = { ...emailErrors };
@@ -280,7 +285,9 @@ export default function CheckoutPage() {
           if (keyIndex !== index) {
             const hasDuplicate = updated.some(
               (p, i) =>
-                i !== keyIndex && p.email && p.email === updated[keyIndex].email
+                i !== keyIndex &&
+                p.email &&
+                p.email === updated[keyIndex].email,
             );
             if (!hasDuplicate) {
               delete newErrors[keyIndex];
@@ -401,7 +408,7 @@ export default function CheckoutPage() {
     if (appliedVoucher) {
       if (appliedVoucher.type === "PERCENTAGE") {
         voucherDiscount = Math.round(
-          priceAfterMemberDiscount * (appliedVoucher.nominal / 100)
+          priceAfterMemberDiscount * (appliedVoucher.nominal / 100),
         );
       } else {
         voucherDiscount = appliedVoucher.nominal;
@@ -627,8 +634,8 @@ export default function CheckoutPage() {
                       !selectedSchedule?.canRegistTeam
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : bookingType === "team"
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "text-gray-600 hover:text-blue-600"
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "text-gray-600 hover:text-blue-600"
                     }`}
                   >
                     Team
@@ -769,8 +776,8 @@ export default function CheckoutPage() {
                             selectedSchedule?.availableGkSlots === 0
                               ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
                               : selectedRole === "goalkeeper"
-                              ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
-                              : "border-blue-200 hover:border-blue-300 cursor-pointer"
+                                ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
+                                : "border-blue-200 hover:border-blue-300 cursor-pointer"
                           }`}
                         >
                           <Shield
@@ -821,8 +828,8 @@ export default function CheckoutPage() {
                           selectedSchedule?.availablePlayerSlots === 0
                             ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
                             : selectedRole === "player"
-                            ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
-                            : "border-blue-200 hover:border-blue-300 cursor-pointer"
+                              ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
+                              : "border-blue-200 hover:border-blue-300 cursor-pointer"
                         }`}
                       >
                         <User
@@ -872,7 +879,7 @@ export default function CheckoutPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() =>
                               setBookingQuantity(
-                                Math.max(1, bookingQuantity - 1)
+                                Math.max(1, bookingQuantity - 1),
                               )
                             }
                             disabled={bookingQuantity <= 1}
@@ -899,7 +906,7 @@ export default function CheckoutPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() =>
                               setBookingQuantity(
-                                Math.min(getMaxQuantity(), bookingQuantity + 1)
+                                Math.min(getMaxQuantity(), bookingQuantity + 1),
                               )
                             }
                             disabled={bookingQuantity >= getMaxQuantity()}
@@ -1073,7 +1080,7 @@ export default function CheckoutPage() {
                                   handlePlayerChange(
                                     index,
                                     "name",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Name"
@@ -1086,7 +1093,7 @@ export default function CheckoutPage() {
                                   handlePlayerChange(
                                     index,
                                     "phone",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Phone Number"
@@ -1108,7 +1115,7 @@ export default function CheckoutPage() {
                                   handlePlayerChange(
                                     index,
                                     "email",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Email"
@@ -1129,7 +1136,7 @@ export default function CheckoutPage() {
                                   handlePlayerChange(
                                     index,
                                     "jerseySize",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className="px-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer"
@@ -1356,11 +1363,11 @@ export default function CheckoutPage() {
                     {bookingType === "individual"
                       ? "Lengkapi semua data untuk melanjutkan"
                       : includeRoster
-                      ? Object.keys(emailErrors).length > 0 ||
-                        Object.keys(phoneErrors).length > 0
-                        ? "Perbaiki data yang duplikat"
-                        : "Lengkapi data PIC dan semua roster untuk melanjutkan"
-                      : "Lengkapi data PIC untuk melanjutkan"}
+                        ? Object.keys(emailErrors).length > 0 ||
+                          Object.keys(phoneErrors).length > 0
+                          ? "Perbaiki data yang duplikat"
+                          : "Lengkapi data PIC dan semua roster untuk melanjutkan"
+                        : "Lengkapi data PIC untuk melanjutkan"}
                   </p>
                 )}
 
