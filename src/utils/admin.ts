@@ -261,6 +261,7 @@ class AdminService {
     search?: string,
     skip?: number,
     limit?: number,
+    scheduleId?: string,
   ): Promise<BookingHistoryResponse> {
     try {
       const queryParams = new URLSearchParams();
@@ -268,6 +269,7 @@ class AdminService {
       if (endDate) queryParams.append("endDate", endDate.toString());
       if (status) queryParams.append("paymentStatus", status.toString());
       if (search) queryParams.append("keyword", search.toString());
+      if (scheduleId) queryParams.append("scheduleId", scheduleId.toString());
       if (skip !== undefined) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
 
@@ -357,6 +359,18 @@ class AdminService {
       return response.data;
     } catch (error: any) {
       console.error("Error get list schedule data:", error);
+      throw error;
+    }
+  }
+
+  async listScheduleActive(): Promise<ListSchedule[]> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/matches/list-schedule-active`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error get list schedule active data:", error);
       throw error;
     }
   }
