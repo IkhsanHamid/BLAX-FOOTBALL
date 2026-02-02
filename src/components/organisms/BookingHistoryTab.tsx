@@ -42,6 +42,13 @@ interface BookingHistoryResponse {
   };
 }
 
+export interface ListSchedule {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+}
+
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -118,6 +125,9 @@ export default function BookingHistoryTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
+  const [scheduleFilter, setScheduleFilter] = useState("");
+  const [schedules, setSchedules] = useState<ListSchedule[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null,
   );
@@ -139,6 +149,22 @@ export default function BookingHistoryTab() {
   const isFetchingRef = useRef(false);
   const mountedRef = useRef(false);
 
+  // Fetch active schedules
+  const fetchSchedules = useCallback(async () => {
+    setLoadingSchedules(true);
+    try {
+      const response = await adminService.listScheduleActive();
+      if (response) {
+        setSchedules(response);
+      }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      showError("Error", "Failed to load schedules");
+    } finally {
+      setLoadingSchedules(false);
+    }
+  }, [showError]);
+
   // Single unified fetch function
   const fetchData = useCallback(async () => {
     // Prevent duplicate calls
@@ -158,6 +184,7 @@ export default function BookingHistoryTab() {
         debouncedSearchTerm || undefined,
         skip,
         itemsPerPage,
+        scheduleFilter || undefined,
       )) as unknown as BookingHistoryResponse;
 
       if (response.status && response.data) {
@@ -187,6 +214,7 @@ export default function BookingHistoryTab() {
     debouncedSearchTerm,
     statusFilter,
     dateFilter,
+    scheduleFilter,
     currentPage,
     itemsPerPage,
     showError,
@@ -206,6 +234,7 @@ export default function BookingHistoryTab() {
   // Initial load only
   useEffect(() => {
     fetchData();
+    fetchSchedules();
   }, []); // Empty dependency - runs once on mount
 
   // Reset to first page when filters change
@@ -213,11 +242,12 @@ export default function BookingHistoryTab() {
     if (mountedRef.current) {
       setCurrentPage(1);
     }
-  }, [debouncedSearchTerm, statusFilter, dateFilter]);
+  }, [debouncedSearchTerm, statusFilter, dateFilter, scheduleFilter]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchData();
+    await fetchSchedules();
     setRefreshing(false);
     showSuccess("Booking history refreshed successfully");
   };
@@ -226,6 +256,7 @@ export default function BookingHistoryTab() {
     setSearchTerm("");
     setStatusFilter("");
     setDateFilter("all");
+    setScheduleFilter("");
     setCurrentPage(1);
   };
 
@@ -252,7 +283,8 @@ export default function BookingHistoryTab() {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const hasNextPage = currentPage < totalPages;
   const hasPreviousPage = currentPage > 1;
-  const hasActiveFilters = searchTerm || statusFilter || dateFilter !== "all";
+  const hasActiveFilters =
+    searchTerm || statusFilter || dateFilter !== "all" || scheduleFilter;
 
   const getVisiblePages = () => {
     const delta = 2;
@@ -300,6 +332,14 @@ export default function BookingHistoryTab() {
     { label: "Pending", value: stats.pending, color: "yellow", icon: Clock },
     { label: "Failed", value: stats.failed, color: "red", icon: XCircle },
   ];
+
+  // Get selected schedule name
+  const getSelectedScheduleName = () => {
+    const schedule = schedules.find((s) => s.id === scheduleFilter);
+    return schedule
+      ? `${schedule.name} - ${formatDate(schedule.date)} ${schedule.time}`
+      : "";
+  };
 
   return (
     <>
@@ -395,6 +435,21 @@ export default function BookingHistoryTab() {
                   <option value="week">This Week</option>
                   <option value="month">This Month</option>
                 </select>
+
+                <select
+                  value={scheduleFilter}
+                  onChange={(e) => setScheduleFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]"
+                  disabled={loadingSchedules}
+                >
+                  <option value="">All Schedules</option>
+                  {schedules.map((schedule) => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.name} - {formatDate(schedule.date)}{" "}
+                      {schedule.time}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -429,6 +484,17 @@ export default function BookingHistoryTab() {
                     Date: {dateFilter}
                     <button
                       onClick={() => setDateFilter("all")}
+                      className="ml-1 hover:text-blue-600"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                {scheduleFilter && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    Schedule: {getSelectedScheduleName()}
+                    <button
+                      onClick={() => setScheduleFilter("")}
                       className="ml-1 hover:text-blue-600"
                     >
                       ×

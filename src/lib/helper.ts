@@ -37,7 +37,7 @@ export async function encryptWithPublicKey(data: object) {
   // 3️⃣ Encrypt data with AES
   const encryptedData = CryptoJS.AES.encrypt(
     CryptoJS.lib.WordArray.create(compressed as any),
-    aesKey
+    aesKey,
   ).toString();
 
   // 4️⃣ Import RSA Public Key
@@ -53,14 +53,14 @@ export async function encryptWithPublicKey(data: object) {
     binaryDer.buffer,
     { name: "RSA-OAEP", hash: "SHA-256" },
     false,
-    ["encrypt"]
+    ["encrypt"],
   );
 
   // 5️⃣ Encrypt AES key with RSA
   const encryptedKey = await window.crypto.subtle.encrypt(
     { name: "RSA-OAEP" },
     publicKey,
-    new TextEncoder().encode(aesKey)
+    new TextEncoder().encode(aesKey),
   );
 
   return {
@@ -69,35 +69,108 @@ export async function encryptWithPublicKey(data: object) {
   };
 }
 
-export const getDateRange = (filter: string) => {
+/**
+ * Get date range based on filter type
+ * @param filter - Filter type: 'all' | 'today' | 'week' | 'month'
+ * @returns Object containing startDate and endDate in ISO format
+ */
+export const getDateRange = (
+  filter: string,
+): { startDate: string | undefined; endDate: string | undefined } => {
   const now = new Date();
-  let startDate = "";
-  let endDate = "";
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+
+  // If filter is 'all' or empty, return undefined for both dates
+  if (!filter || filter === "all") {
+    return {
+      startDate: undefined,
+      endDate: undefined,
+    };
+  }
 
   switch (filter) {
     case "today":
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      startDate = today.toISOString().split("T")[0];
-      endDate = new Date().toISOString().split("T")[0];
+      // Start of today (00:00:00)
+      startDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0,
+      );
+      // End of today (23:59:59)
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
       break;
+
     case "week":
-      const weekAgo = new Date();
-      weekAgo.setDate(now.getDate() - 7);
-      startDate = weekAgo.toISOString().split("T")[0];
-      endDate = new Date().toISOString().split("T")[0];
+      // Last 7 days from today
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 6); // 6 days ago + today = 7 days
+      startDate.setHours(0, 0, 0, 0);
+      // End of today
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
       break;
+
     case "month":
-      const monthAgo = new Date();
-      monthAgo.setMonth(now.getMonth() - 1);
-      startDate = monthAgo.toISOString().split("T")[0];
-      endDate = new Date().toISOString().split("T")[0];
+      // Last 30 days from today
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 29); // 29 days ago + today = 30 days
+      startDate.setHours(0, 0, 0, 0);
+      // End of today
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
       break;
+
+    case "all":
     default:
+      // For 'all', set a very wide range
+      // Start from a year ago
+      startDate = new Date(now);
+      startDate.setFullYear(now.getFullYear() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      // End at end of today
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
       break;
   }
 
-  return { startDate, endDate };
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  };
 };
 
 export function cn(...classes: (string | undefined | null | false)[]) {
