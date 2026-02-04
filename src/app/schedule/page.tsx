@@ -12,6 +12,7 @@ import { Calendar, Clock, Eye, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SchedulePage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function SchedulePage() {
   const [selectedEvent, setSelectedEvent] = useState("All Events");
   const [sortBy, setSortBy] = useState("date");
   const { setSelectedSchedule } = useSchedule();
+  const { user } = useAuth();
 
   const matchesData = useMemo(
     () =>
@@ -63,8 +65,20 @@ export default function SchedulePage() {
     [schedules],
   );
 
-  const isBookingAllowed = (matchDate: string, matchTime: string): boolean => {
+  const isBookingAllowed = (
+    matchDate: string,
+    matchTime: string,
+    email: string | undefined,
+  ): boolean => {
     try {
+      // Cek apakah email adalah email khusus
+      const isSpecialEmail = email === "ardiantosandi@gmail.com";
+
+      // Jika email khusus, selalu izinkan booking
+      if (isSpecialEmail) {
+        return true;
+      }
+
       const now = new Date();
       const matchDateTime = new Date(matchDate);
 
@@ -136,7 +150,7 @@ export default function SchedulePage() {
   const fetchSchedule = async () => {
     try {
       setIsLoading(true);
-      const result = await scheduleService.getSchedules();
+      const result = await scheduleService.getSchedules(user?.email);
       if (result) setSchedules(result);
     } catch (error) {
       console.error("Error fetching schedules:", error);
@@ -541,7 +555,11 @@ export default function SchedulePage() {
                           <Eye className="w-4 h-4 mr-1" />
                           Detail
                         </Button>
-                        {isBookingAllowed(match.date, match.time) ? (
+                        {isBookingAllowed(
+                          match.date,
+                          match.time,
+                          user?.email,
+                        ) ? (
                           <Button
                             variant="primary"
                             size="sm"

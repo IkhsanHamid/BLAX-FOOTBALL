@@ -261,8 +261,20 @@ export default function ScheduleDetailPage() {
 
   // Function to check if booking is still allowed (at least 2 hours before match time)
   const isBookingAllowed = useCallback(
-    (matchDate: string, matchTime: string): boolean => {
+    (
+      matchDate: string,
+      matchTime: string,
+      email: string | undefined,
+    ): boolean => {
       try {
+        // Cek apakah email adalah email khusus
+        const isSpecialEmail = email === "ardiantosandi@gmail.com";
+
+        // Jika email khusus, selalu izinkan booking
+        if (isSpecialEmail) {
+          return true;
+        }
+
         const now = new Date();
         const matchDateTime = new Date(matchDate);
 
@@ -290,7 +302,7 @@ export default function ScheduleDetailPage() {
     // If user is a member, always show lineup
     if (user?.isMember) return true;
     // If not a member, show lineup only if H-2 hours has passed
-    return !isBookingAllowed(schedule.date, schedule.time);
+    return !isBookingAllowed(schedule.date, schedule.time, user?.email);
   }, [schedule, user?.isMember, isBookingAllowed]);
 
   useEffect(() => {
@@ -300,6 +312,7 @@ export default function ScheduleDetailPage() {
         setLoading(true);
         const result = await scheduleService.scheduleDetail(
           params.id as string,
+          user?.email,
         );
         setSchedule(result || null);
       } catch (error) {
@@ -518,7 +531,11 @@ export default function ScheduleDetailPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-3">
-                      {isBookingAllowed(schedule.date, schedule.time) ? (
+                      {isBookingAllowed(
+                        schedule.date,
+                        schedule.time,
+                        user?.email,
+                      ) ? (
                         <Button
                           className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
                           variant="primary"
