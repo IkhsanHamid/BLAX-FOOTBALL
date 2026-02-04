@@ -45,7 +45,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Constants
 const ITEMS_PER_PAGE = 10;
 const SLOTS_PER_TEAM = { FUTSAL: 5, "MINI-SOCCER": 7, FOOTBALL: 11 };
-const EVENT_TYPES = ["FUN GAME"];
+const EVENT_TYPES = ["FUN GAME", "TOURNAMENT"];
 const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
@@ -123,7 +123,7 @@ const StatCard = React.memo(
         </div>
       </CardContent>
     </Card>
-  )
+  ),
 );
 
 const FilterBadge = React.memo(({ label, value, onRemove }: any) => (
@@ -262,12 +262,12 @@ export default function ScheduleTab({
       completed: schedules.filter((s) => s.status === "completed").length,
       totalRevenue: schedules.reduce((sum, s) => sum + s.revenue, 0),
     }),
-    [schedules]
+    [schedules],
   );
 
   const uniqueVenues = useMemo(
     () => [...new Set(schedules.map((s) => s.venue))],
-    [schedules]
+    [schedules],
   );
 
   const filteredSchedules = useMemo(() => {
@@ -311,7 +311,7 @@ export default function ScheduleTab({
       setScheduleForm((prev) => ({ ...prev, [field]: numericValue }));
       setFormErrors((prev) => ({ ...prev, [field]: "" }));
     },
-    []
+    [],
   );
 
   const handleFormChange = useCallback((field: string, value: string) => {
@@ -352,7 +352,7 @@ export default function ScheduleTab({
       }));
       setFormErrors((prev) => ({ ...prev, [field]: "" }));
     },
-    []
+    [],
   );
 
   const resetForm = useCallback(() => {
@@ -395,7 +395,7 @@ export default function ScheduleTab({
     if (countPlayer > availableSlotsPlayer) {
       showError(
         "Error",
-        `Only ${availableSlotsPlayer} player slots available to lock`
+        `Only ${availableSlotsPlayer} player slots available to lock`,
       );
       setIsLoadingLocked(false);
       return;
@@ -482,12 +482,12 @@ export default function ScheduleTab({
         "team",
         scheduleForm.typeMatch === PADEL_MATCH_TYPE
           ? String(scheduleForm.totalSlots)
-          : String(scheduleForm.totalTeams)
+          : String(scheduleForm.totalTeams),
       );
       formData.append("feePlayer", scheduleForm.feePlayer);
       formData.append(
         "feeGk",
-        scheduleForm.typeMatch === PADEL_MATCH_TYPE ? "0" : scheduleForm.feeGk
+        scheduleForm.typeMatch === PADEL_MATCH_TYPE ? "0" : scheduleForm.feeGk,
       );
       formData.append("typeEvent", scheduleForm.typeEvent);
       formData.append("typeMatch", scheduleForm.typeMatch);
@@ -497,7 +497,7 @@ export default function ScheduleTab({
       }
 
       scheduleForm.facilityIds.forEach((id) =>
-        formData.append("facilityIds[]", id)
+        formData.append("facilityIds[]", id),
       );
       scheduleForm.ruleIds.forEach((id) => formData.append("ruleIds[]", id));
 
@@ -508,7 +508,7 @@ export default function ScheduleTab({
       }
 
       showSuccess(
-        `Schedule ${editingSchedule ? "updated" : "created"} successfully!`
+        `Schedule ${editingSchedule ? "updated" : "created"} successfully!`,
       );
       setShowScheduleDialog(false);
       resetForm();
@@ -555,7 +555,7 @@ export default function ScheduleTab({
         image: String(schedule.image),
         facilityIds:
           schedule.facilities?.map((f: any) =>
-            typeof f === "string" ? f : f.id
+            typeof f === "string" ? f : f.id,
           ) || [],
         ruleIds:
           schedule.rules?.map((r: any) => (typeof r === "string" ? r : r.id)) ||
@@ -563,7 +563,7 @@ export default function ScheduleTab({
       });
       setShowScheduleDialog(true);
     },
-    [venues, isWithinH3, showError]
+    [venues, isWithinH3, showError],
   );
 
   const handleDeleteSchedule = useCallback(async () => {
@@ -597,7 +597,7 @@ export default function ScheduleTab({
           break;
       }
     },
-    []
+    [],
   );
 
   if (isLoading) return <TableLoadingSkeleton />;
@@ -788,7 +788,7 @@ export default function ScheduleTab({
                   const bookingPercentage = Math.round(
                     ((schedule.bookedSlots + totalLockedSlots) /
                       schedule.totalSlots) *
-                      100
+                      100,
                   );
 
                   return (
@@ -859,8 +859,8 @@ export default function ScheduleTab({
                             schedule.status === "ACTIVE"
                               ? "bg-green-100 text-green-800"
                               : schedule.status === "CANCELLED"
-                              ? "bg-red-400 text-white"
-                              : "bg-gray-100 text-gray-800"
+                                ? "bg-red-400 text-white"
+                                : "bg-gray-100 text-gray-800"
                           }
                         >
                           {schedule.status}
@@ -891,7 +891,7 @@ export default function ScheduleTab({
                               if (isWithinH3(schedule.date)) {
                                 showError(
                                   "Cannot Delete",
-                                  "Schedule cannot be deleted within 3 days before the event date (H-3)"
+                                  "Schedule cannot be deleted within 3 days before the event date (H-3)",
                                 );
                                 return;
                               }
