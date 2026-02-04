@@ -541,24 +541,23 @@ export default function SchedulePage() {
                           <Eye className="w-4 h-4 mr-1" />
                           Detail
                         </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleBooking(match)}
-                          // disabled={Number(match.openSlots) === 0}
-                          className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
-                        >
-                          {/* {Number(match.openSlots) === 0
-                            ? "Penuh"
-                            : "Book Sekarang"} */}
-                          Book Sekarang
-                        </Button>
-                        {/* {isBookingAllowed(match.date, match.time) ? (
+                        {isBookingAllowed(match.date, match.time) ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleBooking(match)}
+                            disabled={Number(match.openSlots) === 0}
+                            className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
+                          >
+                            {Number(match.openSlots) === 0
+                              ? "Penuh"
+                              : "Book Sekarang"}
+                          </Button>
                         ) : (
                           <div className="flex-1 px-3 md:px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs md:text-sm text-center font-medium">
                             Booking Ditutup
                           </div>
-                        )} */}
+                        )}
                       </div>
                     </div>
                   </div>
