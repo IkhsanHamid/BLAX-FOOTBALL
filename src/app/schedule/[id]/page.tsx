@@ -243,7 +243,7 @@ export default function ScheduleDetailPage() {
       schedule
         ? (Number(schedule.bookedSlots) / Number(schedule.totalSlots)) * 100
         : 0,
-    [schedule]
+    [schedule],
   );
 
   const formattedDate = useMemo(
@@ -256,7 +256,7 @@ export default function ScheduleDetailPage() {
             day: "numeric",
           })
         : "",
-    [schedule]
+    [schedule],
   );
 
   // Function to check if booking is still allowed (at least 2 hours before match time)
@@ -281,7 +281,7 @@ export default function ScheduleDetailPage() {
         return true; // Default to allowing booking if there's an error
       }
     },
-    []
+    [],
   );
 
   // Function to check if lineup should be visible (H-2 hours or if user is member)
@@ -299,7 +299,7 @@ export default function ScheduleDetailPage() {
       try {
         setLoading(true);
         const result = await scheduleService.scheduleDetail(
-          params.id as string
+          params.id as string,
         );
         setSchedule(result || null);
       } catch (error) {
@@ -684,12 +684,12 @@ export default function ScheduleDetailPage() {
                                     player={player}
                                     isGK={false}
                                   />
-                                )
+                                ),
                               )}
                             </div>
                           </div>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </>
