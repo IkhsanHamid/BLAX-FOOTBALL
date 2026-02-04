@@ -21,6 +21,7 @@ export default function SchedulePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVenue, setSelectedVenue] = useState("All Venues");
   const [selectedType, setSelectedType] = useState("All Types");
+  const [selectedEvent, setSelectedEvent] = useState("All Events");
   const [sortBy, setSortBy] = useState("date");
   const { setSelectedSchedule } = useSchedule();
 
@@ -37,7 +38,7 @@ export default function SchedulePage() {
         totalSlots: schedule.totalSlots,
         feePlayer: Number(schedule.feePlayer),
         feeGk: Number(schedule.feeGk),
-        type: schedule.typeEvent,
+        typeEvent: schedule.typeEvent,
         typeMatch: schedule.typeMatch,
         facilities: schedule.facilities,
         image: schedule.imageUrl,
@@ -45,17 +46,21 @@ export default function SchedulePage() {
         availableGkSlots: schedule.availableGkSlots,
         availablePlayerSlots: schedule.availablePlayerSlots,
       })),
-    [schedules]
+    [schedules],
   );
 
-  // Get unique venues and types for filter options
+  // Get unique venues, types, and events for filter options
   const venues = useMemo(
     () => ["All Venues", ...new Set(schedules.map((s) => s.venue))],
-    [schedules]
+    [schedules],
   );
   const types = useMemo(
     () => ["All Types", ...new Set(schedules.map((s) => s.typeMatch))],
-    [schedules]
+    [schedules],
+  );
+  const events = useMemo(
+    () => ["All Events", ...new Set(schedules.map((s) => s.typeEvent))],
+    [schedules],
   );
 
   const isBookingAllowed = (matchDate: string, matchTime: string): boolean => {
@@ -86,14 +91,16 @@ export default function SchedulePage() {
         !searchQuery ||
         match.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         match.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        match.type.toLowerCase().includes(searchQuery.toLowerCase());
+        match.typeEvent.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesVenue =
         selectedVenue === "All Venues" || match.venue === selectedVenue;
       const matchesType =
         selectedType === "All Types" || match.typeMatch === selectedType;
+      const matchesEvent =
+        selectedEvent === "All Events" || match.typeEvent === selectedEvent;
 
-      return matchesSearch && matchesVenue && matchesType;
+      return matchesSearch && matchesVenue && matchesType && matchesEvent;
     });
 
     // Sort filtered results
@@ -113,7 +120,14 @@ export default function SchedulePage() {
     });
 
     return filtered;
-  }, [matchesData, searchQuery, selectedVenue, selectedType, sortBy]);
+  }, [
+    matchesData,
+    searchQuery,
+    selectedVenue,
+    selectedType,
+    selectedEvent,
+    sortBy,
+  ]);
 
   useEffect(() => {
     fetchSchedule();
@@ -146,6 +160,9 @@ export default function SchedulePage() {
         break;
       case "type":
         setSelectedType("All Types");
+        break;
+      case "event":
+        setSelectedEvent("All Events");
         break;
     }
   };
@@ -309,6 +326,21 @@ export default function SchedulePage() {
                   </select>
                 </div>
 
+                {/* Event Select */}
+                <div className="min-w-[120px]">
+                  <select
+                    value={selectedEvent}
+                    onChange={(e) => setSelectedEvent(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
+                  >
+                    {events.map((event) => (
+                      <option key={event} value={event}>
+                        {event}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Sort Select */}
                 {/* <div className="min-w-[120px]">
                   <select
@@ -328,7 +360,8 @@ export default function SchedulePage() {
             {/* Active Filters */}
             {(searchQuery ||
               selectedVenue !== "All Venues" ||
-              selectedType !== "All Types") && (
+              selectedType !== "All Types" ||
+              selectedEvent !== "All Events") && (
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600 mr-2">Active filters:</p>
                 {searchQuery && (
@@ -364,6 +397,17 @@ export default function SchedulePage() {
                     </button>
                   </span>
                 )}
+                {selectedEvent !== "All Events" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    Event: {selectedEvent}
+                    <button
+                      onClick={() => clearFilter("event")}
+                      className="ml-1 hover:text-blue-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -387,7 +431,7 @@ export default function SchedulePage() {
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={match.image}
-                      alt={`${match.type} match`}
+                      alt={`${match.typeEvent} match`}
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
@@ -425,7 +469,7 @@ export default function SchedulePage() {
                             {match.name}
                           </h3>
                           <p className="text-slate-600 text-sm line-clamp-1">
-                            {match.type} • {match.typeMatch}
+                            {match.typeEvent} • {match.typeMatch}
                           </p>
                         </div>
                       </div>
@@ -480,7 +524,7 @@ export default function SchedulePage() {
                           {Math.round(
                             (Number(match.bookedSlots) /
                               Number(match.totalSlots)) *
-                              100
+                              100,
                           )}
                           % terisi
                         </p>
@@ -497,23 +541,24 @@ export default function SchedulePage() {
                           <Eye className="w-4 h-4 mr-1" />
                           Detail
                         </Button>
-                        {isBookingAllowed(match.date, match.time) ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleBooking(match)}
-                            disabled={Number(match.openSlots) === 0}
-                            className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
-                          >
-                            {Number(match.openSlots) === 0
-                              ? "Penuh"
-                              : "Book Sekarang"}
-                          </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleBooking(match)}
+                          // disabled={Number(match.openSlots) === 0}
+                          className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
+                        >
+                          {/* {Number(match.openSlots) === 0
+                            ? "Penuh"
+                            : "Book Sekarang"} */}
+                          Book Sekarang
+                        </Button>
+                        {/* {isBookingAllowed(match.date, match.time) ? (
                         ) : (
                           <div className="flex-1 px-3 md:px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs md:text-sm text-center font-medium">
                             Booking Ditutup
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   </div>
@@ -539,6 +584,7 @@ export default function SchedulePage() {
                     setSearchQuery("");
                     setSelectedVenue("All Venues");
                     setSelectedType("All Types");
+                    setSelectedEvent("All Events");
                   }}
                   className="bg-blue-500 text-white border-0 hover:blue-600  shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300"
                 >

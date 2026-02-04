@@ -20,7 +20,6 @@ import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatMatchDate } from "@/lib/helper";
 import { useAuth } from "@/contexts/AuthContext";
 import { bookingService } from "@/utils/booking";
-import PaymentComponent from "@/components/organisms/Payment";
 import { QRISPaymentPage } from "@/components/organisms/QRISPayment";
 import { voucherService } from "@/utils/voucher";
 import PaymentSuccessModal from "@/components/molecules/SuccessPaymentModal";
@@ -373,11 +372,33 @@ export default function CheckoutPage() {
 
     let basePrice = 0;
     let memberDiscount = 0;
+    let tourDisc = 0;
 
     if (bookingType === "team") {
-      // Team booking: tidak ada member discount
-      basePrice = getPrice(); // Team price sudah total
-      memberDiscount = 0;
+      // Team booking
+      const rosterSize = getRosterSize();
+      const isTournament = selectedSchedule?.typeEvent === "TOURNAMENT";
+
+      if (isTournament) {
+        // TOURNAMENT: hitung berdasarkan roster size (pemain + kiper)
+        const playerCount = rosterSize; // jumlah pemain
+        const gkCount = 1; // 1 kiper
+
+        const playerPrice = Number(selectedSchedule?.feePlayer);
+        const gkPrice = Number(selectedSchedule?.feeGk);
+
+        // Total harga sebelum diskon
+        const totalBeforeDiscount =
+          playerCount * playerPrice + gkCount * gkPrice;
+
+        // Diskon 5% untuk team tournament
+        tourDisc = Math.round(totalBeforeDiscount * 0.05);
+        basePrice = totalBeforeDiscount - tourDisc;
+      } else {
+        // FUN GAME: tidak ada member discount
+        basePrice = getPrice(); // Team price sudah total
+        memberDiscount = 0;
+      }
     } else {
       // INDIVIDUAL booking
       const canGetDiscount = isMember && !hasExistingBooking;
@@ -423,6 +444,7 @@ export default function CheckoutPage() {
       basePrice,
       adminFee,
       memberDiscount,
+      tourDisc,
       voucherDiscount,
       totalDiscount,
       subtotal,
@@ -432,7 +454,7 @@ export default function CheckoutPage() {
 
   // Create booking payload
   const createBookingPayload = () => {
-    const pricing = calculatePricing();
+    // const pricing = calculatePricing();
 
     const basePayload = {
       scheduleId: String(selectedSchedule?.id),
@@ -1187,82 +1209,84 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* VOUCHER */}
-                <div className="space-y-3 pb-6 border-b border-blue-200">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Tag className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">Punya Kode Voucher?</span>
+                {selectedSchedule.typeEvent === "FUN GAME" && (
+                  <div className="space-y-3 pb-6 border-b border-blue-200">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Tag className="w-4 h-4 text-blue-600" />
+                      <span className="font-medium">Punya Kode Voucher?</span>
+                    </div>
+
+                    {!user ? (
+                      <div className="space-y-3 opacity-50 pointer-events-none">
+                        <input
+                          disabled
+                          placeholder="Masukkan kode"
+                          className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm"
+                        />
+
+                        <button
+                          disabled
+                          className="w-full px-6 py-3 bg-gray-400 text-white rounded-xl text-sm font-medium"
+                        >
+                          Terapkan
+                        </button>
+
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 pointer-events-auto opacity-100">
+                          <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">
+                            !
+                          </div>
+                          <div>
+                            <p className="text-amber-800 text-sm font-medium">
+                              Login diperlukan
+                            </p>
+                            <p className="text-amber-700 text-xs">
+                              Silakan login untuk menggunakan voucher
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : !appliedVoucher ? (
+                      <div className="flex flex-col gap-2 w-full box-border">
+                        <input
+                          value={voucherCode}
+                          onChange={(e) =>
+                            setVoucherCode(e.target.value.toUpperCase())
+                          }
+                          placeholder="Masukkan kode"
+                          className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
+                        />
+
+                        <motion.button
+                          whileHover={{
+                            boxShadow: "0 10px 25px rgba(37, 99, 235, 0.25)",
+                          }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleApplyVoucher}
+                          disabled={isCheckingVoucher}
+                          className="w-full box-border px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isCheckingVoucher ? "Memvalidasi..." : "Apply"}
+                        </motion.button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-4 h-4 text-green-600" />
+                          <span className="text-green-700 font-medium text-sm">
+                            {appliedVoucher.code}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={handleRemoveVoucher}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-
-                  {!user ? (
-                    <div className="space-y-3 opacity-50 pointer-events-none">
-                      <input
-                        disabled
-                        placeholder="Masukkan kode"
-                        className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm"
-                      />
-
-                      <button
-                        disabled
-                        className="w-full px-6 py-3 bg-gray-400 text-white rounded-xl text-sm font-medium"
-                      >
-                        Terapkan
-                      </button>
-
-                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 pointer-events-auto opacity-100">
-                        <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">
-                          !
-                        </div>
-                        <div>
-                          <p className="text-amber-800 text-sm font-medium">
-                            Login diperlukan
-                          </p>
-                          <p className="text-amber-700 text-xs">
-                            Silakan login untuk menggunakan voucher
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : !appliedVoucher ? (
-                    <div className="flex flex-col gap-2 w-full box-border">
-                      <input
-                        value={voucherCode}
-                        onChange={(e) =>
-                          setVoucherCode(e.target.value.toUpperCase())
-                        }
-                        placeholder="Masukkan kode"
-                        className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
-                      />
-
-                      <motion.button
-                        whileHover={{
-                          boxShadow: "0 10px 25px rgba(37, 99, 235, 0.25)",
-                        }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleApplyVoucher}
-                        disabled={isCheckingVoucher}
-                        className="w-full box-border px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isCheckingVoucher ? "Memvalidasi..." : "Apply"}
-                      </motion.button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
-                      <div className="flex items-center gap-2">
-                        <Tag className="w-4 h-4 text-green-600" />
-                        <span className="text-green-700 font-medium text-sm">
-                          {appliedVoucher.code}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={handleRemoveVoucher}
-                        className="text-green-600 hover:text-green-800"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 {/* PRICE */}
                 <div className="space-y-3">
@@ -1284,7 +1308,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
-                  {/* Member Discount */}
+                  {/* Member Discount for Individual */}
                   {isMember &&
                     bookingType !== "team" &&
                     !hasExistingBooking &&
@@ -1308,6 +1332,25 @@ export default function CheckoutPage() {
                         <span className="text-xs text-gray-500 italic">
                           *Jika booking lebih dari 1 slot, hanya slot 1 yang
                           diskon 10%
+                        </span>
+                      </div>
+                    )}
+
+                  {/* Tournament Team Discount */}
+                  {bookingType === "team" &&
+                    selectedSchedule?.typeEvent === "TOURNAMENT" &&
+                    pricing.tourDisc > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-green-600 font-medium">
+                            Team Tournament Discount (5%)
+                          </span>
+                          <span className="text-green-600">
+                            - IDR {pricing.tourDisc.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500 italic">
+                          *Diskon 5% untuk team booking tournament
                         </span>
                       </div>
                     )}
