@@ -690,21 +690,27 @@ export default function CheckoutPage() {
                         type="text"
                         value={name}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) => setName(noSpace(e.target.value))}
                         placeholder="Enter your name"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         }`}
                       />
-                      {user && user.email !== "ardiantosandi@gmail.com" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Data diambil dari profil akun Anda
-                        </p>
-                      )}
+                      {user &&
+                        user.email !== "ardiantosandi@gmail.com" &&
+                        user.email !== "ikhsanhamid352@gmail.com" && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Data diambil dari profil akun Anda
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -716,21 +722,27 @@ export default function CheckoutPage() {
                         type="text"
                         value={email}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) => setEmail(noSpace(e.target.value))}
                         placeholder="your@email.com"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         } `}
                       />
-                      {user && user.email !== "ardiantosandi@gmail.com" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Data diambil dari profil akun Anda
-                        </p>
-                      )}
+                      {user &&
+                        user.email !== "ardiantosandi@gmail.com" &&
+                        user.email !== "ikhsanhamid352@gmail.com" && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Data diambil dari profil akun Anda
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -744,23 +756,29 @@ export default function CheckoutPage() {
                         type="tel"
                         value={whatsapp}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) =>
                           setWhatsapp(onlyNumbers(e.target.value))
                         }
                         placeholder="0812 3456 7890"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         }`}
                       />
-                      {user && user.email !== "ardiantosandi@gmail.com" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Data diambil dari profil akun Anda
-                        </p>
-                      )}
+                      {user &&
+                        user.email !== "ardiantosandi@gmail.com" &&
+                        user.email !== "ikhsanhamid352@gmail.com" && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Data diambil dari profil akun Anda
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -975,12 +993,16 @@ export default function CheckoutPage() {
                         type="text"
                         value={picName}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) => setPicName(noSpace(e.target.value))}
                         placeholder="Enter PIC name"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         }`}
@@ -998,12 +1020,16 @@ export default function CheckoutPage() {
                         type="text"
                         value={picEmail}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) => setPicEmail(noSpace(e.target.value))}
                         placeholder="pic@email.com"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         }`}
@@ -1020,14 +1046,18 @@ export default function CheckoutPage() {
                         type="tel"
                         value={whatsapp}
                         disabled={
-                          !!user && user.email !== "ardiantosandi@gmail.com"
+                          !!user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                         }
                         onChange={(e) =>
                           setWhatsapp(onlyNumbers(e.target.value))
                         }
                         placeholder="0812 3456 7890"
                         className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 ${
-                          user && user.email !== "ardiantosandi@gmail.com"
+                          user &&
+                          user.email !== "ardiantosandi@gmail.com" &&
+                          user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
                         }`}
