@@ -268,7 +268,9 @@ export default function ScheduleDetailPage() {
     ): boolean => {
       try {
         // Cek apakah email adalah email khusus
-        const isSpecialEmail = email === "ardiantosandi@gmail.com";
+        const isSpecialEmail =
+          email === "ardiantosandi@gmail.com" ||
+          email === "ikhsanhamid352@gmail.com";
 
         // Jika email khusus, selalu izinkan booking
         if (isSpecialEmail) {
