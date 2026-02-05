@@ -613,7 +613,7 @@ export default function SchedulePage() {
 
   const MatchCard = ({ match }: { match: (typeof matchesData)[0] }) => {
     const minFee = Math.min(match.feePlayer, match.feeGk);
-    const isBookingClosed = !isBookingAllowed(
+    const isBookingClosed = isBookingAllowed(
       match.date,
       match.time,
       user?.email,
@@ -723,7 +723,7 @@ export default function SchedulePage() {
                     <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Detail</span>
                   </Button>
-                  {!isBookingClosed ? (
+                  {isBookingClosed ? (
                     <Button
                       variant="primary"
                       size="sm"
@@ -735,7 +735,7 @@ export default function SchedulePage() {
                     </Button>
                   ) : (
                     <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-500 rounded-lg text-xs sm:text-sm font-medium">
-                      Ditutup
+                      Booking Ditutup
                     </div>
                   )}
                 </div>
