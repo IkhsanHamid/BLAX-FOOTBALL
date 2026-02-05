@@ -8,11 +8,27 @@ import { formatCurrency, formatMatchDate } from "@/lib/helper";
 import { Schedule } from "@/types/schedule";
 import { formatDate } from "@/utils/helpers";
 import { scheduleService } from "@/utils/schedule";
-import { Calendar, Clock, Eye, MapPin, Users, X } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Eye,
+  MapPin,
+  Users,
+  X,
+  Grid3x3,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  TrendingUp,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useAuth } from "@/contexts/AuthContext";
+
+type ViewMode = "calendar" | "list";
+type GroupBy = "date" | "venue";
 
 export default function SchedulePage() {
   const router = useRouter();
@@ -26,6 +42,18 @@ export default function SchedulePage() {
   const [sortBy, setSortBy] = useState("date");
   const { setSelectedSchedule } = useSchedule();
   const { user } = useAuth();
+  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [groupBy, setGroupBy] = useState<GroupBy>("date");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Set default selected date to today
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const matchesData = useMemo(
     () =>
@@ -71,37 +99,31 @@ export default function SchedulePage() {
     email: string | undefined,
   ): boolean => {
     try {
-      // Cek apakah email adalah email khusus
       const isSpecialEmail =
         email === "ardiantosandi@gmail.com" ||
         email === "ikhsanhamid352@gmail.com";
 
-      // Jika email khusus, selalu izinkan booking
       if (isSpecialEmail) {
         return true;
       }
 
       const now = new Date();
       const matchDateTime = new Date(matchDate);
-
-      // Parse time (format: "HH:MM")
       const [hours, minutes] = matchTime.split(":").map(Number);
       matchDateTime.setHours(hours, minutes, 0, 0);
 
-      // Calculate difference in hours
       const diffInMs = matchDateTime.getTime() - now.getTime();
       const diffInHours = diffInMs / (1000 * 60 * 60);
 
-      // Allow booking if match is more than 2 hours away
       return diffInHours >= 2;
     } catch (error) {
       console.error("Error checking booking time:", error);
-      return true; // Default to allowing booking if there's an error
+      return true;
     }
   };
 
-  // Filter and sort matches
-  const filteredAndSortedMatches = useMemo(() => {
+  // Filter matches
+  const filteredMatches = useMemo(() => {
     let filtered = matchesData.filter((match) => {
       const matchesSearch =
         !searchQuery ||
@@ -116,23 +138,21 @@ export default function SchedulePage() {
       const matchesEvent =
         selectedEvent === "All Events" || match.typeEvent === selectedEvent;
 
-      return matchesSearch && matchesVenue && matchesType && matchesEvent;
+      const matchesDate = !selectedDate || match.date === selectedDate;
+
+      return (
+        matchesSearch &&
+        matchesVenue &&
+        matchesType &&
+        matchesEvent &&
+        matchesDate
+      );
     });
 
-    // Sort filtered results
     filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "date":
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "venue":
-          return a.venue.localeCompare(b.venue);
-        case "fee":
-          return a.feePlayer - b.feePlayer;
-        case "availability":
-          return Number(b.openSlots) - Number(a.openSlots);
-        default:
-          return 0;
-      }
+      const dateA = new Date(a.date + " " + a.time).getTime();
+      const dateB = new Date(b.date + " " + b.time).getTime();
+      return dateA - dateB;
     });
 
     return filtered;
@@ -142,12 +162,112 @@ export default function SchedulePage() {
     selectedVenue,
     selectedType,
     selectedEvent,
-    sortBy,
+    selectedDate,
   ]);
+
+  // Group matches by date or venue
+  const groupedMatches = useMemo(() => {
+    const groups: { [key: string]: typeof filteredMatches } = {};
+
+    filteredMatches.forEach((match) => {
+      const key = groupBy === "date" ? match.date : match.venue;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(match);
+    });
+
+    return groups;
+  }, [filteredMatches, groupBy]);
+
+  // Get unique dates for calendar selector
+  const availableDates = useMemo(() => {
+    const dates = [...new Set(matchesData.map((m) => m.date))].sort();
+    return dates;
+  }, [matchesData]);
 
   useEffect(() => {
     fetchSchedule();
   }, []);
+
+  // Auto-select today's date after schedules are loaded
+  useEffect(() => {
+    if (schedules.length > 0 && !selectedDate) {
+      const today = getTodayDate();
+      const availableDates = schedules.map((s) => s.date);
+
+      // Check if today exists in available dates
+      if (availableDates.includes(today)) {
+        setSelectedDate(today);
+      } else {
+        // If today doesn't exist, select the closest future date
+        const futureDates = availableDates
+          .filter((date) => new Date(date) >= new Date(today))
+          .sort();
+
+        if (futureDates.length > 0) {
+          setSelectedDate(futureDates[0]);
+        } else {
+          // If no future dates, select the latest date
+          const sortedDates = [...availableDates].sort();
+          if (sortedDates.length > 0) {
+            setSelectedDate(sortedDates[sortedDates.length - 1]);
+          }
+        }
+      }
+    }
+  }, [schedules]);
+
+  // Auto-select closest date when filters change (type, event, venue)
+  useEffect(() => {
+    if (schedules.length === 0) return;
+
+    const today = getTodayDate();
+
+    // Get dates from filtered matches (before date filter is applied)
+    const filteredDates = schedules
+      .filter((schedule) => {
+        const matchesVenue =
+          selectedVenue === "All Venues" || schedule.venue === selectedVenue;
+        const matchesType =
+          selectedType === "All Types" || schedule.typeMatch === selectedType;
+        const matchesEvent =
+          selectedEvent === "All Events" ||
+          schedule.typeEvent === selectedEvent;
+
+        return matchesVenue && matchesType && matchesEvent;
+      })
+      .map((s) => s.date);
+
+    if (filteredDates.length === 0) {
+      // No matches found, clear date selection
+      setSelectedDate(null);
+      return;
+    }
+
+    const uniqueDates = [...new Set(filteredDates)].sort();
+
+    // Check if current selected date is still valid
+    if (selectedDate && uniqueDates.includes(selectedDate)) {
+      return; // Keep current selection if it's still valid
+    }
+
+    // Find the closest date to today from filtered results
+    const todayDate = new Date(today);
+
+    // Get future dates (including today)
+    const futureDates = uniqueDates.filter(
+      (date) => new Date(date) >= todayDate,
+    );
+
+    if (futureDates.length > 0) {
+      // Select the closest future date
+      setSelectedDate(futureDates[0]);
+    } else {
+      // If no future dates, select the most recent past date
+      setSelectedDate(uniqueDates[uniqueDates.length - 1]);
+    }
+  }, [selectedVenue, selectedType, selectedEvent, schedules]);
 
   const fetchSchedule = async () => {
     try {
@@ -180,6 +300,9 @@ export default function SchedulePage() {
       case "event":
         setSelectedEvent("All Events");
         break;
+      case "date":
+        setSelectedDate(null);
+        break;
     }
   };
 
@@ -192,64 +315,457 @@ export default function SchedulePage() {
     router.push(`/checkout`);
   };
 
-  // Loading skeleton
-  const SkeletonCard = () => (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-blue-200 h-full animate-pulse">
-      <div className="flex flex-col h-full">
-        <div className="relative h-48 overflow-hidden bg-gray-200">
-          <div className="absolute top-4 right-4">
-            <div className="bg-gray-300 rounded-full px-3 py-1 w-16 h-6"></div>
+  const formatDateHeader = (dateString: string) => {
+    const date = new Date(dateString);
+    const days = [
+      "Minggu",
+      "Senin",
+      "Selasa",
+      "Rabu",
+      "Kamis",
+      "Jumat",
+      "Sabtu",
+    ];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Des",
+    ];
+
+    return {
+      day: days[date.getDay()],
+      date: date.getDate(),
+      month: months[date.getMonth()],
+      year: date.getFullYear(),
+    };
+  };
+
+  // Helper functions for DateSelector
+  const calculateInitialIndex = (
+    targetDate: string,
+    dates: string[],
+    count: number,
+  ) => {
+    const targetIndex = dates.findIndex((date) => date === targetDate);
+    if (targetIndex === -1) return 0;
+
+    return Math.max(
+      0,
+      Math.min(targetIndex - Math.floor(count / 2), dates.length - count),
+    );
+  };
+
+  const getDateStyles = (isSelected: boolean, isToday: boolean) => {
+    if (isSelected) {
+      return "border-blue-500 bg-blue-50 shadow-md scale-105";
+    }
+    if (isToday) {
+      return "border-blue-300 bg-blue-50/50 hover:border-blue-400";
+    }
+    return "border-slate-200 hover:border-blue-300 hover:bg-slate-50";
+  };
+
+  const getTextColor = (
+    isSelected: boolean,
+    isToday: boolean,
+    defaultColor: string,
+  ) => {
+    if (isSelected) return "text-blue-600";
+    if (isToday) return "text-blue-500";
+    return defaultColor;
+  };
+
+  const DateSelector = () => {
+    const visibleCount = 7;
+    const mobileVisibleCount = 3; // Show fewer dates on mobile
+    const [isMobile, setIsMobile] = useState(false);
+    const todayDate = getTodayDate();
+    const currentVisibleCount = isMobile ? mobileVisibleCount : visibleCount;
+
+    // Detect mobile screen
+    useEffect(() => {
+      const checkMobile = () => setIsMobile(window.innerWidth < 640);
+      checkMobile();
+      window.addEventListener("resize", checkMobile);
+      return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    const getInitialIndex = () => {
+      const targetDate = selectedDate || todayDate;
+      return calculateInitialIndex(
+        targetDate,
+        availableDates,
+        currentVisibleCount,
+      );
+    };
+
+    const [startIndex, setStartIndex] = useState(getInitialIndex());
+
+    // Auto-scroll to selected date when it changes
+    useEffect(() => {
+      if (selectedDate) {
+        const selectedIndex = availableDates.findIndex(
+          (date) => date === selectedDate,
+        );
+        if (selectedIndex !== -1) {
+          const newStartIndex = calculateInitialIndex(
+            selectedDate,
+            availableDates,
+            currentVisibleCount,
+          );
+          setStartIndex(newStartIndex);
+        }
+      }
+    }, [selectedDate, availableDates, currentVisibleCount]);
+
+    const visibleDates = availableDates.slice(
+      startIndex,
+      startIndex + currentVisibleCount,
+    );
+
+    const handlePrev = () => {
+      if (startIndex > 0) {
+        setStartIndex(startIndex - 1);
+      }
+    };
+
+    const handleNext = () => {
+      if (startIndex + currentVisibleCount < availableDates.length) {
+        setStartIndex(startIndex + 1);
+      }
+    };
+
+    const getMatchCountForDate = (date: string) => {
+      return matchesData.filter((m) => m.date === date).length;
+    };
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Pilih Tanggal</span>
+            <span className="sm:hidden">Tanggal</span>
+          </h3>
+          <div className="flex gap-1 sm:gap-2">
+            <button
+              onClick={handlePrev}
+              disabled={startIndex === 0}
+              className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous dates"
+            >
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={
+                startIndex + currentVisibleCount >= availableDates.length
+              }
+              className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next dates"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
+            </button>
           </div>
-          <div className="absolute bottom-4 left-4">
-            <div className="bg-gray-300/80 backdrop-blur-sm border border-gray-300/20 p-3 rounded-2xl">
-              <div className="bg-gray-400 h-6 w-20 rounded mb-1"></div>
-              <div className="bg-gray-400 h-3 w-16 rounded mb-2"></div>
-              <div className="bg-gray-400 h-6 w-20 rounded mb-1"></div>
-              <div className="bg-gray-400 h-3 w-12 rounded"></div>
+        </div>
+
+        <div
+          className={`grid gap-2 ${isMobile ? "grid-cols-3" : "grid-cols-7"}`}
+        >
+          {visibleDates.map((date) => {
+            const dateInfo = formatDateHeader(date);
+            const isSelected = selectedDate === date;
+            const isToday = date === todayDate;
+            const matchCount = getMatchCountForDate(date);
+
+            return (
+              <button
+                key={date}
+                onClick={() => setSelectedDate(isSelected ? null : date)}
+                className={`
+                  relative p-2 sm:p-3 rounded-lg border-2 transition-all duration-200
+                  ${getDateStyles(isSelected, isToday)}
+                `}
+                aria-label={`Select ${dateInfo.day} ${dateInfo.date} ${dateInfo.month}`}
+                aria-pressed={isSelected}
+              >
+                <div className="text-center">
+                  <div
+                    className={`text-[10px] sm:text-xs font-medium ${getTextColor(isSelected, isToday, "text-slate-500")}`}
+                  >
+                    {isMobile ? dateInfo.day.substring(0, 3) : dateInfo.day}
+                  </div>
+                  <div
+                    className={`text-xl sm:text-2xl font-bold ${getTextColor(isSelected, isToday, "text-slate-900")}`}
+                  >
+                    {dateInfo.date}
+                  </div>
+                  <div
+                    className={`text-[10px] sm:text-xs ${getTextColor(isSelected, isToday, "text-slate-500")}`}
+                  >
+                    {dateInfo.month}
+                  </div>
+
+                  {isToday && (
+                    <div className="absolute -top-1 sm:-top-2 -left-1 sm:-left-2">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-white bg-blue-500 px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap shadow">
+                        {isMobile ? "Today" : "Hari ini"}
+                      </span>
+                    </div>
+                  )}
+
+                  {matchCount > 0 && (
+                    <div
+                      className={`absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold ${
+                        isSelected
+                          ? "bg-blue-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {matchCount}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const VenueFilter = () => {
+    const venueList = venues.filter((v) => v !== "All Venues");
+
+    const getVenueMatchCount = (venue: string) => {
+      return matchesData.filter((m) => m.venue === venue).length;
+    };
+
+    const VenueButton = ({
+      venue,
+      isActive,
+      count,
+      onClick,
+    }: {
+      venue: string;
+      isActive: boolean;
+      count?: number;
+      onClick: () => void;
+    }) => (
+      <button
+        onClick={onClick}
+        className={`
+          px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium 
+          transition-all duration-200 relative
+          ${
+            isActive
+              ? "bg-blue-500 text-white shadow-md"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }
+        `}
+      >
+        <span className="truncate">{venue}</span>
+        {count !== undefined && (
+          <span
+            className={`ml-1 sm:ml-2 text-xs ${isActive ? "text-blue-100" : "text-slate-500"}`}
+          >
+            ({count})
+          </span>
+        )}
+      </button>
+    );
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 mb-6">
+        <h3 className="text-xs sm:text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Pilih Venue</span>
+          <span className="sm:hidden">Venue</span>
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          <VenueButton
+            venue="Semua Venue"
+            isActive={selectedVenue === "All Venues"}
+            onClick={() => setSelectedVenue("All Venues")}
+          />
+          {venueList.map((venue) => (
+            <VenueButton
+              key={venue}
+              venue={venue}
+              isActive={selectedVenue === venue}
+              count={getVenueMatchCount(venue)}
+              onClick={() => setSelectedVenue(venue)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const MatchCard = ({ match }: { match: (typeof matchesData)[0] }) => {
+    const minFee = Math.min(match.feePlayer, match.feeGk);
+    const isBookingClosed = !isBookingAllowed(
+      match.date,
+      match.time,
+      user?.email,
+    );
+    const isFullyBooked = Number(match.openSlots) === 0;
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 overflow-hidden group">
+        <div className="flex flex-col sm:flex-row">
+          {/* Image */}
+          <div className="relative w-full sm:w-48 h-40 sm:h-auto overflow-hidden flex-shrink-0">
+            <img
+              src={match.image}
+              alt={match.name}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+            <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+              <Badge className="bg-white/95 text-blue-700 border-0 font-semibold text-xs sm:text-sm">
+                <Users className="h-3 w-3 mr-1" />
+                {match.openSlots}/{match.totalSlots}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 p-4 sm:p-5">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="mb-3 sm:mb-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 line-clamp-2 sm:line-clamp-1">
+                      {match.name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 flex-wrap">
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-medium">
+                        {match.typeEvent}
+                      </span>
+                      <span className="text-slate-400 hidden sm:inline">•</span>
+                      <span className="hidden sm:inline">
+                        {match.typeMatch}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3">
+                  <div className="flex items-center text-xs sm:text-sm text-slate-700">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-blue-500 flex-shrink-0" />
+                    <span className="font-medium truncate">
+                      {formatMatchDate(match.date)}
+                    </span>
+                    <span className="mx-1.5 sm:mx-2 text-slate-400">•</span>
+                    <span className="font-semibold text-blue-600 whitespace-nowrap">
+                      {match.time} WIB
+                    </span>
+                  </div>
+                  <div className="flex items-center text-xs sm:text-sm text-slate-600">
+                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-blue-500 flex-shrink-0" />
+                    <span className="truncate">{match.venue}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Facilities */}
+              <div className="flex flex-wrap gap-1.5 mb-3 sm:mb-4">
+                {match.facilities.slice(0, 3).map((facility, index) => (
+                  <span
+                    key={index}
+                    className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-50 text-slate-600 rounded-md text-[10px] sm:text-xs border border-slate-200"
+                  >
+                    {facility.name}
+                  </span>
+                ))}
+                {match.facilities.length > 3 && (
+                  <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-50 text-slate-500 rounded-md text-[10px] sm:text-xs border border-slate-200">
+                    +{match.facilities.length - 3}
+                  </span>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 mt-auto gap-3">
+                <div className="flex flex-col">
+                  <div className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">
+                    Mulai dari
+                  </div>
+                  <div className="flex items-baseline gap-1 sm:gap-2">
+                    <span className="text-lg sm:text-2xl font-bold text-blue-600">
+                      {formatCurrency(minFee)}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-slate-500">
+                      /orang
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-1.5 sm:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDetailClick(match.id)}
+                    className="border-slate-300 hover:bg-slate-50 text-xs sm:text-sm px-2 sm:px-3"
+                  >
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Detail</span>
+                  </Button>
+                  {!isBookingClosed ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleBooking(match)}
+                      disabled={isFullyBooked}
+                      className="shadow-md hover:shadow-lg text-xs sm:text-sm px-3 sm:px-4"
+                    >
+                      {isFullyBooked ? "Penuh" : "Booking"}
+                    </Button>
+                  ) : (
+                    <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-500 rounded-lg text-xs sm:text-sm font-medium">
+                      Ditutup
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div className="p-6 flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-gray-200 rounded-xl mr-3"></div>
-              <div>
-                <div className="bg-gray-300 h-5 w-32 rounded mb-2"></div>
-                <div className="bg-gray-200 h-4 w-24 rounded"></div>
-              </div>
-            </div>
+      </div>
+    );
+  };
+
+  // Loading skeleton
+  const SkeletonCard = () => (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
+      <div className="flex flex-col sm:flex-row">
+        <div className="w-full sm:w-48 h-48 sm:h-auto bg-slate-200"></div>
+        <div className="flex-1 p-5">
+          <div className="h-6 bg-slate-200 rounded w-3/4 mb-3"></div>
+          <div className="h-4 bg-slate-200 rounded w-1/2 mb-4"></div>
+          <div className="space-y-2 mb-4">
+            <div className="h-4 bg-slate-200 rounded w-full"></div>
+            <div className="h-4 bg-slate-200 rounded w-2/3"></div>
           </div>
-          <div className="flex-1 flex flex-col">
-            <div className="space-y-2 mb-4">
-              <div className="bg-gray-200 h-4 w-full rounded"></div>
-              <div className="bg-gray-200 h-4 w-5/6 rounded"></div>
-              <div className="bg-gray-200 h-4 w-4/6 rounded"></div>
-            </div>
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center">
-                <div className="bg-gray-200 h-4 w-4 rounded mr-2"></div>
-                <div className="bg-gray-200 h-4 w-40 rounded"></div>
-              </div>
-              <div className="flex items-center">
-                <div className="bg-gray-200 h-4 w-4 rounded mr-2"></div>
-                <div className="bg-gray-200 h-4 w-36 rounded"></div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1 mb-4">
-              <div className="bg-gray-200 h-6 w-16 rounded-full"></div>
-              <div className="bg-gray-200 h-6 w-20 rounded-full"></div>
-              <div className="bg-gray-200 h-6 w-14 rounded-full"></div>
-            </div>
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-gray-300 h-2 rounded-full w-3/5"></div>
-              </div>
-              <div className="bg-gray-200 h-3 w-16 rounded mt-1"></div>
-            </div>
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100 space-x-2">
-              <div className="bg-gray-200 h-9 flex-1 rounded"></div>
-              <div className="bg-gray-300 h-9 flex-1 rounded"></div>
-            </div>
+          <div className="flex gap-2 mb-4">
+            <div className="h-6 bg-slate-200 rounded w-20"></div>
+            <div className="h-6 bg-slate-200 rounded w-16"></div>
+          </div>
+          <div className="flex justify-between items-center pt-4 border-t">
+            <div className="h-8 bg-slate-200 rounded w-24"></div>
+            <div className="h-9 bg-slate-200 rounded w-32"></div>
           </div>
         </div>
       </div>
@@ -258,7 +774,7 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50">
+      <div className="min-h-screen bg-slate-50">
         <Navbar
           currentPage={""}
           navigateTo={function (page: string): void {
@@ -266,23 +782,11 @@ export default function SchedulePage() {
           }}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          {/* Skeleton Filter */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 p-6 mb-8 animate-pulse">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="bg-gray-200 h-10 rounded-lg"></div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="bg-gray-200 h-10 w-40 rounded-lg"></div>
-                <div className="bg-gray-200 h-10 w-32 rounded-lg"></div>
-                <div className="bg-gray-200 h-10 w-32 rounded-lg"></div>
-              </div>
-            </div>
+          <div className="mb-6">
+            <div className="h-10 bg-slate-200 rounded-lg w-64 animate-pulse"></div>
           </div>
-
-          {/* Skeleton Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
@@ -292,328 +796,260 @@ export default function SchedulePage() {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50">
-        <Navbar
-          currentPage={""}
-          navigateTo={function (page: string): void {
-            throw new Error("Function not implemented.");
-          }}
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 mt-10">
-          {/* Filters */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100 p-6 mb-8">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* <div className="flex-1">
-                <SearchBar
-                  placeholder="Search by venue, type, or descrn..."
-                  onSearch={handleSearch}
-                />
-              </div> */}
+    <div className="min-h-screen bg-slate-50">
+      <Navbar
+        currentPage={""}
+        navigateTo={function (page: string): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Venue Select */}
-                <div className="min-w-[160px]">
-                  <select
-                    value={selectedVenue}
-                    onChange={(e) => setSelectedVenue(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
-                  >
-                    {venues.map((venue) => (
-                      <option key={venue} value={venue}>
-                        {venue}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-20 sm:py-24 mt-6 sm:mt-10">
+        {/* Quick Filters */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 mb-6 mt-4">
+          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+            <div className="flex-1 flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {/* Type Filter */}
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-xs sm:text-sm font-medium"
+                aria-label="Filter by match type"
+              >
+                {types.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
 
-                {/* Type Select */}
-                <div className="min-w-[120px]">
-                  <select
-                    value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
-                  >
-                    {types.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Event Select */}
-                <div className="min-w-[120px]">
-                  <select
-                    value={selectedEvent}
-                    onChange={(e) => setSelectedEvent(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
-                  >
-                    {events.map((event) => (
-                      <option key={event} value={event}>
-                        {event}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sort Select */}
-                {/* <div className="min-w-[120px]">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-sm"
-                  >
-                    <option value="date">Sort by Date</option>
-                    <option value="venue">Sort by Venue</option>
-                    <option value="fee">Sort by Price</option>
-                    <option value="availability">Sort by Availability</option>
-                  </select>
-                </div> */}
-              </div>
+              {/* Event Filter */}
+              <select
+                value={selectedEvent}
+                onChange={(e) => setSelectedEvent(e.target.value)}
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 text-xs sm:text-sm font-medium"
+                aria-label="Filter by event type"
+              >
+                {events.map((event) => (
+                  <option key={event} value={event}>
+                    {event}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Active Filters */}
-            {(searchQuery ||
-              selectedVenue !== "All Venues" ||
-              selectedType !== "All Types" ||
-              selectedEvent !== "All Events") && (
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mr-2">Active filters:</p>
-                {searchQuery && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    Search: {searchQuery}
-                    <button
-                      onClick={() => clearFilter("search")}
-                      className="ml-1 hover:text-blue-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedVenue !== "All Venues" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    Venue: {selectedVenue}
-                    <button
-                      onClick={() => clearFilter("venue")}
-                      className="ml-1 hover:text-blue-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedType !== "All Types" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    Type: {selectedType}
-                    <button
-                      onClick={() => clearFilter("type")}
-                      className="ml-1 hover:text-blue-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedEvent !== "All Events" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    Event: {selectedEvent}
-                    <button
-                      onClick={() => clearFilter("event")}
-                      className="ml-1 hover:text-blue-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="mb-6">
-            <p className="text-slate-600 bg-white/70 backdrop-blur-sm border border-blue-100 p-4 rounded-2xl shadow-md">
-              Showing {filteredAndSortedMatches.length} of {matchesData.length}{" "}
-              schedules
-            </p>
-          </div>
-
-          {/* Schedule Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSortedMatches.map((match) => (
-              <div
-                key={match.id}
-                className="bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl border border-blue-200 h-full hover:shadow-2xl hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-2"
+            {/* Group By Toggle */}
+            <div className="flex gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setGroupBy("date")}
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                  groupBy === "date"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                aria-pressed={groupBy === "date"}
               >
-                <div className="flex flex-col h-full">
-                  {/* Image Section */}
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={match.image}
-                      alt={`${match.typeEvent} match`}
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                    <div className="absolute top-4 right-4">
-                      <Badge
-                        variant="default"
-                        className="flex items-center bg-white/95 backdrop-blur-sm text-blue-700 border border-blue-200 shadow-md"
-                      >
-                        <Users className="h-3 w-3 mr-1" />
-                        {match.openSlots}/{match.totalSlots}
-                      </Badge>
-                    </div>
-                    <div className="absolute bottom-4 left-4 text-white bg-black/30 backdrop-blur-md border border-white/20 p-3 rounded-2xl shadow-lg">
-                      <div className="text-2xl font-bold">
-                        {formatCurrency(match.feePlayer)}
-                      </div>
-                      <div className="text-sm opacity-90">Player Fee</div>
-                      <div className="text-2xl font-bold">
-                        {formatCurrency(match.feeGk)}
-                      </div>
-                      <div className="text-sm opacity-90">GK Fee</div>
-                    </div>
-                  </div>
-
-                  {/* Content Section */}
-                  <div className="p-6 flex-1 flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3 shadow-sm">
-                          <Calendar className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-blue-700 transition-colors">
-                            {match.name}
-                          </h3>
-                          <p className="text-slate-600 text-sm line-clamp-1">
-                            {match.typeEvent} • {match.typeMatch}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 flex flex-col">
-                      {/* Match Details */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center text-sm font-bold text-black">
-                          <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                          {formatMatchDate(match.date)} • PKL {match.time}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-                          {match.venue}
-                        </div>
-                      </div>
-
-                      {/* Facilities */}
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {match.facilities.slice(0, 3).map((facility, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-200"
-                          >
-                            {facility.name}
-                          </span>
-                        ))}
-                        {match.facilities.length > 3 && (
-                          <span className="px-2 py-1 bg-slate-50 text-slate-600 rounded-full text-xs border border-slate-200">
-                            +{match.facilities.length - 3} more
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="mt-4">
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-400 to-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${
-                                (Number(match.bookedSlots) /
-                                  Number(match.totalSlots)) *
-                                100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {Math.round(
-                            (Number(match.bookedSlots) /
-                              Number(match.totalSlots)) *
-                              100,
-                          )}
-                          % terisi
-                        </p>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDetailClick(match.id)}
-                          className="flex-1 hover:bg-sky-50 hover:border-sky-300"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Detail
-                        </Button>
-                        {isBookingAllowed(
-                          match.date,
-                          match.time,
-                          user?.email,
-                        ) ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleBooking(match)}
-                            disabled={Number(match.openSlots) === 0}
-                            className="flex-1 shadow-md hover:shadow-lg text-xs md:text-sm"
-                          >
-                            {Number(match.openSlots) === 0
-                              ? "Penuh"
-                              : "Book Sekarang"}
-                          </Button>
-                        ) : (
-                          <div className="flex-1 px-3 md:px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs md:text-sm text-center font-medium">
-                            Booking Ditutup
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-1.5" />
+                <span className="hidden sm:inline">Per Tanggal</span>
+                <span className="sm:hidden">Tanggal</span>
+              </button>
+              <button
+                onClick={() => setGroupBy("venue")}
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                  groupBy === "venue"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                aria-pressed={groupBy === "venue"}
+              >
+                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-1.5" />
+                <span className="hidden sm:inline">Per Venue</span>
+                <span className="sm:hidden">Venue</span>
+              </button>
+            </div>
           </div>
 
-          {/* No Results */}
-          {filteredAndSortedMatches.length === 0 && (
-            <div className="text-center py-12">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100 shadow-lg">
-                <Calendar className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                  No schedules found
-                </h3>
-                <p className="text-slate-600 mb-6">
-                  Try adjusting your filters or search terms
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedVenue("All Venues");
-                    setSelectedType("All Types");
-                    setSelectedEvent("All Events");
-                  }}
-                  className="bg-blue-500 text-white border-0 hover:blue-600  shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+          {/* Active Filters */}
+          {(selectedVenue !== "All Venues" ||
+            selectedType !== "All Types" ||
+            selectedEvent !== "All Events" ||
+            selectedDate) && (
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-200">
+              <span className="text-xs sm:text-sm text-slate-600 font-medium">
+                Filter aktif:
+              </span>
+              {selectedDate && (
+                <button
+                  onClick={() => clearFilter("date")}
+                  className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 transition-colors"
+                  aria-label={`Remove date filter: ${formatMatchDate(selectedDate)}`}
                 >
-                  Clear All Filters
-                </Button>
-              </div>
+                  <span className="truncate max-w-[120px] sm:max-w-none">
+                    {formatMatchDate(selectedDate)}
+                  </span>
+                  <X className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                </button>
+              )}
+              {selectedVenue !== "All Venues" && (
+                <button
+                  onClick={() => clearFilter("venue")}
+                  className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 transition-colors"
+                  aria-label={`Remove venue filter: ${selectedVenue}`}
+                >
+                  <span className="truncate max-w-[100px] sm:max-w-none">
+                    {selectedVenue}
+                  </span>
+                  <X className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                </button>
+              )}
+              {selectedType !== "All Types" && (
+                <button
+                  onClick={() => clearFilter("type")}
+                  className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 transition-colors"
+                  aria-label={`Remove type filter: ${selectedType}`}
+                >
+                  {selectedType}
+                  <X className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                </button>
+              )}
+              {selectedEvent !== "All Events" && (
+                <button
+                  onClick={() => clearFilter("event")}
+                  className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 transition-colors"
+                  aria-label={`Remove event filter: ${selectedEvent}`}
+                >
+                  {selectedEvent}
+                  <X className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                </button>
+              )}
             </div>
           )}
         </div>
+
+        {/* Date Selector */}
+        {groupBy === "date" && <DateSelector />}
+
+        {/* Venue Filter */}
+        {groupBy === "venue" && <VenueFilter />}
+
+        {/* Results Count */}
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="text-xs sm:text-sm text-slate-600">
+            Menampilkan{" "}
+            <span className="font-semibold text-slate-900">
+              {filteredMatches.length}
+            </span>{" "}
+            dari{" "}
+            <span className="font-semibold text-slate-900">
+              {matchesData.length}
+            </span>{" "}
+            jadwal
+          </div>
+          {filteredMatches.length > 0 && (
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
+              <span>
+                {Object.keys(groupedMatches).length}{" "}
+                {groupBy === "date" ? "tanggal" : "venue"} tersedia
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Grouped Matches */}
+        {Object.keys(groupedMatches).length > 0 ? (
+          <div className="space-y-6 sm:space-y-8">
+            {Object.entries(groupedMatches).map(([groupKey, matches]) => {
+              const headerInfo =
+                groupBy === "date" ? formatDateHeader(groupKey) : null;
+
+              return (
+                <div key={groupKey} className="space-y-3 sm:space-y-4">
+                  {/* Group Header */}
+                  <div className="sticky top-16 sm:top-20 z-10 bg-slate-50 pb-2 sm:pb-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md">
+                      {groupBy === "date" && headerInfo ? (
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2 sm:p-3 min-w-[60px] sm:min-w-[80px] text-center">
+                            <div className="text-2xl sm:text-3xl font-bold text-white">
+                              {headerInfo.date}
+                            </div>
+                            <div className="text-xs sm:text-sm text-blue-100">
+                              {headerInfo.month} {headerInfo.year}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-lg sm:text-2xl font-bold text-white">
+                              {headerInfo.day}
+                            </div>
+                            <div className="text-xs sm:text-sm text-blue-100 flex items-center gap-2 mt-0.5 sm:mt-1">
+                              <span>
+                                {matches.length} pertandingan tersedia
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2 sm:p-3">
+                              <MapPin className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-lg sm:text-2xl font-bold text-white">
+                                {groupKey}
+                              </div>
+                              <div className="text-xs sm:text-sm text-blue-100">
+                                {matches.length} pertandingan tersedia
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Matches List */}
+                  <div className="space-y-3 sm:space-y-4">
+                    {matches.map((match) => (
+                      <MatchCard key={match.id} match={match} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* No Results */
+          <div className="text-center py-12 sm:py-16">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-8 sm:p-12 border border-slate-200 shadow-sm">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">
+                Tidak ada jadwal ditemukan
+              </h3>
+              <p className="text-sm sm:text-base text-slate-600 mb-6 sm:mb-8 max-w-md mx-auto px-4">
+                Coba ubah filter atau tanggal untuk menemukan jadwal yang sesuai
+              </p>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedVenue("All Venues");
+                  setSelectedType("All Types");
+                  setSelectedEvent("All Events");
+                  setSelectedDate(getTodayDate());
+                }}
+                className="shadow-md hover:shadow-lg text-sm sm:text-base"
+              >
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                Reset Semua Filter
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
