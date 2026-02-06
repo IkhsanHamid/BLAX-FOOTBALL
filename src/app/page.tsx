@@ -3,7 +3,7 @@ import Navbar from "@/components/organisms/Navbar";
 import Hero from "@/components/Hero";
 import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
-import SchedulesCarousel from "@/components/organisms/SchedulesCarousel";
+import ScheduleFeaturedGrid from "@/components/organisms/ScheduleFeaturedGrid";
 import NewsSection from "@/components/organisms/News";
 import PaymentChecker from "@/components/molecules/PaymentChecker";
 
@@ -18,7 +18,7 @@ export default function HomePage() {
         }}
       />
       <Hero />
-      <SchedulesCarousel />
+      <ScheduleFeaturedGrid />
 
       {/* Payment Checker Section */}
       <section
