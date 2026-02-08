@@ -66,6 +66,8 @@ export interface BookingHistory {
   jerseySize: string;
   scheduleName: string;
   venue: string;
+  isGk: true;
+  isPlayer: true;
   date: string;
   time: string;
   bookingType: "INDIVIDUAL" | "TEAM";

@@ -618,7 +618,8 @@ export default function BookingHistoryTab() {
                               {booking.bookingType}
                             </Badge>
                             <div className="text-xs text-gray-500">
-                              {booking.playerCount} player(s)
+                              {booking.playerCount}{" "}
+                              {booking.isGk ? "GoalKeeper" : "player(s)"}
                             </div>
                           </div>
                         </TableCell>
