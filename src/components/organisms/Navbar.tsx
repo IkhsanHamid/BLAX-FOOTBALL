@@ -141,7 +141,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
     <>
       {/* Running Text Banner */}
       {!user?.isMember && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-400 overflow-hidden">
+        <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-400 overflow-hidden">
           <motion.div
             animate={{ x: [0, -1000] }}
             transition={{
@@ -178,7 +178,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
       <nav
         className={`fixed ${
           !user?.isMember ? "top-10" : "top-0"
-        } left-0 px-4 right-0 z-50 transition-all duration-300 ${getNavbarStyles()}`}
+        } left-0 px-4 right-0 z-40 transition-all duration-300 ${getNavbarStyles()}`}
       >
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
