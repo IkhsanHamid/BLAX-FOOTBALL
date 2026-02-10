@@ -22,7 +22,7 @@ import {
   Filter,
   TrendingUp,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,7 @@ type GroupBy = "date" | "venue";
 
 export default function SchedulePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showSuccess, showError } = useNotifications();
@@ -53,6 +54,52 @@ export default function SchedulePage() {
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  // Handle URL query parameters untuk filter
+  useEffect(() => {
+    const eventParam = searchParams.get("event");
+    const autoSelectDateParam = searchParams.get("autoSelectDate");
+
+    if (eventParam) {
+      setSelectedEvent(eventParam);
+
+      // Jika autoSelectDate=true, tunggu sampai schedules loaded untuk auto-select tanggal
+      if (autoSelectDateParam === "true" && schedules.length > 0) {
+        autoSelectNearestTournamentDate();
+      }
+    }
+  }, [searchParams, schedules]);
+
+  // Function untuk auto-select tanggal terdekat tournament
+  const autoSelectNearestTournamentDate = () => {
+    const today = getTodayDate();
+    const todayDate = new Date(today);
+
+    // Filter hanya jadwal tournament
+    const tournamentSchedules = schedules.filter(
+      (schedule) => schedule.typeEvent === "Tournament",
+    );
+
+    if (tournamentSchedules.length === 0) return;
+
+    // Ambil semua tanggal tournament yang unik
+    const tournamentDates = [
+      ...new Set(tournamentSchedules.map((s) => s.date)),
+    ].sort();
+
+    // Cari tanggal terdekat (hari ini atau masa depan)
+    const futureDates = tournamentDates.filter(
+      (date) => new Date(date) >= todayDate,
+    );
+
+    if (futureDates.length > 0) {
+      // Pilih tanggal terdekat di masa depan
+      setSelectedDate(futureDates[0]);
+    } else {
+      // Jika tidak ada tanggal masa depan, pilih tanggal tournament terakhir
+      setSelectedDate(tournamentDates[tournamentDates.length - 1]);
+    }
   };
 
   const matchesData = useMemo(
@@ -193,6 +240,10 @@ export default function SchedulePage() {
   // Auto-select today's date after schedules are loaded
   useEffect(() => {
     if (schedules.length > 0 && !selectedDate) {
+      // Skip auto-select jika sedang dalam mode auto-select tournament dari URL
+      const autoSelectDateParam = searchParams.get("autoSelectDate");
+      if (autoSelectDateParam === "true") return;
+
       const today = getTodayDate();
       const availableDates = schedules.map((s) => s.date);
 
@@ -216,11 +267,15 @@ export default function SchedulePage() {
         }
       }
     }
-  }, [schedules]);
+  }, [schedules, searchParams]);
 
   // Auto-select closest date when filters change (type, event, venue)
   useEffect(() => {
     if (schedules.length === 0) return;
+
+    // Skip auto-select jika sedang dalam mode auto-select tournament dari URL
+    const autoSelectDateParam = searchParams.get("autoSelectDate");
+    if (autoSelectDateParam === "true") return;
 
     const today = getTodayDate();
 
@@ -267,7 +322,7 @@ export default function SchedulePage() {
       // If no future dates, select the most recent past date
       setSelectedDate(uniqueDates[uniqueDates.length - 1]);
     }
-  }, [selectedVenue, selectedType, selectedEvent, schedules]);
+  }, [selectedVenue, selectedType, selectedEvent, schedules, searchParams]);
 
   const fetchSchedule = async () => {
     try {

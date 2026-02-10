@@ -6,10 +6,20 @@ import Footer from "@/components/Footer";
 import ScheduleFeaturedGrid from "@/components/organisms/ScheduleFeaturedGrid";
 import NewsSection from "@/components/organisms/News";
 import PaymentChecker from "@/components/molecules/PaymentChecker";
+import PopupBanner from "@/components/molecules/PopupBanner";
+import banner from "@/assets/FCL-banner.jpeg";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
+      {/* Popup Banner - akan muncul otomatis saat pertama kali buka */}
+      <PopupBanner
+        bannerImage={banner}
+        title="FCL Tournament! 🏆"
+        description="Ikuti Fantasy Champions League terbaru kami. Daftar sekarang dan menangkan hadiah menarik!"
+        storageKey="hasSeenTournamentPopup" // Key untuk localStorage
+      />
+
       <Navbar
         useScrollEffect={true}
         currentPage={""}
