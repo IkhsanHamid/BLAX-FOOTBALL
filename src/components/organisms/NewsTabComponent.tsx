@@ -1,7 +1,22 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Clock, Plus, CreditCard as Edit, Trash2, Search, Filter, Eye, Calendar, Tag, Image as ImageIcon, FileText, Download, Upload, MoreHorizontal } from "lucide-react";
+import {
+  Clock,
+  Plus,
+  CreditCard as Edit,
+  Trash2,
+  Search,
+  Filter,
+  Eye,
+  Calendar,
+  Tag,
+  Image as ImageIcon,
+  FileText,
+  Download,
+  Upload,
+  MoreHorizontal,
+} from "lucide-react";
 import Button from "../atoms/Button";
 import RichTextEditor from "../atoms/RichTextEditor";
 import {
@@ -44,7 +59,7 @@ export default function NewsTab() {
   const [excerpt, setExcerpt] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState<File | null>(null);
-  const [imageUrl, setImageUrl] = useState("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
   const [category, setCategory] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -82,7 +97,7 @@ export default function NewsTab() {
         (item) =>
           item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.category.toLowerCase().includes(searchTerm.toLowerCase())
+          item.category.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -101,22 +116,15 @@ export default function NewsTab() {
     if (!title.trim()) errors.title = "Title is required";
     if (!excerpt.trim()) errors.excerpt = "Excerpt is required";
     if (!content.trim()) errors.content = "Content is required";
-    if (!imageUrl.trim()) errors.imageUrl = "Image URL is required";
-    else if (!isValidUrl(imageUrl))
-      errors.imageUrl = "Please enter a valid URL";
     if (!category.trim()) errors.category = "Category is required";
+
+    // For new articles, image is required
+    if (!editingNews && !image) {
+      errors.image = "Featured image is required";
+    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  const isValidUrl = (string: string): boolean => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
-    }
   };
 
   const resetForm = () => {
@@ -124,7 +132,7 @@ export default function NewsTab() {
     setExcerpt("");
     setContent("");
     setImage(null);
-    setImageUrl("");
+    setImagePreviewUrl("");
     setCategory("");
     setEditingNews(null);
     setFormErrors({});
@@ -141,7 +149,7 @@ export default function NewsTab() {
     setExcerpt(newsItem.excerpt);
     setContent(newsItem.content);
     setImage(null);
-    setImageUrl(newsItem.imageUrl);
+    setImagePreviewUrl(newsItem.imageUrl); // Set preview URL from existing news
     setCategory(newsItem.category);
     setShowNewsDialog(true);
   };
@@ -156,47 +164,44 @@ export default function NewsTab() {
 
     setIsSubmitting(true);
     try {
-      if (editingNews) {
-        // Create FormData for file upload
-        const formData = new FormData();
-        formData.append("title", title.trim());
-        formData.append("excerpt", excerpt.trim());
-        formData.append("content", content.trim());
-        formData.append("category", category.trim());
-        
-        if (image) {
-          formData.append("image", image);
-        } else if (imageUrl.trim()) {
-          formData.append("imageUrl", imageUrl.trim());
-        }
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("excerpt", excerpt.trim());
+      formData.append("content", content.trim());
+      formData.append("category", category.trim());
 
-        // await adminService.updateNews(editingNews.id, formData);
+      // Add image if provided
+      if (image) {
+        formData.append("image", image);
+      }
+
+      if (editingNews) {
+        const response = await adminService.updateNews(
+          editingNews.id,
+          formData,
+        );
+        if (response.statusCode !== 200) {
+          throw new Error("Update failed");
+        }
         showSuccess("Berhasil", "Berita berhasil diperbarui");
       } else {
-        // Create FormData for file upload
-        const formData = new FormData();
-        formData.append("title", title.trim());
-        formData.append("excerpt", excerpt.trim());
-        formData.append("content", content.trim());
-        formData.append("category", category.trim());
-        
-        if (image) {
-          formData.append("image", image);
-        } else if (imageUrl.trim()) {
-          formData.append("imageUrl", imageUrl.trim());
+        const response = await adminService.createNews(formData);
+        if (!response) {
+          throw new Error("Create failed");
         }
-
-        // await adminService.createNews(formData);
         showSuccess("Berhasil", "Berita berhasil ditambahkan");
       }
 
       closeNewsDialog();
       fetchNews();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting news:", error);
+      const errorMessage =
+        error?.response?.data?.message || error?.message || "Silakan coba lagi";
       showError(
         editingNews ? "Gagal memperbarui berita" : "Gagal menambahkan berita",
-        "Silakan coba lagi"
+        errorMessage,
       );
     } finally {
       setIsSubmitting(false);
@@ -207,27 +212,47 @@ export default function NewsTab() {
     if (!newsToDelete) return;
 
     try {
-      // await adminService.deleteNews(newsToDelete);
+      const response = await adminService.deleteNews(newsToDelete);
+      if (response.statusCode !== 200) {
+        throw new Error("Delete failed");
+      }
       showSuccess("Berhasil", "Berita berhasil dihapus");
+      setShowConfirmation(false);
       setNewsToDelete(null);
       fetchNews();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting news:", error);
-      showError("Gagal menghapus berita", "Silakan coba lagi");
+      const errorMessage =
+        error?.response?.data?.message || error?.message || "Silakan coba lagi";
+      showError("Gagal menghapus berita", errorMessage);
     }
   };
 
   const handleBulkDelete = async () => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call API for bulk delete
+      const deletePromises = selectedNews.map((id) =>
+        adminService.deleteNews(id),
+      );
+      const results = await Promise.allSettled(deletePromises);
 
-      showSuccess(`${selectedNews.length} berita berhasil dihapus`);
+      // Check if any failed
+      const failures = results.filter((result) => result.status === "rejected");
+
+      if (failures.length > 0) {
+        throw new Error(
+          `${failures.length} dari ${selectedNews.length} berita gagal dihapus`,
+        );
+      }
+
+      showSuccess("Berhasil", `${selectedNews.length} berita berhasil dihapus`);
       setShowBulkDeleteConfirm(false);
       setSelectedNews([]);
       fetchNews();
-    } catch (error) {
-      showError("Gagal menghapus berita", "Silakan coba lagi");
+    } catch (error: any) {
+      console.error("Error bulk deleting news:", error);
+      const errorMessage = error?.message || "Silakan coba lagi";
+      showError("Gagal menghapus berita", errorMessage);
     }
   };
 
@@ -238,7 +263,9 @@ export default function NewsTab() {
 
   const handleSelectNews = (id: string) => {
     setSelectedNews((prev) =>
-      prev.includes(id) ? prev.filter((newsId) => newsId !== id) : [...prev, id]
+      prev.includes(id)
+        ? prev.filter((newsId) => newsId !== id)
+        : [...prev, id],
     );
   };
 
@@ -261,9 +288,6 @@ export default function NewsTab() {
       case "content":
         setContent(value);
         break;
-      case "imageUrl":
-        setImageUrl(value);
-        break;
       case "category":
         setCategory(value);
         break;
@@ -275,6 +299,18 @@ export default function NewsTab() {
     }
   };
 
+  const handleImageChange = (file: File | null) => {
+    setImage(file);
+    // Clear preview URL when new image is selected
+    if (file) {
+      setImagePreviewUrl("");
+    }
+    // Clear error when user selects an image
+    if (formErrors.image && file) {
+      setFormErrors((prev) => ({ ...prev, image: "" }));
+    }
+  };
+
   // Get unique categories for filter
   const uniqueCategories = [...new Set(news.map((n) => n.category))];
 
@@ -283,7 +319,7 @@ export default function NewsTab() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedNews = filteredNews.slice(
     startIndex,
-    startIndex + itemsPerPage
+    startIndex + itemsPerPage,
   );
 
   // Stats calculation
@@ -293,7 +329,7 @@ export default function NewsTab() {
     categories: uniqueCategories.length,
     thisMonth: news.filter(
       (n) =>
-        new Date(n.publishAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        new Date(n.publishAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     ).length,
   };
 
@@ -595,14 +631,6 @@ export default function NewsTab() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="hover:bg-blue-50"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
                         onClick={() => openEditNewsDialog(item)}
                         disabled={isLoading}
                         className="hover:bg-yellow-50"
@@ -732,21 +760,26 @@ export default function NewsTab() {
                 Featured Image *
               </label>
               <ImageUpload
-                value={image || imageUrl}
-                onChange={(file) => {
-                  setImage(file);
-                  if (file) setImageUrl("");
-                }}
-                error={formErrors.imageUrl}
+                value={image || imagePreviewUrl}
+                onChange={handleImageChange}
+                error={formErrors.image}
                 disabled={isSubmitting}
                 maxSize={5}
-                acceptedTypes={["image/jpeg", "image/png", "image/gif"]}
+                acceptedTypes={[
+                  "image/jpeg",
+                  "image/png",
+                  "image/gif",
+                  "image/webp",
+                ]}
               />
-              {formErrors.imageUrl && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.imageUrl}
-                </p>
+              {formErrors.image && (
+                <p className="text-red-500 text-sm mt-1">{formErrors.image}</p>
               )}
+              <p className="text-xs text-gray-500 mt-2">
+                {editingNews
+                  ? "Upload a new image to replace the current one (optional)"
+                  : "Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB"}
+              </p>
             </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t">
