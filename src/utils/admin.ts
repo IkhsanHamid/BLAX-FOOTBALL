@@ -103,15 +103,27 @@ class AdminService {
     }
   }
 
-  async updateNews(id: string, newsData: FormData): Promise<News | null> {
+  async updateNews(id: string, newsData: FormData): Promise<any> {
     try {
       const response = await apiClient.put(
         `/api/v1/news/update-news/${id}`,
         newsData,
       );
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Error updating news:", error);
+      return null;
+    }
+  }
+
+  async deleteNews(id: string) {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/news/delete-news?id=${id}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleteing news:", error);
       return null;
     }
   }
