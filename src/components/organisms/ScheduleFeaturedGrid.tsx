@@ -88,6 +88,9 @@ export default function ScheduleFeaturedGrid() {
     typeMatch: schedule.typeMatch,
     facilities: schedule.facilities,
     image: schedule.imageUrl,
+    canRegistTeam: schedule.canRegistTeam,
+    availableGkSlots: schedule.availableGkSlots,
+    availablePlayerSlots: schedule.availablePlayerSlots,
   }));
 
   // Get featured matches (3 closest upcoming matches)
