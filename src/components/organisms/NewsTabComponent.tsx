@@ -173,7 +173,7 @@ export default function NewsTab() {
 
       // Add image if provided
       if (image) {
-        formData.append("image", image);
+        formData.append("imageUrl", image);
       }
 
       if (editingNews) {
