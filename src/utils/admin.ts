@@ -93,10 +93,10 @@ class AdminService {
     return response.data;
   }
 
-  async createNews(newsData: FormData): Promise<News | null> {
+  async createNews(newsData: FormData): Promise<any> {
     try {
       const response = await apiClient.post("/api/v1/news/add-news", newsData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Error creating news:", error);
       return null;
