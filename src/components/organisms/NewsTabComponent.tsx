@@ -187,7 +187,7 @@ export default function NewsTab() {
         showSuccess("Berhasil", "Berita berhasil diperbarui");
       } else {
         const response = await adminService.createNews(formData);
-        if (!response) {
+        if (response.statusCode !== 201) {
           throw new Error("Create failed");
         }
         showSuccess("Berhasil", "Berita berhasil ditambahkan");
