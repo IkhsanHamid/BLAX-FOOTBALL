@@ -35,7 +35,7 @@ export default function AdminPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!isAdmin || !user) return;
+    if (!user) return;
 
     const setupFCM = async () => {
       try {
@@ -98,7 +98,7 @@ export default function AdminPage() {
     };
 
     setupFCM();
-  }, [isAdmin, user]);
+  }, [user]);
 
   const checkAdminAccess = async () => {
     try {
