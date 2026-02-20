@@ -17,6 +17,8 @@ import MasterDataTab from "@/components/organisms/MasterDataTab";
 import BookingHistoryTab from "@/components/organisms/BookingHistoryTab";
 import GalleriesManagement from "@/components/organisms/GalleriesManagement";
 import RescheduleManagementComponent from "@/components/organisms/RescheduleManagement";
+import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
+import { firebaseService } from "@/utils/firebase";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -31,6 +33,42 @@ export default function AdminPage() {
   useEffect(() => {
     checkAdminAccess();
   }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin || !user) return;
+
+    const setupFCM = async () => {
+      try {
+        const messaging = await getFirebaseMessaging();
+        console.log("messaging", messaging);
+        if (!messaging) return;
+
+        const permission = await Notification.requestPermission();
+        console.log("permission", permission);
+        if (permission !== "granted") return;
+
+        const token = await getToken(messaging, {
+          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        });
+        console.log("token", token);
+
+        if (!token) return;
+
+        await firebaseService.saveFCM(token);
+
+        onMessage(messaging, (payload) => {
+          showSuccess(
+            payload.notification?.title || "Notification",
+            payload.notification?.body || "",
+          );
+        });
+      } catch (err) {
+        console.error("FCM setup error:", err);
+      }
+    };
+
+    setupFCM();
+  }, [isAdmin, user]);
 
   const checkAdminAccess = async () => {
     try {
