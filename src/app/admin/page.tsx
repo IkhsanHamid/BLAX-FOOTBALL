@@ -40,21 +40,51 @@ export default function AdminPage() {
     const setupFCM = async () => {
       try {
         const messaging = await getFirebaseMessaging();
-        console.log("messaging", messaging);
         if (!messaging) return;
 
+        // Cek status permission saat ini
+        const currentPermission = Notification.permission;
+
+        if (currentPermission === "denied") {
+          // Sudah pernah ditolak, tidak bisa meminta lagi via JS
+          showError(
+            "Notifikasi Diblokir",
+            "Aktifkan notifikasi secara manual melalui pengaturan browser Anda.",
+          );
+          return;
+        }
+
+        if (currentPermission !== "granted") {
+          // Belum pernah diminta — tampilkan confirm dialog dulu sebelum browser prompt muncul
+          const userWantsNotif = window.confirm(
+            "Aktifkan notifikasi untuk menerima update booking dan informasi penting secara real-time.\n\nKlik OK untuk mengaktifkan notifikasi.",
+          );
+
+          if (!userWantsNotif) return;
+        }
+
+        // Minta permission dari browser (jika sudah "granted" sebelumnya, langsung lanjut)
         const permission = await Notification.requestPermission();
-        console.log("permission", permission);
-        if (permission !== "granted") return;
+        if (permission !== "granted") {
+          showError(
+            "Notifikasi Ditolak",
+            "Anda tidak akan menerima notifikasi real-time.",
+          );
+          return;
+        }
 
         const token = await getToken(messaging, {
           vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
         });
-        console.log("token", token);
 
         if (!token) return;
 
         await firebaseService.saveFCM(token);
+
+        showSuccess(
+          "Notifikasi Aktif",
+          "Anda akan menerima notifikasi real-time.",
+        );
 
         onMessage(messaging, (payload) => {
           showSuccess(
