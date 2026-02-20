@@ -17,6 +17,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "BLAX",
   description: "Komunitas fun football, fun minisoccer terbesar di jabodetabek",
+  manifest: "./manifest.json",
   keywords: [
     "football",
     "minisoccer",
