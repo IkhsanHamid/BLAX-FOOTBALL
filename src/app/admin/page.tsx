@@ -35,18 +35,18 @@ export default function AdminPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAdmin || !user) return;
+
+    let unsubscribeMessage: (() => void) | null = null; // 👈 tambah ini
 
     const setupFCM = async () => {
       try {
         const messaging = await getFirebaseMessaging();
         if (!messaging) return;
 
-        // Cek status permission saat ini
         const currentPermission = Notification.permission;
 
         if (currentPermission === "denied") {
-          // Sudah pernah ditolak, tidak bisa meminta lagi via JS
           showError(
             "Notifikasi Diblokir",
             "Aktifkan notifikasi secara manual melalui pengaturan browser Anda.",
@@ -55,15 +55,12 @@ export default function AdminPage() {
         }
 
         if (currentPermission !== "granted") {
-          // Belum pernah diminta — tampilkan confirm dialog dulu sebelum browser prompt muncul
           const userWantsNotif = window.confirm(
             "Aktifkan notifikasi untuk menerima update booking dan informasi penting secara real-time.\n\nKlik OK untuk mengaktifkan notifikasi.",
           );
-
           if (!userWantsNotif) return;
         }
 
-        // Minta permission dari browser (jika sudah "granted" sebelumnya, langsung lanjut)
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           showError(
@@ -86,7 +83,8 @@ export default function AdminPage() {
           "Anda akan menerima notifikasi real-time.",
         );
 
-        onMessage(messaging, (payload) => {
+        // 👇 simpan unsubscribe function-nya
+        unsubscribeMessage = onMessage(messaging, (payload) => {
           showSuccess(
             payload.notification?.title || "Notification",
             payload.notification?.body || "",
@@ -98,7 +96,14 @@ export default function AdminPage() {
     };
 
     setupFCM();
-  }, [user]);
+
+    // 👇 cleanup listener saat effect re-run atau component unmount
+    return () => {
+      if (unsubscribeMessage) {
+        unsubscribeMessage();
+      }
+    };
+  }, [isAdmin, user]);
 
   const checkAdminAccess = async () => {
     try {
