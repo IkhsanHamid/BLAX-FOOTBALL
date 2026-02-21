@@ -37,16 +37,16 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin || !user) return;
 
-    let unsubscribeMessage: (() => void) | null = null; // 👈 tambah ini
-
     const setupFCM = async () => {
       try {
         const messaging = await getFirebaseMessaging();
         if (!messaging) return;
 
+        // Cek status permission saat ini
         const currentPermission = Notification.permission;
 
         if (currentPermission === "denied") {
+          // Sudah pernah ditolak, tidak bisa meminta lagi via JS
           showError(
             "Notifikasi Diblokir",
             "Aktifkan notifikasi secara manual melalui pengaturan browser Anda.",
@@ -55,12 +55,15 @@ export default function AdminPage() {
         }
 
         if (currentPermission !== "granted") {
+          // Belum pernah diminta — tampilkan confirm dialog dulu sebelum browser prompt muncul
           const userWantsNotif = window.confirm(
             "Aktifkan notifikasi untuk menerima update booking dan informasi penting secara real-time.\n\nKlik OK untuk mengaktifkan notifikasi.",
           );
+
           if (!userWantsNotif) return;
         }
 
+        // Minta permission dari browser (jika sudah "granted" sebelumnya, langsung lanjut)
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           showError(
@@ -75,16 +78,22 @@ export default function AdminPage() {
         });
 
         if (!token) return;
+        const existingToken = localStorage.getItem("fcm_token");
 
-        await firebaseService.saveFCM(token);
+        if (existingToken === token) return;
+
+        localStorage.setItem("fcm_token", token);
+
+        const deviceId = getDeviceId();
+
+        await firebaseService.saveFCM(token, deviceId);
 
         showSuccess(
           "Notifikasi Aktif",
           "Anda akan menerima notifikasi real-time.",
         );
 
-        // 👇 simpan unsubscribe function-nya
-        unsubscribeMessage = onMessage(messaging, (payload) => {
+        onMessage(messaging, (payload) => {
           showSuccess(
             payload.notification?.title || "Notification",
             payload.notification?.body || "",
@@ -96,14 +105,18 @@ export default function AdminPage() {
     };
 
     setupFCM();
-
-    // 👇 cleanup listener saat effect re-run atau component unmount
-    return () => {
-      if (unsubscribeMessage) {
-        unsubscribeMessage();
-      }
-    };
   }, [isAdmin, user]);
+
+  const getDeviceId = (): string => {
+    let deviceId = localStorage.getItem("deviceId");
+
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem("deviceId", deviceId);
+    }
+
+    return deviceId;
+  };
 
   const checkAdminAccess = async () => {
     try {
