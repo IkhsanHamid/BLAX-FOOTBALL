@@ -108,11 +108,11 @@ export default function AdminPage() {
   }, [isAdmin, user]);
 
   const getDeviceId = (): string => {
-    let deviceId = localStorage.getItem("deviceId");
+    let deviceId = localStorage.getItem("device_id");
 
     if (!deviceId) {
       deviceId = crypto.randomUUID();
-      localStorage.setItem("deviceId", deviceId);
+      localStorage.setItem("device_id", deviceId);
     }
 
     return deviceId;

@@ -115,6 +115,7 @@ export class AuthService {
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_session");
       localStorage.removeItem("fcm_token");
+      localStorage.removeItem("device_id");
     }
   }
 
