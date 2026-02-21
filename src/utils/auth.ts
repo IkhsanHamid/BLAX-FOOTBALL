@@ -77,7 +77,7 @@ export class AuthService {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     const result = await response.json();
@@ -114,6 +114,7 @@ export class AuthService {
   static clearSession() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_session");
+      localStorage.removeItem("fcm_token");
     }
   }
 
@@ -132,7 +133,7 @@ export class AuthService {
         body: JSON.stringify({
           email,
         }),
-      }
+      },
     );
 
     const result = await response.json();
@@ -156,7 +157,7 @@ export class AuthService {
           email,
           otp,
         }),
-      }
+      },
     );
 
     const result = await response.json();
@@ -180,7 +181,7 @@ export class AuthService {
           resetToken,
           password,
         }),
-      }
+      },
     );
 
     const result = await response.json();
