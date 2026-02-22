@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
@@ -21,6 +21,7 @@ import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
 import { firebaseService } from "@/utils/firebase";
 
 export default function AdminPage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
   const { showError, showSuccess } = useNotifications();
@@ -29,6 +30,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("booking-history");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [initialBookSearch, setInitialBookSearch] = useState("");
 
   useEffect(() => {
     checkAdminAccess();
@@ -107,6 +109,15 @@ export default function AdminPage() {
     setupFCM();
   }, [isAdmin, user]);
 
+  useEffect(() => {
+    const bookId = searchParams.get("bookId");
+    console.log("bookId", bookId);
+    if (bookId) {
+      setSelectedTab("booking-history");
+      setInitialBookSearch(bookId);
+    }
+  }, [searchParams]);
+
   const getDeviceId = (): string => {
     let deviceId = localStorage.getItem("device_id");
 
@@ -175,6 +186,7 @@ export default function AdminPage() {
     );
   }
 
+  console.log("initialBookSearch", initialBookSearch);
   const renderTabContent = () => {
     switch (selectedTab) {
       case "reports":
@@ -184,7 +196,12 @@ export default function AdminPage() {
         }
         // Redirect non-Owner users to booking-history
         setSelectedTab("booking-history");
-        return <BookingHistoryTab />;
+        return (
+          <BookingHistoryTab
+            initialSearch={initialBookSearch}
+            onSearchConsumed={() => setInitialBookSearch("")}
+          />
+        );
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
       case "lineup":
@@ -196,7 +213,12 @@ export default function AdminPage() {
       case "master-data":
         return <MasterDataTab />;
       case "booking-history":
-        return <BookingHistoryTab />;
+        return (
+          <BookingHistoryTab
+            initialSearch={initialBookSearch}
+            onSearchConsumed={() => setInitialBookSearch("")}
+          />
+        );
       case "gallery":
         return <GalleriesManagement />;
       case "reschedule":
