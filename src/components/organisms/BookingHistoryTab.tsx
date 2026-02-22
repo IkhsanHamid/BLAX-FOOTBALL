@@ -49,6 +49,11 @@ export interface ListSchedule {
   time: string;
 }
 
+interface BookingHistoryTabProps {
+  initialSearch?: string;
+  onSearchConsumed?: () => void;
+}
+
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -118,11 +123,14 @@ const StatsSkeleton = () => (
   </div>
 );
 
-export default function BookingHistoryTab() {
+export default function BookingHistoryTab({
+  initialSearch = "",
+  onSearchConsumed,
+}: BookingHistoryTabProps) {
   const [bookings, setBookings] = useState<BookingHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [scheduleFilter, setScheduleFilter] = useState("");
@@ -143,6 +151,8 @@ export default function BookingHistoryTab() {
 
   const itemsPerPage = 5;
   const { showSuccess, showError } = useNotifications();
+  console.log("searchterm", searchTerm);
+  console.log("initialSearch", initialSearch);
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   // Prevent multiple simultaneous API calls
@@ -176,6 +186,7 @@ export default function BookingHistoryTab() {
     try {
       const { startDate, endDate } = getDateRange(dateFilter);
       const skip = (currentPage - 1) * itemsPerPage;
+      console.log("debouncedSearchTerm", debouncedSearchTerm);
 
       const response = (await adminService.historyRecentBooking(
         startDate,
@@ -243,6 +254,14 @@ export default function BookingHistoryTab() {
       setCurrentPage(1);
     }
   }, [debouncedSearchTerm, statusFilter, dateFilter, scheduleFilter]);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearchTerm(initialSearch);
+      setCurrentPage(1);
+      onSearchConsumed?.();
+    }
+  }, [initialSearch]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -619,7 +638,9 @@ export default function BookingHistoryTab() {
                             </Badge>
                             <div className="text-xs text-gray-500">
                               {booking.playerCount}{" "}
-                              {booking.isGk && booking.bookingType !== 'TEAM'? "GoalKeeper" : "player(s)"}
+                              {booking.isGk && booking.bookingType !== "TEAM"
+                                ? "GoalKeeper"
+                                : "player(s)"}
                             </div>
                           </div>
                         </TableCell>
