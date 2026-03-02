@@ -84,7 +84,7 @@ export default function ScheduleFeaturedGrid() {
     totalSlots: schedule.totalSlots,
     feePlayer: Number(schedule.feePlayer),
     feeGk: Number(schedule.feeGk),
-    type: schedule.typeEvent,
+    typeEvent: schedule.typeEvent,
     typeMatch: schedule.typeMatch,
     facilities: schedule.facilities,
     image: schedule.imageUrl,
