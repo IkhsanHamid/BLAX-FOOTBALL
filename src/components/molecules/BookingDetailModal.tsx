@@ -35,6 +35,7 @@ interface BookingDetail {
   isMember: boolean;
   quantity: number;
   bookingType: "INDIVIDUAL" | "TEAM";
+  baseFee?: number | string;
   totalAmount?: number;
   adminFee?: string;
   discountAmount?: string;
@@ -75,12 +76,20 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
 
   // Calculate totals
   const totalSlots: number = bookings.reduce((sum, b) => sum + b.quantity, 0);
-  const totalAmount: number = bookings.reduce(
-    (sum, b) => sum + (b.totalAmount || 0),
+  const totalBaseFee: number = bookings.reduce(
+    (sum, b) => sum + (b.baseFee ? parseInt(String(b.baseFee)) : 0),
     0,
   );
   const totalAdminFee: number = bookings.reduce(
     (sum, b) => sum + (!b.isMember && b.adminFee ? parseInt(b.adminFee) : 0),
+    0,
+  );
+  const totalDiscount: number = bookings.reduce(
+    (sum, b) =>
+      sum +
+      (b.discountAmount && parseInt(b.discountAmount) > 0
+        ? parseInt(b.discountAmount)
+        : 0),
     0,
   );
   const memberCount: number = bookings.filter((b) => b.isMember).length;
@@ -112,10 +121,8 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   // Export to Excel
   const handleExportExcel = (): void => {
     try {
-      // Create workbook
       const wb = XLSX.utils.book_new();
 
-      // Schedule Info
       const scheduleInfo: (string | number)[][] = [
         ["Informasi Jadwal"],
         ["Nama", schedule.name],
@@ -129,18 +136,17 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
         [],
       ];
 
-      // Booking Details
       const bookingHeaders: string[] = [
         "No",
-        "Booking ID",
+        "ID Booking",
         "Nama",
         "No. HP",
         "Status Member",
         "Tipe",
         "Jumlah Slot",
-        "Admin Fee",
+        "Biaya Admin",
         "Diskon",
-        "Total Amount",
+        "Harga Dasar",
       ];
 
       const bookingData: (string | number)[][] = bookings.map(
@@ -150,7 +156,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
           booking.userName,
           booking.userPhone,
           booking.isMember ? "Member" : "Non-Member",
-          booking.bookingType === "TEAM" ? "Team" : "Individual",
+          booking.bookingType === "TEAM" ? "Tim" : "Individu",
           getSlotDisplay(booking),
           booking.isMember
             ? "-"
@@ -160,23 +166,24 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
           booking.discountAmount && parseInt(booking.discountAmount) > 0
             ? parseInt(booking.discountAmount)
             : "-",
-          booking.totalAmount || "Pending",
+          booking.baseFee !== undefined
+            ? parseInt(String(booking.baseFee))
+            : "Menunggu",
         ],
       );
 
-      // Summary
       const summary: (string | number)[][] = [
         [],
         ["Ringkasan"],
         ["Total Booking", bookings.length],
         ["Total Slot", totalSlots],
-        ["Total Admin Fee", totalAdminFee],
-        ["Total Amount", totalAmount],
+        ["Total Biaya Admin", totalAdminFee],
+        ["Total Diskon", totalDiscount],
+        ["Total Bayar (Harga Dasar)", totalBaseFee],
         ["Member Premium", memberCount],
         ["Booking Team", teamCount],
       ];
 
-      // Combine all data
       const allData = [
         ...scheduleInfo,
         ["Detail Booking"],
@@ -187,23 +194,21 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
 
       const ws = XLSX.utils.aoa_to_sheet(allData);
 
-      // Set column widths
       ws["!cols"] = [
-        { wch: 5 }, // No
-        { wch: 20 }, // Booking ID
-        { wch: 25 }, // Nama
-        { wch: 15 }, // No. HP
-        { wch: 15 }, // Status Member
-        { wch: 12 }, // Tipe
-        { wch: 15 }, // Jumlah Slot
-        { wch: 12 }, // Admin Fee
-        { wch: 12 }, // Diskon
-        { wch: 15 }, // Total Amount
+        { wch: 5 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 18 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Detail Booking");
 
-      // Generate and save file
       const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const data = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -216,10 +221,13 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
       }.xlsx`;
 
       saveAs(data, fileName);
-      showSuccess("Excel Exported", "Detail booking berhasil diexport");
+      showSuccess(
+        "Excel Berhasil Diexport",
+        "Detail booking berhasil diexport",
+      );
     } catch (error) {
       console.error("Error exporting Excel:", error);
-      showError("Export Error", "Gagal export detail booking ke Excel");
+      showError("Gagal Export", "Gagal export detail booking ke Excel");
     }
   };
 
@@ -289,7 +297,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Table - Responsive */}
+          {/* Table */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -299,7 +307,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                       No
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                      Booking ID
+                      ID Booking
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                       Nama & No HP
@@ -311,10 +319,16 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                       Slot
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                      Admin Fee
+                      Biaya Admin
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                      Amount
+                      Diskon
+                    </th>
+                    <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                      Harga Dasar
+                    </th>
+                    <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                      Total Bayar
                     </th>
                   </tr>
                 </thead>
@@ -361,9 +375,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                               : "bg-green-100 text-green-800"
                           }`}
                         >
-                          {booking.bookingType === "TEAM"
-                            ? "Team"
-                            : "Individual"}
+                          {booking.bookingType === "TEAM" ? "Tim" : "Individu"}
                         </span>
                       </td>
                       <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
@@ -385,23 +397,32 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                               : "-"}
                         </div>
                       </td>
+                      {/* Kolom Diskon - terpisah */}
+                      <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
+                        <div className="text-xs md:text-sm text-purple-600">
+                          {booking.discountAmount &&
+                          parseInt(booking.discountAmount) > 0
+                            ? `Rp ${parseInt(
+                                booking.discountAmount,
+                              ).toLocaleString("id-ID")}`
+                            : "-"}
+                        </div>
+                      </td>
+                      {/* Base Fee */}
+                      <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
+                        <div className="text-xs md:text-sm font-semibold text-blue-600">
+                          {booking.baseFee !== undefined
+                            ? `Rp ${parseInt(String(booking.baseFee)).toLocaleString("id-ID")}`
+                            : "Menunggu"}
+                        </div>
+                      </td>
+                      {/* Total Amount */}
                       <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
                         <div className="text-xs md:text-sm font-semibold text-green-600">
                           {booking.totalAmount !== undefined
-                            ? `Rp ${booking.totalAmount.toLocaleString(
-                                "id-ID",
-                              )}`
-                            : "Pending"}
+                            ? `Rp ${booking.totalAmount.toLocaleString("id-ID")}`
+                            : "Menunggu"}
                         </div>
-                        {booking.discountAmount &&
-                          parseInt(booking.discountAmount) > 0 && (
-                            <div className="text-xs text-purple-600">
-                              Diskon: Rp{" "}
-                              {parseInt(booking.discountAmount).toLocaleString(
-                                "id-ID",
-                              )}
-                            </div>
-                          )}
                       </td>
                     </tr>
                   ))}
@@ -428,8 +449,21 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                       </div>
                     </td>
                     <td className="px-3 md:px-4 py-3">
+                      <div className="text-xs md:text-sm font-semibold text-purple-600">
+                        Rp {totalDiscount.toLocaleString("id-ID")}
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-3">
+                      <div className="text-xs md:text-sm font-bold text-blue-600">
+                        Rp {totalBaseFee.toLocaleString("id-ID")}
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-3">
                       <div className="text-xs md:text-sm font-bold text-green-600">
-                        Rp {totalAmount.toLocaleString("id-ID")}
+                        Rp{" "}
+                        {bookings
+                          .reduce((sum, b) => sum + (b.totalAmount || 0), 0)
+                          .toLocaleString("id-ID")}
                       </div>
                     </td>
                   </tr>
@@ -461,7 +495,6 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((page) => {
-                      // Show first page, last page, current page, and pages around current
                       return (
                         page === 1 ||
                         page === totalPages ||
@@ -469,7 +502,6 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                       );
                     })
                     .map((page, index, array) => {
-                      // Add ellipsis
                       const prevPage = array[index - 1];
                       const showEllipsis = prevPage && page - prevPage > 1;
 
@@ -526,7 +558,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-orange-600 font-medium">
-                    Total Admin Fee
+                    Total Biaya Admin
                   </p>
                   <p className="text-xl md:text-2xl font-bold text-orange-900 truncate">
                     Rp {totalAdminFee.toLocaleString("id-ID")}
