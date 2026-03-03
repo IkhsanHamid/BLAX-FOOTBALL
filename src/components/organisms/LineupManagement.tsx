@@ -300,7 +300,7 @@ const SortablePlayerCard = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );
 
 SortablePlayerCard.displayName = "SortablePlayerCard";
@@ -340,7 +340,7 @@ const PlayerCard = React.memo(
         </div>
       </div>
     );
-  }
+  },
 );
 
 PlayerCard.displayName = "PlayerCard";
@@ -362,7 +362,7 @@ const TeamDropzone = React.memo(
         {children}
       </div>
     );
-  }
+  },
 );
 
 TeamDropzone.displayName = "TeamDropzone";
@@ -371,13 +371,13 @@ TeamDropzone.displayName = "TeamDropzone";
 export default function LineupManagement() {
   const [lineups, setLineups] = useState<LineupMatch[]>([]);
   const [selectedLineup, setSelectedLineup] = useState<LineupMatch | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -399,7 +399,7 @@ export default function LineupManagement() {
     }),
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
-    })
+    }),
   );
 
   // ========== EFFECTS ==========
@@ -460,12 +460,12 @@ export default function LineupManagement() {
         await adminService.changeNameTeam(
           selectedLineup.id,
           newName.trim(),
-          teamKey
+          teamKey,
         );
 
         showSuccess(
           "Team name updated",
-          `Team ${teamKey} renamed successfully`
+          `Team ${teamKey} renamed successfully`,
         );
       } catch (error) {
         showError("Error", "Failed to update team name");
@@ -476,7 +476,7 @@ export default function LineupManagement() {
         });
       }
     },
-    [selectedLineup, teamNames, showSuccess, showError]
+    [selectedLineup, teamNames, showSuccess, showError],
   );
 
   const handleLockLineup = async () => {
@@ -492,15 +492,15 @@ export default function LineupManagement() {
       setSelectedLineup(updatedLineup);
       setLineups((prev) =>
         prev.map((lineup) =>
-          lineup.id === selectedLineup.id ? updatedLineup : lineup
-        )
+          lineup.id === selectedLineup.id ? updatedLineup : lineup,
+        ),
       );
 
       showSuccess(
         newLockStatus ? "Lineup Locked" : "Lineup Unlocked",
         newLockStatus
           ? "Lineup has been locked. Players cannot be moved."
-          : "Lineup has been unlocked. You can now move players."
+          : "Lineup has been unlocked. You can now move players.",
       );
     } catch (error) {
       showError("Error", "Failed to update lineup lock status");
@@ -571,7 +571,7 @@ export default function LineupManagement() {
 
       const fileName = `Lineup_${selectedLineup.scheduleName.replace(
         /[^a-z0-9]/gi,
-        "_"
+        "_",
       )}_${new Date().getTime()}.xlsx`;
 
       XLSX.writeFile(wb, fileName);
@@ -590,7 +590,7 @@ export default function LineupManagement() {
     (
       teamKey: string,
       player: LineupPlayer,
-      lineup: LineupMatch
+      lineup: LineupMatch,
     ): { canAccept: boolean; reason?: string } => {
       if (!lineup.teams || !lineup.teams[teamKey]) {
         return { canAccept: false, reason: "Invalid team" };
@@ -615,7 +615,7 @@ export default function LineupManagement() {
 
       return { canAccept: true };
     },
-    []
+    [],
   );
 
   // ========== DRAG HANDLERS ==========
@@ -650,7 +650,6 @@ export default function LineupManagement() {
       let targetTeam: string | null = null;
       let targetIndex = -1;
 
-      // Check if dropped on container
       const teamKeys = selectedLineup.teams
         ? Object.keys(selectedLineup.teams)
         : [];
@@ -663,14 +662,13 @@ export default function LineupManagement() {
         }
       }
 
-      // Check if dropped on player
       if (!targetTeam) {
         const overPlayer = allPlayers.find((p) => p.id === overId);
         if (overPlayer) {
           targetTeam = overPlayer.team;
           targetIndex =
             selectedLineup.teams[targetTeam]?.findIndex(
-              (p) => p.id === overId
+              (p) => p.id === overId,
             ) ?? -1;
         }
       }
@@ -697,33 +695,83 @@ export default function LineupManagement() {
           const updatedLineup = { ...selectedLineup, teams: updatedTeams };
           setSelectedLineup(updatedLineup);
           setLineups((prev) =>
-            prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l))
+            prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l)),
           );
         }
         return;
       }
 
       // Move to different team
+      const sourceTeam = activePlayer.team;
+      const updatedTeams = { ...selectedLineup.teams };
+      const isActiveGK = activePlayer.position === "GK";
+      const targetTeamPlayers = updatedTeams[targetTeam] || [];
+      const targetHasGK = targetTeamPlayers.some((p) => p.position === "GK");
+
+      // GK drag ke tim yang sudah ada GK → SWAP dua GK
+      if (isActiveGK && targetHasGK) {
+        const targetGK = targetTeamPlayers.find((p) => p.position === "GK")!;
+
+        updatedTeams[sourceTeam] = updatedTeams[sourceTeam]
+          .filter((p) => p.id !== activeId)
+          .concat({ ...targetGK, team: sourceTeam });
+
+        updatedTeams[targetTeam] = targetTeamPlayers
+          .filter((p) => p.id !== targetGK.id)
+          .concat({ ...activePlayer, team: targetTeam });
+
+        Object.keys(updatedTeams).forEach((teamKey) => {
+          updatedTeams[teamKey] = updatedTeams[teamKey].map((player, idx) => ({
+            ...player,
+            order: idx + 1,
+          }));
+        });
+
+        const updatedLineup = { ...selectedLineup, teams: updatedTeams };
+        setSelectedLineup(updatedLineup);
+        setLineups((prev) =>
+          prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l)),
+        );
+
+        try {
+          await Promise.all([
+            lineupService.updatePlayerTeam(activePlayer.id, targetTeam),
+            lineupService.updatePlayerTeam(targetGK.id, sourceTeam),
+          ]);
+          showSuccess(
+            `GK swapped`,
+            `Goalkeeper swapped between Team ${sourceTeam} and Team ${targetTeam}`,
+          );
+        } catch (error) {
+          showError("Error", "Failed to swap goalkeepers");
+          setSelectedLineup(selectedLineup);
+          setLineups((prev) =>
+            prev.map((l) => (l.id === selectedLineup.id ? selectedLineup : l)),
+          );
+        }
+        return;
+      }
+
+      // Validasi normal untuk non-GK swap
       const { canAccept, reason } = canAcceptPlayer(
         targetTeam,
         activePlayer,
-        selectedLineup
+        selectedLineup,
       );
       if (!canAccept) {
         showWarning(
           "Cannot move player",
-          reason || "Team constraints prevent this move"
+          reason || "Team constraints prevent this move",
         );
         return;
       }
 
-      const updatedTeams = { ...selectedLineup.teams };
-      updatedTeams[activePlayer.team] = updatedTeams[activePlayer.team].filter(
-        (p) => p.id !== activeId
+      updatedTeams[sourceTeam] = updatedTeams[sourceTeam].filter(
+        (p) => p.id !== activeId,
       );
 
       const updatedPlayer = { ...activePlayer, team: targetTeam };
-      updatedTeams[targetTeam] = [...(updatedTeams[targetTeam] || [])];
+      updatedTeams[targetTeam] = [...targetTeamPlayers];
       updatedTeams[targetTeam].splice(targetIndex, 0, updatedPlayer);
 
       Object.keys(updatedTeams).forEach((teamKey) => {
@@ -743,8 +791,8 @@ export default function LineupManagement() {
       setSelectedLineup(updatedLineup);
       setLineups((prev) =>
         prev.map((lineup) =>
-          lineup.id === selectedLineup.id ? updatedLineup : lineup
-        )
+          lineup.id === selectedLineup.id ? updatedLineup : lineup,
+        ),
       );
 
       try {
@@ -755,12 +803,12 @@ export default function LineupManagement() {
         setSelectedLineup(selectedLineup);
         setLineups((prev) =>
           prev.map((lineup) =>
-            lineup.id === selectedLineup.id ? selectedLineup : lineup
-          )
+            lineup.id === selectedLineup.id ? selectedLineup : lineup,
+          ),
         );
       }
     },
-    [selectedLineup, canAcceptPlayer, showWarning, showSuccess, showError]
+    [selectedLineup, canAcceptPlayer, showWarning, showSuccess, showError],
   );
 
   // ========== MEMOIZED VALUES ==========
@@ -769,7 +817,7 @@ export default function LineupManagement() {
       selectedLineup
         ? getAllPlayers(selectedLineup).find((p) => p.id === activeId)
         : null,
-    [selectedLineup, activeId]
+    [selectedLineup, activeId],
   );
 
   const filteredLineups = useMemo(
@@ -785,7 +833,7 @@ export default function LineupManagement() {
           statusFilter === "all" || lineup.status === statusFilter;
         return matchesSearch && matchesStatus;
       }),
-    [lineups, searchTerm, statusFilter]
+    [lineups, searchTerm, statusFilter],
   );
 
   // ========== RENDER HELPERS ==========
@@ -1115,7 +1163,7 @@ export default function LineupManagement() {
                             )}
                             <Badge
                               className={`text-xs ${getStatusColor(
-                                lineup.status
+                                lineup.status,
                               )}`}
                             >
                               {lineup.status}
