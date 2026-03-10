@@ -19,12 +19,14 @@ export interface ApiLineupResponse {
         id: string;
         name: string;
         phone: string;
+        jerseySize: string;
         type?: string;
       };
       PLAYERS?: Array<{
         id: string;
         name: string;
         phone: string;
+        jerseySize: string;
         type?: string;
       }>;
     }
@@ -48,6 +50,7 @@ export interface LineupPlayer {
   phone: string;
   position: "GK" | "PLAYER";
   team: string;
+  jerseySize: string;
   order: number;
   notes?: string;
   type?: string;
@@ -90,6 +93,7 @@ export class LineupService {
           realId: apiResponse.id,
           name: teamData.GK.name,
           phone: teamData.GK.phone,
+          jerseySize: teamData.GK.jerseySize,
           position: "GK",
           team: teamKey,
           order: 1,
@@ -107,6 +111,7 @@ export class LineupService {
             realId: apiResponse.id,
             name: player.name,
             phone: player.phone,
+            jerseySize: player.jerseySize,
             position: "PLAYER",
             team: teamKey,
             order: index + 2,
@@ -165,18 +170,18 @@ export class LineupService {
     const response = await apiClient.get("/api/v1/matches/schedules-lineup");
     const data = Array.isArray(response) ? response : response.data || [];
     return data.map((item: ApiLineupResponse) =>
-      this.transformApiResponse(item)
+      this.transformApiResponse(item),
     );
   }
 
   async updatePlayerTeam(
     playerId: string,
-    team: string
+    team: string,
   ): Promise<UpdatePlayerTeamResponse> {
     const requestBody: UpdatePlayerTeamRequest = { id: playerId, team };
     const response = await apiClient.put(
       `/api/v1/lineup/lineup-team`,
-      requestBody
+      requestBody,
     );
     return response.data;
   }

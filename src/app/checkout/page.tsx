@@ -11,6 +11,8 @@ import {
   Tag,
   X,
   Shirt,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
@@ -26,7 +28,6 @@ import PaymentSuccessModal from "@/components/molecules/SuccessPaymentModal";
 
 // Fungsi validasi input
 const noSpace = (value: string) => {
-  // Hapus spasi ganda dan batasi 100 karakter
   return value.replace(/\s{2,}/g, " ").slice(0, 100);
 };
 const onlyNumbers = (value: string) => value.replace(/\D/g, "").slice(0, 100);
@@ -37,16 +38,28 @@ const validatePhone = (phone: string) =>
 const validateName = (value: string) => value.trim().length > 0;
 const JERSEY_SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
 
+// Tipe slot individual: setiap slot punya role, nama, jersey, dan phone (untuk slot 2+)
+type SlotRole = "goalkeeper" | "player" | null;
+interface IndividualSlot {
+  role: SlotRole;
+  name: string;
+  jerseySize: string;
+  phone: string; // hanya untuk slot 2+
+  email?: string; // opsional, hanya untuk slot 2+
+}
+
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const [bookingType, setBookingType] = useState<"individual" | "team">(
     "individual",
   );
-  const [selectedRole, setSelectedRole] = useState<
-    "goalkeeper" | "player" | null
-  >(null);
+
+  // === PERUBAHAN: Ganti selectedRole + bookingQuantity dengan slots array ===
+  const [slots, setSlots] = useState<IndividualSlot[]>([
+    { role: null, name: "", jerseySize: "", phone: "", email: "" },
+  ]);
+
   const { showSuccess, showError } = useNotifications();
-  const [bookingQuantity, setBookingQuantity] = useState(1);
 
   // Toggle untuk team roster
   const [includeRoster, setIncludeRoster] = useState(false);
@@ -59,6 +72,7 @@ export default function CheckoutPage() {
   // Team Form
   const [picName, setPicName] = useState("");
   const [picEmail, setPicEmail] = useState("");
+  const [picJerseySize, setPicJerseySize] = useState("");
 
   // Voucher states
   const [voucherCode, setVoucherCode] = useState("");
@@ -68,15 +82,12 @@ export default function CheckoutPage() {
     type: "PERCENTAGE" | "FIXED";
   } | null>(null);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
-  const [jerseySize, setJerseySize] = useState("");
-  const [picJerseySize, setPicJerseySize] = useState("");
 
   const { selectedSchedule } = useSchedule();
   const { user } = useAuth();
   const router = useRouter();
   const [isBookingLoading, setIsBookingLoading] = useState(false);
 
-  // State untuk payment component
   const [showPayment, setShowPayment] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
@@ -98,7 +109,6 @@ export default function CheckoutPage() {
     })),
   );
 
-  // Tambahkan setelah state yang sudah ada (sekitar baris 56)
   const [successPayment, setSuccessPayment] = useState(false);
   const [amount, setAmount] = useState(0);
   const [paymentType] = useState("booking");
@@ -120,16 +130,16 @@ export default function CheckoutPage() {
       setEmail(user.email || "");
       setWhatsapp(user.phone || "");
       if (user.isMember) setIsMember(true);
+      // Pre-fill slot pertama dengan nama user
+      setSlots((prev) =>
+        prev.map((s, i) => (i === 0 ? { ...s, name: user.name || "" } : s)),
+      );
     }
   }, [user]);
 
   useEffect(() => {
     checkExistingBooking();
   }, [user, selectedSchedule]);
-
-  useEffect(() => {
-    setBookingQuantity(1);
-  }, [selectedRole]);
 
   useEffect(() => {
     const paymentIdFromQuery = searchParams.get("paymentId");
@@ -179,15 +189,82 @@ export default function CheckoutPage() {
     }
   };
 
-  // Check if form is valid and can proceed
+  // ===== SLOT MANAGEMENT =====
+  const getMaxQuantity = () => {
+    if (!selectedSchedule) return 1;
+    const maxByMatchType =
+      selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
+    // Max total slot = min dari available slots (gabungan GK + Player), dibatasi match type
+    const totalAvailable =
+      selectedSchedule.availableGkSlots + selectedSchedule.availablePlayerSlots;
+    return Math.min(totalAvailable, maxByMatchType);
+  };
+
+  const addSlot = () => {
+    if (slots.length < getMaxQuantity()) {
+      setSlots([
+        ...slots,
+        { role: null, name: "", jerseySize: "", phone: "", email: "" },
+      ]);
+    }
+  };
+
+  const removeSlot = (index: number) => {
+    if (slots.length <= 1) return;
+    const updated = slots.filter((_, i) => i !== index);
+    setSlots(updated);
+  };
+
+  const setSlotRole = (index: number, role: SlotRole) => {
+    const updated = [...slots];
+    // Cek apakah masih ada slot tersedia untuk role ini
+    const currentCount = updated.filter((s) => s.role === role).length;
+    const available =
+      role === "goalkeeper"
+        ? (selectedSchedule?.availableGkSlots ?? 0)
+        : (selectedSchedule?.availablePlayerSlots ?? 0);
+
+    // Jika role yang dipilih sama dengan sekarang, toggle off (null)
+    if (updated[index].role === role) {
+      updated[index].role = null;
+      setSlots(updated);
+      return;
+    }
+
+    // Cek apakah masih ada slot untuk role ini
+    if (currentCount >= available) {
+      showError(
+        `Slot ${role === "goalkeeper" ? "Goalkeeper" : "Player"} sudah penuh`,
+      );
+      return;
+    }
+
+    updated[index].role = role;
+    setSlots(updated);
+  };
+
+  // Hitung jumlah GK dan Player dari slots
+  const countGk = () => slots.filter((s) => s.role === "goalkeeper").length;
+  const countPlayer = () => slots.filter((s) => s.role === "player").length;
+  const bookingQuantity = slots.length;
+
+  // ===== VALIDASI =====
   const isFormValid = () => {
     if (bookingType === "individual") {
+      const allRoleSelected = slots.every((s) => s.role !== null);
+      const allJerseySizes = slots.every((s) => s.jerseySize !== "");
+      // Slot 2+ wajib isi nama dan phone
+      const allFriendsValid = slots.every(
+        (s, i) => i === 0 || (validateName(s.name) && validatePhone(s.phone)),
+      );
       return (
         validateName(name) &&
         validateEmail(email) &&
         validatePhone(whatsapp) &&
-        selectedRole !== null &&
-        jerseySize !== ""
+        slots.length > 0 &&
+        allRoleSelected &&
+        allJerseySizes &&
+        allFriendsValid
       );
     } else {
       // Team booking
@@ -197,19 +274,12 @@ export default function CheckoutPage() {
         validatePhone(whatsapp) &&
         picJerseySize !== "";
 
-      if (!includeRoster) {
-        return isPicValid;
-      }
+      if (!includeRoster) return isPicValid;
 
-      // Check roster validity
       const hasEmailErrors = Object.keys(emailErrors).length > 0;
       const hasPhoneErrors = Object.keys(phoneErrors).length > 0;
+      if (hasEmailErrors || hasPhoneErrors) return false;
 
-      if (hasEmailErrors || hasPhoneErrors) {
-        return false;
-      }
-
-      // Check all players have complete data
       const allPlayersComplete = players.every(
         (p) =>
           validateName(p.name) &&
@@ -233,7 +303,6 @@ export default function CheckoutPage() {
     } else if (field === "phone") {
       updated[index][field] = onlyNumbers(value);
 
-      // Validasi phone duplikat
       const duplicateIndex = updated.findIndex(
         (p, i) => i !== index && p.phone && p.phone === onlyNumbers(value),
       );
@@ -245,7 +314,6 @@ export default function CheckoutPage() {
         newErrors[duplicateIndex] = `Nomor sama dengan Player ${index + 1}`;
       } else {
         delete newErrors[index];
-        // Clear error dari player lain jika tidak ada duplikat lagi
         Object.keys(newErrors).forEach((key) => {
           const keyIndex = parseInt(key);
           if (keyIndex !== index) {
@@ -255,9 +323,7 @@ export default function CheckoutPage() {
                 p.phone &&
                 p.phone === updated[keyIndex].phone,
             );
-            if (!hasDuplicate) {
-              delete newErrors[keyIndex];
-            }
+            if (!hasDuplicate) delete newErrors[keyIndex];
           }
         });
       }
@@ -266,7 +332,6 @@ export default function CheckoutPage() {
     } else if (field === "email") {
       updated[index][field] = noSpace(value);
 
-      // Validasi email duplikat
       const duplicateIndex = updated.findIndex(
         (p, i) => i !== index && p.email && p.email === noSpace(value),
       );
@@ -278,7 +343,6 @@ export default function CheckoutPage() {
         newErrors[duplicateIndex] = `Email sama dengan Player ${index + 1}`;
       } else {
         delete newErrors[index];
-        // Clear error dari player lain jika tidak ada duplikat lagi
         Object.keys(newErrors).forEach((key) => {
           const keyIndex = parseInt(key);
           if (keyIndex !== index) {
@@ -288,9 +352,7 @@ export default function CheckoutPage() {
                 p.email &&
                 p.email === updated[keyIndex].email,
             );
-            if (!hasDuplicate) {
-              delete newErrors[keyIndex];
-            }
+            if (!hasDuplicate) delete newErrors[keyIndex];
           }
         });
       }
@@ -302,34 +364,17 @@ export default function CheckoutPage() {
     setPlayers(updated);
   };
 
+  // ===== HARGA =====
   const getPrice = () => {
     if (!selectedSchedule) return 0;
     if (bookingType === "individual") {
-      const pricePerSlot =
-        selectedRole === "goalkeeper"
-          ? selectedSchedule?.feeGk
-          : selectedSchedule?.feePlayer;
-      return Number(pricePerSlot) * bookingQuantity;
+      const gkTotal = countGk() * Number(selectedSchedule.feeGk);
+      const playerTotal = countPlayer() * Number(selectedSchedule.feePlayer);
+      return gkTotal + playerTotal;
     }
     return Number(selectedSchedule?.feePlayer) * getRosterSize();
   };
 
-  const getMaxQuantity = () => {
-    if (!selectedSchedule) return 1;
-
-    const maxByMatchType =
-      selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
-
-    if (selectedRole === "goalkeeper") {
-      return Math.min(selectedSchedule.availableGkSlots, maxByMatchType);
-    } else if (selectedRole === "player") {
-      return Math.min(selectedSchedule.availablePlayerSlots, maxByMatchType);
-    }
-
-    return 1;
-  };
-
-  // Handle apply voucher
   const handleApplyVoucher = async () => {
     if (!voucherCode.trim()) {
       showError("Masukkan kode voucher");
@@ -356,75 +401,54 @@ export default function CheckoutPage() {
     }
   };
 
-  // Handle remove voucher
   const handleRemoveVoucher = () => {
     setAppliedVoucher(null);
     setVoucherCode("");
     showSuccess("Voucher dihapus");
   };
 
-  // Calculate discounts and total
   const calculatePricing = () => {
-    const individualPrice =
-      selectedRole === "goalkeeper"
-        ? selectedSchedule?.feeGk
-        : selectedSchedule?.feePlayer;
+    const gkCount = countGk();
+    const playerCount = countPlayer();
 
     let basePrice = 0;
     let memberDiscount = 0;
     let tourDisc = 0;
 
     if (bookingType === "team") {
-      // Team booking
       const rosterSize = getRosterSize();
       const isTournament = selectedSchedule?.typeEvent === "TOURNAMENT";
 
       if (isTournament) {
-        // TOURNAMENT: hitung berdasarkan roster size (pemain + kiper)
-        const playerCount = rosterSize; // jumlah pemain
-        const gkCount = 1; // 1 kiper
-
         const playerPrice = Number(selectedSchedule?.feePlayer);
         const gkPrice = Number(selectedSchedule?.feeGk);
-
-        // Total harga sebelum diskon
-        const totalBeforeDiscount =
-          playerCount * playerPrice + gkCount * gkPrice;
-
-        // Diskon 5% untuk team tournament
+        const totalBeforeDiscount = rosterSize * playerPrice + 1 * gkPrice;
         tourDisc = Math.round(totalBeforeDiscount * 0.05);
         basePrice = totalBeforeDiscount - tourDisc;
       } else {
-        // FUN GAME: tidak ada member discount
-        basePrice = getPrice(); // Team price sudah total
+        basePrice = getPrice();
         memberDiscount = 0;
       }
     } else {
       // INDIVIDUAL booking
       const canGetDiscount = isMember && !hasExistingBooking;
+      basePrice = getPrice();
 
       if (canGetDiscount && bookingQuantity > 0) {
-        // Member discount hanya untuk booking pertama (10%)
-        const firstBookingDiscount = Math.round(Number(individualPrice) * 0.1);
-
-        // Total base price untuk semua quantity
-        basePrice = Number(individualPrice) * bookingQuantity;
-
-        // Member discount hanya untuk 1 booking pertama
-        memberDiscount = firstBookingDiscount;
+        // Member discount 10% hanya untuk 1 booking pertama (gunakan harga terendah / player)
+        const firstBookingPrice =
+          gkCount > 0
+            ? Number(selectedSchedule?.feeGk)
+            : Number(selectedSchedule?.feePlayer);
+        memberDiscount = Math.round(firstBookingPrice * 0.1);
       } else {
-        // Tidak ada discount
-        basePrice = Number(individualPrice) * bookingQuantity;
         memberDiscount = 0;
       }
     }
 
     const adminFee = isMember ? 0 : 1000;
-
-    // Price after member discount
     const priceAfterMemberDiscount = basePrice - memberDiscount + adminFee;
 
-    // Voucher discount
     let voucherDiscount = 0;
     if (appliedVoucher) {
       if (appliedVoucher.type === "PERCENTAGE") {
@@ -452,9 +476,12 @@ export default function CheckoutPage() {
     };
   };
 
-  // Create booking payload
+  // ===== PAYLOAD =====
   const createBookingPayload = () => {
-    // const pricing = calculatePricing();
+    const gkCount = countGk();
+    const playerCount = countPlayer();
+
+    const bookerRole = slots[0]?.role;
 
     const basePayload = {
       scheduleId: String(selectedSchedule?.id),
@@ -463,15 +490,29 @@ export default function CheckoutPage() {
       name: user ? user.name : bookingType === "team" ? picName : name,
       email: user ? user.email : bookingType === "team" ? picEmail : email,
       phoneNumber: user ? user.phone : whatsapp,
-      isPlayer: selectedRole === "player" || bookingType === "team",
-      isGk: selectedRole === "goalkeeper" || bookingType === "team",
+      isPlayer: bookingType === "team" ? true : bookerRole === "player",
+      isGk: bookingType === "team" ? true : bookerRole === "goalkeeper",
       isTeam: bookingType === "team" && includeRoster,
       voucherCode: appliedVoucher?.code || undefined,
-      jerseySize: jerseySize || picJerseySize,
+      // jerseySize untuk slot pertama (backward compat)
+      jerseySize:
+        bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,
+      gkQuantity: bookingType === "individual" ? gkCount : undefined,
+      playerQuantity: bookingType === "individual" ? playerCount : undefined,
       quantity: bookingType === "individual" ? bookingQuantity : 1,
+      // Detail per slot (nama + jersey size + phone + email per orang)
+      slotDetails:
+        bookingType === "individual"
+          ? slots.map((s, i) => ({
+              name: i === 0 ? (user?.name ?? name) : s.name,
+              jerseySize: s.jerseySize,
+              role: s.role,
+              phone: i === 0 ? (user?.phone ?? whatsapp) : s.phone,
+              email: i === 0 ? (user?.email ?? email) : s.email || undefined,
+            }))
+          : undefined,
     };
 
-    // Tambahkan teamRoster jika isTeam true
     if (basePayload.isTeam) {
       return {
         ...basePayload,
@@ -484,25 +525,32 @@ export default function CheckoutPage() {
       };
     }
 
-    console.log("basePayload", basePayload);
-
     return basePayload;
   };
 
-  // Handle back from payment component
   const handleBackFromPayment = () => {
     setShowPayment(false);
     setPaymentId(null);
   };
 
-  // Validate and handle booking confirmation
   const handleBookingConfirmation = async () => {
     if (bookingType === "individual") {
       if (!validateName(name)) return showError("Nama wajib diisi");
       if (!validateEmail(email)) return showError("Email tidak valid");
       if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
-      if (!selectedRole) return showError("Pilih role");
-      if (!jerseySize) return showError("Ukuran jersey wajib dipilih");
+
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        if (!s.role) return showError(`Pilih role untuk Slot ${i + 1}`);
+        if (!s.jerseySize)
+          return showError(`Ukuran jersey untuk Slot ${i + 1} wajib dipilih`);
+        if (i > 0) {
+          if (!validateName(s.name))
+            return showError(`Nama teman ${i} wajib diisi`);
+          if (!validatePhone(s.phone))
+            return showError(`No HP teman ${i} tidak valid`);
+        }
+      }
     } else {
       if (!validateName(picName)) return showError("PIC name wajib diisi");
       if (!validateEmail(picEmail)) return showError("PIC email tidak valid");
@@ -510,15 +558,10 @@ export default function CheckoutPage() {
         return showError("WhatsApp PIC tidak valid");
 
       if (includeRoster) {
-        // Cek error email duplikat
-        if (Object.keys(emailErrors).length > 0) {
+        if (Object.keys(emailErrors).length > 0)
           return showError("Terdapat email yang sama di team roster");
-        }
-
-        // Cek error phone duplikat
-        if (Object.keys(phoneErrors).length > 0) {
+        if (Object.keys(phoneErrors).length > 0)
           return showError("Terdapat nomor phone yang sama di team roster");
-        }
 
         for (let i = 0; i < players.length; i++) {
           const p = players[i];
@@ -557,9 +600,6 @@ export default function CheckoutPage() {
     }
   };
 
-  console.log("selectedschedule", selectedSchedule);
-
-  // Jika showPayment true, tampilkan PaymentComponent
   if (showPayment && paymentId) {
     return <QRISPaymentPage paymentId={paymentId} paymentType={"booking"} />;
   }
@@ -589,6 +629,21 @@ export default function CheckoutPage() {
   }
 
   const pricing = calculatePricing();
+  const gkCount = countGk();
+  const playerCount = countPlayer();
+
+  // Helper: apakah masih bisa tambah role tertentu di slot ini
+  const canSelectRole = (slotIndex: number, role: SlotRole) => {
+    if (!role) return true;
+    const currentForRole = slots.filter(
+      (s, i) => i !== slotIndex && s.role === role,
+    ).length;
+    const available =
+      role === "goalkeeper"
+        ? selectedSchedule.availableGkSlots
+        : selectedSchedule.availablePlayerSlots;
+    return currentForRole < available;
+  };
 
   return (
     <>
@@ -680,6 +735,7 @@ export default function CheckoutPage() {
                 >
                   <h3 className="text-blue-600">Personal Information</h3>
 
+                  {/* Name */}
                   <div>
                     <label className="block text-gray-600 mb-2">
                       Nama lengkap
@@ -714,6 +770,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* Email */}
                   <div>
                     <label className="block text-gray-600 mb-2">Email</label>
                     <div className="relative">
@@ -734,7 +791,7 @@ export default function CheckoutPage() {
                           user.email !== "ikhsanhamid352@gmail.com"
                             ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
                             : "border-gray-300"
-                        } `}
+                        }`}
                       />
                       {user &&
                         user.email !== "ardiantosandi@gmail.com" &&
@@ -746,6 +803,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* WhatsApp */}
                   <div>
                     <label className="block text-gray-600 mb-2">
                       WhatsApp Number
@@ -782,193 +840,383 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* ===== SLOT SELECTION ===== */}
                   <div>
-                    <label className="block text-gray-600 mb-2">
-                      Ukuran Jersey <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Shirt className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <select
-                        value={jerseySize}
-                        onChange={(e) => setJerseySize(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer"
-                      >
-                        <option value="">Pilih ukuran</option>
-                        {JERSEY_SIZES.map((size) => (
-                          <option key={size} value={size}>
-                            {size}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="mb-4 text-blue-600">Select Your Role</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedSchedule.typeMatch !== "PADEL" && (
-                        <motion.div
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-blue-600">
+                        Pilih Slot & Posisi
+                        <span className="ml-2 text-sm font-normal text-gray-500">
+                          ({slots.length} slot)
+                        </span>
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <motion.button
+                          whileHover={{ scale: slots.length <= 1 ? 1 : 1.05 }}
+                          whileTap={{ scale: slots.length <= 1 ? 1 : 0.95 }}
+                          onClick={() => removeSlot(slots.length - 1)}
+                          disabled={slots.length <= 1}
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            slots.length <= 1
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                          }`}
+                        >
+                          <Minus className="w-4 h-4" />
+                        </motion.button>
+                        <motion.button
                           whileHover={{
-                            scale:
-                              selectedSchedule?.availableGkSlots === 0
-                                ? 1
-                                : 1.02,
+                            scale: slots.length >= getMaxQuantity() ? 1 : 1.05,
                           }}
-                          onClick={() =>
-                            selectedSchedule?.availableGkSlots !== 0 &&
-                            setSelectedRole("goalkeeper")
-                          }
-                          className={`p-6 border-2 rounded-2xl transition-all relative ${
-                            selectedSchedule?.availableGkSlots === 0
-                              ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
-                              : selectedRole === "goalkeeper"
-                                ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
-                                : "border-blue-200 hover:border-blue-300 cursor-pointer"
+                          whileTap={{
+                            scale: slots.length >= getMaxQuantity() ? 1 : 0.95,
+                          }}
+                          onClick={addSlot}
+                          disabled={slots.length >= getMaxQuantity()}
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            slots.length >= getMaxQuantity()
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
                           }`}
                         >
-                          <Shield
-                            className={`w-8 h-8 mb-3 ${
-                              selectedSchedule?.availableGkSlots === 0
-                                ? "text-gray-400"
-                                : "text-blue-600"
-                            }`}
-                          />
-                          <h4
-                            className={`mb-2 ${
-                              selectedSchedule?.availableGkSlots === 0
-                                ? "text-gray-500"
-                                : "text-blue-600"
-                            }`}
-                          >
-                            Goalkeeper
-                          </h4>
-                          <div
-                            className={
-                              selectedSchedule?.availableGkSlots === 0
-                                ? "text-gray-500"
-                                : "text-gray-600"
-                            }
-                          >
-                            IDR {selectedSchedule?.feeGk}
-                          </div>
-                          {selectedSchedule?.availableGkSlots === 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                              FULL
-                            </span>
-                          )}
-                        </motion.div>
-                      )}
-
-                      <motion.div
-                        whileHover={{
-                          scale:
-                            selectedSchedule?.availablePlayerSlots === 0
-                              ? 1
-                              : 1.02,
-                        }}
-                        onClick={() =>
-                          selectedSchedule?.availablePlayerSlots !== 0 &&
-                          setSelectedRole("player")
-                        }
-                        className={`p-6 border-2 rounded-2xl transition-all relative ${
-                          selectedSchedule?.availablePlayerSlots === 0
-                            ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
-                            : selectedRole === "player"
-                              ? "border-blue-600 bg-blue-50 shadow-lg cursor-pointer"
-                              : "border-blue-200 hover:border-blue-300 cursor-pointer"
-                        }`}
-                      >
-                        <User
-                          className={`w-8 h-8 mb-3 ${
-                            selectedSchedule?.availablePlayerSlots === 0
-                              ? "text-gray-400"
-                              : "text-blue-600"
-                          }`}
-                        />
-                        <h4
-                          className={`mb-2 ${
-                            selectedSchedule?.availablePlayerSlots === 0
-                              ? "text-gray-500"
-                              : "text-blue-600"
-                          }`}
-                        >
-                          Player
-                        </h4>
-                        <div
-                          className={
-                            selectedSchedule?.availablePlayerSlots === 0
-                              ? "text-gray-500"
-                              : "text-gray-600"
-                          }
-                        >
-                          IDR {selectedSchedule?.feePlayer}
-                        </div>
-
-                        {selectedSchedule?.availablePlayerSlots === 0 && (
-                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                            FULL
-                          </span>
-                        )}
-                      </motion.div>
+                          <Plus className="w-4 h-4" />
+                        </motion.button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    {selectedRole && (
-                      <div>
-                        <label className="block text-gray-600 mb-2">
-                          Jumlah Slot <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() =>
-                              setBookingQuantity(
-                                Math.max(1, bookingQuantity - 1),
-                              )
-                            }
-                            disabled={bookingQuantity <= 1}
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                              bookingQuantity <= 1
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-blue-600 text-white hover:bg-blue-700"
-                            }`}
-                          >
-                            -
-                          </motion.button>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Slot pertama otomatis untuk Anda. Tambah slot jika membawa
+                      teman — isi nama, no HP, dan jersey mereka.
+                    </p>
 
-                          <div className="flex-1 text-center">
-                            <div className="text-3xl font-bold text-blue-600">
-                              {bookingQuantity}
+                    {/* Slot availability info */}
+                    <div className="flex gap-3 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 rounded-xl px-3 py-2">
+                        <Shield className="w-4 h-4 text-blue-500" />
+                        <span>
+                          GK tersedia:{" "}
+                          <strong className="text-blue-600">
+                            {selectedSchedule.availableGkSlots - gkCount}
+                          </strong>{" "}
+                          / {selectedSchedule.availableGkSlots}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 rounded-xl px-3 py-2">
+                        <User className="w-4 h-4 text-blue-500" />
+                        <span>
+                          Player tersedia:{" "}
+                          <strong className="text-blue-600">
+                            {selectedSchedule.availablePlayerSlots -
+                              playerCount}
+                          </strong>{" "}
+                          / {selectedSchedule.availablePlayerSlots}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Slot cards */}
+                    <div className="space-y-3">
+                      {slots.map((slot, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="p-4 bg-blue-50 rounded-2xl border border-blue-100"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <span className="text-gray-700 font-semibold text-sm">
+                                {index === 0 ? "Slot Anda" : `Teman ${index}`}
+                              </span>
+                              {index === 0 ? (
+                                <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                                  Akun Anda
+                                </span>
+                              ) : (
+                                <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                  Teman
+                                </span>
+                              )}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              Max: {getMaxQuantity()} slot
+                            {slots.length > 1 && index > 0 && (
+                              <button
+                                onClick={() => removeSlot(index)}
+                                className="text-gray-400 hover:text-red-500 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Data teman — hanya untuk slot 2+ */}
+                          {index > 0 && (
+                            <>
+                              {/* Nama teman */}
+                              <div className="mb-3">
+                                <label className="block text-xs text-gray-500 mb-1">
+                                  Nama Teman{" "}
+                                  <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="text"
+                                    value={slot.name}
+                                    onChange={(e) => {
+                                      const updated = [...slots];
+                                      updated[index].name = noSpace(
+                                        e.target.value,
+                                      );
+                                      setSlots(updated);
+                                    }}
+                                    placeholder={`Nama teman ${index}`}
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* No HP teman */}
+                              <div className="mb-3">
+                                <label className="block text-xs text-gray-500 mb-1">
+                                  No HP Teman{" "}
+                                  <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="tel"
+                                    value={slot.phone}
+                                    onChange={(e) => {
+                                      const updated = [...slots];
+                                      updated[index].phone = onlyNumbers(
+                                        e.target.value,
+                                      );
+                                      setSlots(updated);
+                                    }}
+                                    placeholder="0812 3456 7890"
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Email teman */}
+                              <div className="mb-3">
+                                <label className="block text-xs text-gray-500 mb-1">
+                                  Email Teman
+                                </label>
+                                <div className="relative">
+                                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="email"
+                                    value={slot.email ?? ""}
+                                    onChange={(e) => {
+                                      const updated = [...slots];
+                                      updated[index].email = noSpace(
+                                        e.target.value,
+                                      );
+                                      setSlots(updated);
+                                    }}
+                                    placeholder="email@teman.com"
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 text-sm"
+                                  />
+                                </div>
+                                <p className="text-xs text-blue-400 mt-1 italic">
+                                  Data email sangat berguna buat kami untuk
+                                  share informasi mengenai booking ini
+                                </p>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Jersey size per slot */}
+                          <div className="mb-3">
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Ukuran Jersey{" "}
+                              <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <Shirt className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <select
+                                value={slot.jerseySize}
+                                onChange={(e) => {
+                                  const updated = [...slots];
+                                  updated[index].jerseySize = e.target.value;
+                                  setSlots(updated);
+                                }}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 transition-colors text-gray-900 appearance-none cursor-pointer text-sm"
+                              >
+                                <option value="">Pilih ukuran</option>
+                                {JERSEY_SIZES.map((size) => (
+                                  <option key={size} value={size}>
+                                    {size}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
 
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() =>
-                              setBookingQuantity(
-                                Math.min(getMaxQuantity(), bookingQuantity + 1),
-                              )
-                            }
-                            disabled={bookingQuantity >= getMaxQuantity()}
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                              bookingQuantity >= getMaxQuantity()
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-blue-600 text-white hover:bg-blue-700"
-                            }`}
-                          >
-                            +
-                          </motion.button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Maksimal {getMaxQuantity()} slot untuk{" "}
-                          {selectedSchedule?.typeMatch}
-                        </p>
+                          {/* Role selection */}
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-2">
+                              Posisi <span className="text-red-500">*</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                              {/* Goalkeeper option - hidden for PADEL */}
+                              {selectedSchedule.typeMatch !== "PADEL" && (
+                                <motion.button
+                                  whileHover={{
+                                    scale:
+                                      !canSelectRole(index, "goalkeeper") &&
+                                      slot.role !== "goalkeeper"
+                                        ? 1
+                                        : 1.02,
+                                  }}
+                                  onClick={() =>
+                                    setSlotRole(index, "goalkeeper")
+                                  }
+                                  disabled={
+                                    !canSelectRole(index, "goalkeeper") &&
+                                    slot.role !== "goalkeeper"
+                                  }
+                                  className={`p-3 border-2 rounded-xl transition-all text-left relative ${
+                                    !canSelectRole(index, "goalkeeper") &&
+                                    slot.role !== "goalkeeper"
+                                      ? "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                                      : slot.role === "goalkeeper"
+                                        ? "border-blue-600 bg-blue-100 shadow-md"
+                                        : "border-blue-200 bg-white hover:border-blue-400 cursor-pointer"
+                                  }`}
+                                >
+                                  <Shield
+                                    className={`w-5 h-5 mb-1 ${
+                                      slot.role === "goalkeeper"
+                                        ? "text-blue-600"
+                                        : "text-gray-400"
+                                    }`}
+                                  />
+                                  <div
+                                    className={`text-xs font-medium ${
+                                      slot.role === "goalkeeper"
+                                        ? "text-blue-600"
+                                        : "text-gray-600"
+                                    }`}
+                                  >
+                                    Goalkeeper
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    IDR{" "}
+                                    {Number(
+                                      selectedSchedule.feeGk,
+                                    ).toLocaleString("id-ID")}
+                                  </div>
+                                  {slot.role === "goalkeeper" && (
+                                    <div className="absolute top-2 right-2 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs">
+                                        ✓
+                                      </span>
+                                    </div>
+                                  )}
+                                </motion.button>
+                              )}
+
+                              {/* Player option */}
+                              <motion.button
+                                whileHover={{
+                                  scale:
+                                    !canSelectRole(index, "player") &&
+                                    slot.role !== "player"
+                                      ? 1
+                                      : 1.02,
+                                }}
+                                onClick={() => setSlotRole(index, "player")}
+                                disabled={
+                                  !canSelectRole(index, "player") &&
+                                  slot.role !== "player"
+                                }
+                                className={`p-3 border-2 rounded-xl transition-all text-left relative ${
+                                  !canSelectRole(index, "player") &&
+                                  slot.role !== "player"
+                                    ? "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                                    : slot.role === "player"
+                                      ? "border-blue-600 bg-blue-100 shadow-md"
+                                      : "border-blue-200 bg-white hover:border-blue-400 cursor-pointer"
+                                }`}
+                              >
+                                <User
+                                  className={`w-5 h-5 mb-1 ${
+                                    slot.role === "player"
+                                      ? "text-blue-600"
+                                      : "text-gray-400"
+                                  }`}
+                                />
+                                <div
+                                  className={`text-xs font-medium ${
+                                    slot.role === "player"
+                                      ? "text-blue-600"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  Player
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  IDR{" "}
+                                  {Number(
+                                    selectedSchedule.feePlayer,
+                                  ).toLocaleString("id-ID")}
+                                </div>
+                                {slot.role === "player" && (
+                                  <div className="absolute top-2 right-2 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs">
+                                      ✓
+                                    </span>
+                                  </div>
+                                )}
+                              </motion.button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Slot summary */}
+                    {slots.some((s) => s.role !== null) && (
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl space-y-1.5">
+                        {slots.map(
+                          (s, i) =>
+                            s.role && (
+                              <div
+                                key={i}
+                                className="flex flex-wrap items-center gap-1.5 text-sm text-green-700"
+                              >
+                                {s.role === "goalkeeper" ? (
+                                  <Shield className="w-3.5 h-3.5 flex-shrink-0" />
+                                ) : (
+                                  <User className="w-3.5 h-3.5 flex-shrink-0" />
+                                )}
+                                <span className="font-medium">
+                                  {i === 0
+                                    ? user?.name || name || "Anda"
+                                    : s.name || `Teman ${i}`}
+                                </span>
+                                {i > 0 && s.phone && (
+                                  <>
+                                    <span className="text-green-400">·</span>
+                                    <span className="text-green-600 text-xs">
+                                      {s.phone}
+                                    </span>
+                                  </>
+                                )}
+                                <span className="text-green-400">·</span>
+                                <span className="capitalize">{s.role}</span>
+                                {s.jerseySize && (
+                                  <>
+                                    <span className="text-green-400">·</span>
+                                    <span>Jersey {s.jerseySize}</span>
+                                  </>
+                                )}
+                              </div>
+                            ),
+                        )}
                       </div>
                     )}
                   </div>
@@ -1036,6 +1284,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-gray-600 mb-2">
                       PIC WhatsApp Number
@@ -1115,7 +1364,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* Team Roster - Muncul jika toggle aktif */}
+                  {/* Team Roster */}
                   {includeRoster && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -1265,14 +1514,12 @@ export default function CheckoutPage() {
                           placeholder="Masukkan kode"
                           className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm"
                         />
-
                         <button
                           disabled
                           className="w-full px-6 py-3 bg-gray-400 text-white rounded-xl text-sm font-medium"
                         >
                           Terapkan
                         </button>
-
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 pointer-events-auto opacity-100">
                           <div className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">
                             !
@@ -1297,7 +1544,6 @@ export default function CheckoutPage() {
                           placeholder="Masukkan kode"
                           className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:outline-none focus:border-blue-400"
                         />
-
                         <motion.button
                           whileHover={{
                             boxShadow: "0 10px 25px rgba(37, 99, 235, 0.25)",
@@ -1318,7 +1564,6 @@ export default function CheckoutPage() {
                             {appliedVoucher.code}
                           </span>
                         </div>
-
                         <button
                           onClick={handleRemoveVoucher}
                           className="text-green-600 hover:text-green-800"
@@ -1337,20 +1582,52 @@ export default function CheckoutPage() {
                     <span className="capitalize">
                       {bookingType}
                       {bookingType === "individual" &&
-                        selectedRole &&
-                        ` (${bookingQuantity}x)`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Harga Booking</span>
-                    <span>
-                      {selectedRole || bookingType === "team"
-                        ? `IDR ${pricing.basePrice.toLocaleString("id-ID")}`
-                        : "-"}
+                        ` (${bookingQuantity}x slot)`}
                     </span>
                   </div>
 
-                  {/* Member Discount for Individual */}
+                  {/* Breakdown per role */}
+                  {bookingType === "individual" &&
+                    (gkCount > 0 || playerCount > 0) && (
+                      <div className="space-y-1.5 pl-2 border-l-2 border-blue-100">
+                        {gkCount > 0 && (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>{gkCount}x Goalkeeper</span>
+                            <span>
+                              IDR{" "}
+                              {(
+                                gkCount * Number(selectedSchedule.feeGk)
+                              ).toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        )}
+                        {playerCount > 0 && (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>{playerCount}x Player</span>
+                            <span>
+                              IDR{" "}
+                              {(
+                                playerCount * Number(selectedSchedule.feePlayer)
+                              ).toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  <div className="flex justify-between">
+                    <span>Harga Booking</span>
+                    <span>
+                      {bookingType === "individual" &&
+                      (gkCount > 0 || playerCount > 0)
+                        ? `IDR ${pricing.basePrice.toLocaleString("id-ID")}`
+                        : bookingType === "team"
+                          ? `IDR ${pricing.basePrice.toLocaleString("id-ID")}`
+                          : "-"}
+                    </span>
+                  </div>
+
+                  {/* Member Discount */}
                   {isMember &&
                     bookingType !== "team" &&
                     !hasExistingBooking &&
@@ -1366,14 +1643,12 @@ export default function CheckoutPage() {
                             {pricing.memberDiscount.toLocaleString("id-ID")}
                           </span>
                         </div>
-
                         <span className="text-xs text-gray-500 italic">
                           *Jika sudah pernah booking di jadwal yang sama,
                           discount tidak berlaku
                         </span>
                         <span className="text-xs text-gray-500 italic">
-                          *Jika booking lebih dari 1 slot, hanya slot 1 yang
-                          diskon 10%
+                          *Hanya slot pertama yang mendapat diskon 10%
                         </span>
                       </div>
                     )}
@@ -1446,7 +1721,17 @@ export default function CheckoutPage() {
                 {!isFormValid() && !isBookingLoading && (
                   <p className="text-center text-sm text-red-500">
                     {bookingType === "individual"
-                      ? "Lengkapi semua data untuk melanjutkan"
+                      ? slots.some((s) => s.role === null)
+                        ? "Pilih role untuk semua slot"
+                        : slots.some((s) => !s.jerseySize)
+                          ? "Pilih ukuran jersey untuk semua slot"
+                          : slots.some((s, i) => i > 0 && !validateName(s.name))
+                            ? "Isi nama teman dengan benar"
+                            : slots.some(
+                                  (s, i) => i > 0 && !validatePhone(s.phone),
+                                )
+                              ? "Isi no HP teman dengan benar"
+                              : "Lengkapi semua data untuk melanjutkan"
                       : includeRoster
                         ? Object.keys(emailErrors).length > 0 ||
                           Object.keys(phoneErrors).length > 0

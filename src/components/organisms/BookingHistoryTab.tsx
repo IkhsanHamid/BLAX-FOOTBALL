@@ -49,6 +49,13 @@ export interface ListSchedule {
   time: string;
 }
 
+interface PlayerDetail {
+  name: string;
+  jerseySize: string;
+  position: string;
+  phone: string;
+}
+
 interface BookingHistoryTabProps {
   initialSearch?: string;
   onSearchConsumed?: () => void;
@@ -149,6 +156,11 @@ export default function BookingHistoryTab({
     failed: 0,
   });
 
+  const [playerModalOpen, setPlayerModalOpen] = useState(false);
+  const [playerModalData, setPlayerModalData] = useState<PlayerDetail[]>([]);
+  const [playerModalBookingId, setPlayerModalBookingId] = useState<string>("");
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+
   const itemsPerPage = 5;
   const { showSuccess, showError } = useNotifications();
   console.log("searchterm", searchTerm);
@@ -230,6 +242,29 @@ export default function BookingHistoryTab({
     itemsPerPage,
     showError,
   ]);
+
+  const fetchPlayerDetails = useCallback(
+    async (bookingId: string) => {
+      setLoadingPlayers(true);
+      setPlayerModalBookingId(bookingId);
+      setPlayerModalOpen(true);
+      try {
+        const response = await adminService.getBookingPlayers(bookingId); // sesuaikan dengan endpoint yang ada
+        if (response?.data) {
+          setPlayerModalData(response.data);
+        } else {
+          setPlayerModalData([]);
+        }
+      } catch (error) {
+        console.error("Error fetching players:", error);
+        showError("Error", "Failed to load player details");
+        setPlayerModalData([]);
+      } finally {
+        setLoadingPlayers(false);
+      }
+    },
+    [showError],
+  );
 
   // Single effect to handle all data fetching
   useEffect(() => {
@@ -637,10 +672,28 @@ export default function BookingHistoryTab({
                               {booking.bookingType}
                             </Badge>
                             <div className="text-xs text-gray-500">
-                              {booking.playerCount}{" "}
-                              {booking.isGk && booking.bookingType !== "TEAM"
-                                ? "GoalKeeper"
-                                : "player(s)"}
+                              {booking.playerCount > 1 ? (
+                                <button
+                                  onClick={() =>
+                                    fetchPlayerDetails(booking.bookingId)
+                                  }
+                                  className="text-blue-600 underline hover:text-blue-800 font-medium cursor-pointer"
+                                >
+                                  {booking.playerCount}{" "}
+                                  {booking.isGk &&
+                                  booking.bookingType !== "TEAM"
+                                    ? "GoalKeeper"
+                                    : "player(s)"}
+                                </button>
+                              ) : (
+                                <span>
+                                  {booking.playerCount}{" "}
+                                  {booking.isGk &&
+                                  booking.bookingType !== "TEAM"
+                                    ? "GoalKeeper"
+                                    : "player(s)"}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -856,6 +909,100 @@ export default function BookingHistoryTab({
         }}
         onRefresh={handleRefresh}
       />
+
+      {/* Player Detail Modal */}
+      {playerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Detail Pemain
+                </h3>
+                <p className="text-sm text-gray-500 font-mono">
+                  {playerModalBookingId}
+                </p>
+              </div>
+              <button
+                onClick={() => setPlayerModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+              {loadingPlayers ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-16 bg-gray-100 rounded-lg animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : playerModalData.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Tidak ada data pemain ditemukan.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {playerModalData.map((player, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 bg-gray-50 hover:bg-gray-100 transition"
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-sm">
+                        #{idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 truncate">
+                          {player.name}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
+                          <span>
+                            Jersey:{" "}
+                            <span className="font-medium text-gray-700">
+                              {player.jerseySize}
+                            </span>
+                          </span>
+                          <span>
+                            Posisi:{" "}
+                            <span className="font-medium text-gray-700">
+                              {player.position}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                      <a
+                        href={`https://wa.me/${player.phone.replace(/^0/, "62")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 underline hover:text-blue-800 whitespace-nowrap"
+                      >
+                        {player.phone}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPlayerModalOpen(false)}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
