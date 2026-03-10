@@ -219,7 +219,7 @@ const PlayerCard = ({ player, isGK }: { player: any; isGK: boolean }) => {
           <Badge className={`${badgeClass} text-xs`} variant="outline">
             {isGK ? "GK" : "PLAYER"}
           </Badge>
-          <span className="text-xs text-slate-500">{player.phone}</span>
+          {/* <span className="text-xs text-slate-500">{player.phone}</span> */}
         </div>
       </div>
     </div>

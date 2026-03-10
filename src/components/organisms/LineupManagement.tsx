@@ -8,7 +8,6 @@ import {
   MapPin,
   Calendar,
   Search,
-  Phone,
   Shield,
   Target,
   ChevronDown,
@@ -287,10 +286,6 @@ const SortablePlayerCard = React.memo(
               </div>
               <div className="flex flex-col gap-1 text-xs text-gray-600">
                 <div className="flex items-center gap-1">
-                  <Phone className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{player.phone}</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <Target className="w-3 h-3 flex-shrink-0" />
                   <span>Team {teamKey}</span>
                 </div>
@@ -538,11 +533,11 @@ export default function LineupManagement() {
         const teamPlayers = selectedLineup.teams[teamKey] || [];
 
         data.push([`TEAM ${teamKey}`]);
-        data.push(["No", "Player Name", "Position", "Phone Number"]);
+        data.push(["No", "Player Name", "Position"]);
 
         if (teamPlayers.length > 0) {
           teamPlayers.forEach((player, idx) => {
-            data.push([idx + 1, player.name, player.position, player.phone]);
+            data.push([idx + 1, player.name, player.position]);
           });
         } else {
           data.push(["-", "No players assigned", "-", "-"]);
