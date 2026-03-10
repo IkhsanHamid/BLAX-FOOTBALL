@@ -477,6 +477,14 @@ class AdminService {
 
     return result;
   }
+
+  async getBookingPlayers(bookingId: string) {
+    const result = await apiClient.get(
+      `/api/v1/booking/booking-team/${bookingId}`,
+    );
+
+    return result;
+  }
 }
 
 export const adminService = new AdminService();

@@ -289,6 +289,14 @@ const SortablePlayerCard = React.memo(
                   <Target className="w-3 h-3 flex-shrink-0" />
                   <span>Team {teamKey}</span>
                 </div>
+                {player.jerseySize && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-400">Jersey:</span>
+                    <span className="font-medium text-gray-700">
+                      {player.jerseySize}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
