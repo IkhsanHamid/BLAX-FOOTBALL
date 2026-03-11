@@ -67,6 +67,7 @@ export interface BookingHistory {
   scheduleName: string;
   venue: string;
   isGk: true;
+  isMember: string;
   isPlayer: true;
   date: string;
   time: string;
