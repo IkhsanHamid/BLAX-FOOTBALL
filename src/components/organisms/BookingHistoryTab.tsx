@@ -9,6 +9,7 @@ import {
   XCircle,
   Clock,
   AlertCircle,
+  Crown,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent } from "../atoms/Card";
@@ -623,8 +624,11 @@ export default function BookingHistoryTab({
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium text-gray-900">
-                              {booking.customerName}
+                            <div className="flex items-center font-medium text-gray-900">
+                              <span>{booking.customerName}</span>
+                              {booking.isMember && (
+                                <Crown className="w-4 h-4 ml-1 fill-purple-700 text-purple-700" />
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">
                               <a
