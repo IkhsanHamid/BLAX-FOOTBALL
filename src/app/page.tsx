@@ -12,13 +12,13 @@ import banner from "@/assets/FCL-banner.jpeg";
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Popup Banner - akan muncul otomatis saat pertama kali buka
+      {/* Popup Banner - akan muncul otomatis saat pertama kali buka */}
       <PopupBanner
         bannerImage={banner}
         title="FCL Tournament! 🏆"
         description="Ikuti Fantasy Champions League terbaru kami. Daftar sekarang dan menangkan hadiah menarik!"
         storageKey="hasSeenTournamentPopup" // Key untuk localStorage
-      /> */}
+      />
 
       <Navbar
         useScrollEffect={true}
