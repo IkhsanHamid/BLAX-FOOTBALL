@@ -44,9 +44,14 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // Constants
 const ITEMS_PER_PAGE = 10;
-const SLOTS_PER_TEAM = { FUTSAL: 5, "MINI-SOCCER": 7, FOOTBALL: 11 };
+const SLOTS_PER_TEAM = {
+  FUTSAL: 5,
+  "MINI-SOCCER": 7,
+  FOOTBALL: 11,
+  "MINI-SOCCER-BEKASI": 8,
+};
 const EVENT_TYPES = ["FUN GAME", "TOURNAMENT"];
-const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL"];
+const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-SOCCER-BEKASI"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
