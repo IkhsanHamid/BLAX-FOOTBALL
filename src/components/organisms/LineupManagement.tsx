@@ -46,6 +46,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { adminService } from "@/utils/admin";
+import ExcelJS from "exceljs";
 
 // ========== TYPES ==========
 interface SortablePlayerCardProps {
@@ -518,66 +519,222 @@ export default function LineupManagement() {
     try {
       setIsExporting(true);
 
-      const XLSX = await import("xlsx");
-      const wb = XLSX.utils.book_new();
-      const data: any[][] = [];
+      const ExcelJS = await import("exceljs");
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Lineup");
 
-      data.push([selectedLineup.scheduleName]);
-      data.push([]);
+      // ── Mapping nama tim → warna hex (ARGB format untuk ExcelJS) ──
+      const TEAM_COLOR_HEX: Record<string, { bg: string; font: string }> = {
+        MERAH: { bg: "FFFCE8E6", font: "FFC0392B" },
+        PUTIH: { bg: "FFF2F3F4", font: "FF5D6D7E" },
+        BIRU: { bg: "FFE8F4FD", font: "FF1A5276" },
+        KUNING: { bg: "FFFEF9E7", font: "FF9A7D0A" },
+        "BIRU MUDA": { bg: "FFE8F8F5", font: "FF0E6655" },
+        HITAM: { bg: "FFD5D8DC", font: "FF17202A" },
+        HIJAU: { bg: "FFE9F7EF", font: "FF1E8449" },
+        ORANYE: { bg: "FFFEF5E7", font: "FFD35400" },
+        UNGU: { bg: "FFF5EEF8", font: "FF6C3483" },
+        PINK: { bg: "FFFCE4EC", font: "FFAD1457" },
+      };
 
-      data.push(["Match Information"]);
-      data.push(["Date", formatDate(selectedLineup.date)]);
-      data.push(["Time", selectedLineup.time]);
-      data.push(["Venue", selectedLineup.venue]);
-      data.push([]);
-      data.push([]);
+      const getTeamColorHex = (teamKey: string) => {
+        const upper = teamKey.toUpperCase();
+        return TEAM_COLOR_HEX[upper] ?? { bg: "FFE8EAF6", font: "FF283593" };
+      };
 
-      // Use actual team names from lineup.teams
+      // ── Helper: style cell ──
+      const styleCell = (
+        cell: ExcelJS.Cell,
+        options: {
+          bold?: boolean;
+          size?: number;
+          bgColor?: string;
+          fontColor?: string;
+          alignment?: "left" | "center" | "right";
+          border?: boolean;
+        },
+      ) => {
+        if (options.bgColor) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: options.bgColor },
+          };
+        }
+        cell.font = {
+          name: "Arial",
+          bold: options.bold ?? false,
+          size: options.size ?? 11,
+          color: { argb: options.fontColor ?? "FF000000" },
+        };
+        if (options.alignment) {
+          cell.alignment = {
+            horizontal: options.alignment,
+            vertical: "middle",
+          };
+        }
+        if (options.border) {
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFD0D0D0" } },
+            left: { style: "thin", color: { argb: "FFD0D0D0" } },
+            bottom: { style: "thin", color: { argb: "FFD0D0D0" } },
+            right: { style: "thin", color: { argb: "FFD0D0D0" } },
+          };
+        }
+      };
+
+      ws.columns = [
+        { key: "no", width: 6 },
+        { key: "name", width: 32 },
+        { key: "position", width: 14 },
+        { key: "jersey", width: 16 },
+      ];
+
+      // ── Judul utama ──
+      ws.mergeCells("A1:D1");
+      const titleCell = ws.getCell("A1");
+      titleCell.value = selectedLineup.scheduleName;
+      styleCell(titleCell, {
+        bold: true,
+        size: 16,
+        bgColor: "FF1A3C5E",
+        fontColor: "FFFFFFFF",
+        alignment: "center",
+      });
+      ws.getRow(1).height = 30;
+
+      // ── Info match ──
+      const infoRows: [string, string][] = [
+        ["Tanggal", formatDate(selectedLineup.date)],
+        ["Waktu", selectedLineup.time],
+        ["Venue", selectedLineup.venue],
+      ];
+
+      infoRows.forEach(([label, value], i) => {
+        const row = ws.getRow(i + 2);
+        row.height = 20;
+        const labelCell = row.getCell(1);
+        const valueCell = row.getCell(2);
+        ws.mergeCells(`B${i + 2}:D${i + 2}`);
+        labelCell.value = label;
+        valueCell.value = value;
+        styleCell(labelCell, {
+          bold: true,
+          bgColor: "FFF0F4F8",
+          fontColor: "FF34495E",
+        });
+        styleCell(valueCell, { bgColor: "FFFFFFFF", fontColor: "FF2C3E50" });
+      });
+
+      let currentRow = 6; // baris kosong setelah info
+
+      // ── Per tim ──
       const teamKeys = selectedLineup.teams
         ? Object.keys(selectedLineup.teams)
         : [];
 
       teamKeys.forEach((teamKey) => {
         const teamPlayers = selectedLineup.teams[teamKey] || [];
+        const colors = getTeamColorHex(teamKey);
 
-        data.push([`TEAM ${teamKey}`]);
-        data.push(["No", "Player Name", "Position"]);
+        // Baris nama tim
+        ws.mergeCells(`A${currentRow}:D${currentRow}`);
+        const teamHeaderCell = ws.getCell(`A${currentRow}`);
+        teamHeaderCell.value = `TEAM ${teamKey}`;
+        styleCell(teamHeaderCell, {
+          bold: true,
+          size: 13,
+          bgColor: colors.bg,
+          fontColor: colors.font,
+          alignment: "center",
+          border: true,
+        });
+        // Border bawah lebih tebal sebagai separator
+        teamHeaderCell.border = {
+          top: { style: "medium", color: { argb: colors.font } },
+          left: { style: "medium", color: { argb: colors.font } },
+          bottom: { style: "medium", color: { argb: colors.font } },
+          right: { style: "medium", color: { argb: colors.font } },
+        };
+        ws.getRow(currentRow).height = 24;
+        currentRow++;
 
+        // Header kolom
+        const headerRow = ws.getRow(currentRow);
+        headerRow.height = 20;
+        const headers = ["No", "Nama Pemain", "Posisi", "Jersey Size"];
+        headers.forEach((h, colIdx) => {
+          const cell = headerRow.getCell(colIdx + 1);
+          cell.value = h;
+          styleCell(cell, {
+            bold: true,
+            bgColor: colors.bg,
+            fontColor: colors.font,
+            alignment: "center",
+            border: true,
+          });
+        });
+        currentRow++;
+
+        // Data pemain
         if (teamPlayers.length > 0) {
           teamPlayers.forEach((player, idx) => {
-            data.push([idx + 1, player.name, player.position]);
+            const dataRow = ws.getRow(currentRow);
+            dataRow.height = 19;
+            const isEven = idx % 2 === 0;
+            const rowBg = isEven ? "FFFFFFFF" : "FFF7F9FC";
+
+            const values = [
+              idx + 1,
+              player.name,
+              player.position === "GK" ? "Goalkeeper" : "Player",
+              player.jerseySize ?? "-",
+            ];
+            values.forEach((v, colIdx) => {
+              const cell = dataRow.getCell(colIdx + 1);
+              cell.value = v;
+              styleCell(cell, {
+                bgColor: rowBg,
+                fontColor: "FF2C3E50",
+                alignment:
+                  colIdx === 0
+                    ? "center"
+                    : colIdx === 2 || colIdx === 3
+                      ? "center"
+                      : "left",
+                border: true,
+              });
+            });
+            currentRow++;
           });
         } else {
-          data.push(["-", "No players assigned", "-", "-"]);
+          ws.mergeCells(`A${currentRow}:D${currentRow}`);
+          const emptyCell = ws.getCell(`A${currentRow}`);
+          emptyCell.value = "Belum ada pemain";
+          styleCell(emptyCell, {
+            bgColor: "FFF9F9F9",
+            fontColor: "FF95A5A6",
+            alignment: "center",
+            border: true,
+          });
+          ws.getRow(currentRow).height = 19;
+          currentRow++;
         }
 
-        data.push([]);
-        data.push([]);
+        currentRow++; // baris kosong antar tim
       });
 
-      const ws = XLSX.utils.aoa_to_sheet(data);
-
-      ws["!cols"] = [{ wch: 8 }, { wch: 30 }, { wch: 12 }, { wch: 18 }];
-
-      ws["A1"] = {
-        v: selectedLineup.scheduleName,
-        t: "s",
-        s: {
-          font: { bold: true, sz: 16 },
-          alignment: { horizontal: "center" },
-        },
-      };
-
-      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Lineup");
-
-      const fileName = `Lineup_${selectedLineup.scheduleName.replace(
-        /[^a-z0-9]/gi,
-        "_",
-      )}_${new Date().getTime()}.xlsx`;
-
-      XLSX.writeFile(wb, fileName);
+      // ── Generate & download ──
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Lineup_${selectedLineup.scheduleName.replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
 
       showSuccess("Export Successful", "Lineup has been exported to Excel");
     } catch (error) {
