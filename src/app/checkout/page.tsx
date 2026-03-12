@@ -97,7 +97,11 @@ export default function CheckoutPage() {
   // Dynamic roster size based on match type
   const getRosterSize = () => {
     if (!selectedSchedule) return 10;
-    return selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
+    return selectedSchedule.typeMatch === "MINI-SOCCER"
+      ? 6
+      : selectedSchedule.typeMatch === "MINI-SOCCER-BEKASI"
+        ? 7
+        : 10;
   };
 
   const [players, setPlayers] = useState(
@@ -193,7 +197,11 @@ export default function CheckoutPage() {
   const getMaxQuantity = () => {
     if (!selectedSchedule) return 1;
     const maxByMatchType =
-      selectedSchedule.typeMatch === "MINI-SOCCER" ? 6 : 10;
+      selectedSchedule.typeMatch === "MINI-SOCCER"
+        ? 6
+        : selectedSchedule.typeMatch === "MINI-SOCCER-BEKASI"
+          ? 7
+          : 10;
     // Max total slot = min dari available slots (gabungan GK + Player), dibatasi match type
     const totalAvailable =
       selectedSchedule.availableGkSlots + selectedSchedule.availablePlayerSlots;
