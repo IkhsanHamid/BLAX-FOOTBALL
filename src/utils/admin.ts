@@ -246,6 +246,9 @@ class AdminService {
     limit?: 10 | number,
     name?: string,
     memberStatus?: string,
+    dateFrom?: string,
+    dateTo?: string,
+    isNew?: boolean,
   ) {
     const queryParams = new URLSearchParams();
 
@@ -255,6 +258,9 @@ class AdminService {
     if (sortBy) queryParams.append("sortBy", sortBy);
     if (sortType) queryParams.append("sortType", sortType);
     if (memberStatus) queryParams.append("memberStatus", memberStatus);
+    if (dateFrom) queryParams.append("dateFrom", dateFrom);
+    if (dateTo) queryParams.append("dateTo", dateTo);
+    if (isNew !== undefined) queryParams.append("isNew", isNew.toString());
 
     const queryString = queryParams.toString();
     const endpoint = queryString

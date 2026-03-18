@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "../atoms/Card";
 import { useNotifications } from "./NotificationContainer";
-import { Crown } from "lucide-react";
+import { Crown, Search, Filter } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   SortType,
 } from "@/types/report";
 import { adminService } from "@/utils/admin";
+import * as XLSX from "xlsx";
 
 // ========================================
 // MODAL COMPONENT
@@ -67,7 +68,6 @@ function HistoryModal({
           </p>
         </DialogHeader>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto">
           {member.historyBookings.length === 0 ? (
             <div className="text-center py-12">
@@ -135,7 +135,6 @@ function HistoryModal({
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t border-gray-200">
           <p className="text-sm text-gray-600">
             Total: {member.historyBookings.length} bookings
@@ -161,6 +160,7 @@ export default function MemberStatisticTab({
   endDate,
 }: MemberStatisticTabProps): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
+  const [exporting, setExporting] = useState<boolean>(false);
   const [data, setData] = useState<MemberStatistic[]>([]);
   const [meta, setMeta] = useState({
     total: 0,
@@ -179,6 +179,23 @@ export default function MemberStatisticTab({
   const [limit, setLimit] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
+  // Date & isNew filter input states (belum applied)
+  const [dateFromInput, setDateFromInput] = useState<string>("");
+  const [dateToInput, setDateToInput] = useState<string>("");
+  const [isNewInput, setIsNewInput] = useState<boolean>(false);
+
+  // Applied filter states (trigger fetch)
+  const [appliedDateFrom, setAppliedDateFrom] = useState<string>("");
+  const [appliedDateTo, setAppliedDateTo] = useState<string>("");
+  const [appliedIsNew, setAppliedIsNew] = useState<boolean>(false);
+
+  const hasUnappliedChanges =
+    dateFromInput !== appliedDateFrom ||
+    dateToInput !== appliedDateTo ||
+    isNewInput !== appliedIsNew;
+
+  const isFilterActive = appliedDateFrom || appliedDateTo || appliedIsNew;
+
   // Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [selectedMember, setSelectedMember] = useState<MemberStatistic | null>(
@@ -187,7 +204,21 @@ export default function MemberStatisticTab({
 
   const { showError } = useNotifications();
 
-  // Debounce search input
+  // ----------------------------------------
+  // Helpers
+  // ----------------------------------------
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // ----------------------------------------
+  // Debounce search
+  // ----------------------------------------
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchName(searchName);
@@ -195,16 +226,16 @@ export default function MemberStatisticTab({
         setCurrentPage(1);
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchName]);
 
-  // Fetch member statistics
+  // ----------------------------------------
+  // Fetch
+  // ----------------------------------------
   const fetchMemberStatistics = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
       const skip = (currentPage - 1) * limit;
-      console.log("memberStatus", memberStatus);
 
       const result: MemberStatisticResponse =
         await adminService.memberStatsReport(
@@ -214,6 +245,9 @@ export default function MemberStatisticTab({
           limit,
           debouncedSearchName,
           memberStatus,
+          appliedDateFrom || undefined,
+          appliedDateTo || undefined,
+          appliedIsNew || undefined,
         );
 
       if (result.status) {
@@ -229,43 +263,174 @@ export default function MemberStatisticTab({
     } finally {
       setLoading(false);
     }
-  }, [sortBy, sortType, memberStatus, debouncedSearchName, limit, currentPage]);
+  }, [
+    sortBy,
+    sortType,
+    memberStatus,
+    debouncedSearchName,
+    limit,
+    currentPage,
+    appliedDateFrom,
+    appliedDateTo,
+    appliedIsNew,
+  ]);
 
-  // Fetch data when dependencies change
   useEffect(() => {
     fetchMemberStatistics();
   }, [fetchMemberStatistics]);
 
-  // Open history modal
+  // ----------------------------------------
+  // Export EXCEL
+  // ----------------------------------------
+  const handleExport = useCallback(async (): Promise<void> => {
+    setExporting(true);
+    try {
+      // Step 1: ambil total data
+      const countResult: MemberStatisticResponse =
+        await adminService.memberStatsReport(
+          sortBy,
+          sortType,
+          0,
+          1,
+          debouncedSearchName,
+          memberStatus,
+          appliedDateFrom || undefined,
+          appliedDateTo || undefined,
+          appliedIsNew || undefined,
+        );
+
+      if (!countResult.status)
+        throw new Error(countResult.message || "Failed to fetch total");
+
+      const totalData = countResult.meta.total;
+
+      if (totalData === 0) {
+        showError("Export", "Tidak ada data untuk diekspor");
+        return;
+      }
+
+      // Step 2: fetch semua data sesuai total
+      const result: MemberStatisticResponse =
+        await adminService.memberStatsReport(
+          sortBy,
+          sortType,
+          0,
+          totalData,
+          debouncedSearchName,
+          memberStatus,
+          appliedDateFrom || undefined,
+          appliedDateTo || undefined,
+          appliedIsNew || undefined,
+        );
+
+      if (!result.status)
+        throw new Error(result.message || "Failed to fetch export data");
+
+      // Step 3: build rows
+      const rows = result.data.map((member, index) => ({
+        No: index + 1,
+        Nama: member.name,
+        Email: member.email,
+        "No. Telp": member.phone,
+        "Status Member": member.isMember ? "Member" : "Non-Member",
+        "Total Booking": member.totalBooking,
+        "Tanggal Daftar": formatDate(member.createdAt),
+      }));
+
+      // Step 4: buat worksheet & workbook
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+
+      // Set lebar kolom
+      worksheet["!cols"] = [
+        { wch: 5 }, // No
+        { wch: 30 }, // Nama
+        { wch: 35 }, // Email
+        { wch: 18 }, // No. Telp
+        { wch: 16 }, // Status Member
+        { wch: 16 }, // Total Booking
+        { wch: 18 }, // Tanggal Daftar
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Member Statistik");
+
+      // Step 5: generate nama file
+      const dateLabel =
+        appliedDateFrom && appliedDateTo
+          ? `_${appliedDateFrom}_sd_${appliedDateTo}`
+          : appliedDateFrom
+            ? `_dari_${appliedDateFrom}`
+            : appliedDateTo
+              ? `_sd_${appliedDateTo}`
+              : "";
+
+      const isNewLabel = appliedIsNew ? "_member-baru" : "";
+      const statusLabel = memberStatus !== "all" ? `_${memberStatus}` : "";
+      const fileName = `member-statistik${dateLabel}${isNewLabel}${statusLabel}.xlsx`;
+
+      // Step 6: trigger download
+      XLSX.writeFile(workbook, fileName);
+    } catch (error: any) {
+      console.error("Error exporting member statistics:", error);
+      showError("Export", "Gagal mengekspor data");
+    } finally {
+      setExporting(false);
+    }
+  }, [
+    sortBy,
+    sortType,
+    memberStatus,
+    debouncedSearchName,
+    appliedDateFrom,
+    appliedDateTo,
+    appliedIsNew,
+  ]);
+
+  // ----------------------------------------
+  // Filter handlers
+  // ----------------------------------------
+  const handleApplyFilter = (): void => {
+    setAppliedDateFrom(dateFromInput);
+    setAppliedDateTo(dateToInput);
+    setAppliedIsNew(isNewInput);
+    setCurrentPage(1);
+  };
+
+  const handleResetDateFilter = (): void => {
+    setDateFromInput("");
+    setDateToInput("");
+    setIsNewInput(false);
+    setAppliedDateFrom("");
+    setAppliedDateTo("");
+    setAppliedIsNew(false);
+    setCurrentPage(1);
+  };
+
+  // ----------------------------------------
+  // Modal handlers
+  // ----------------------------------------
   const openHistoryModal = (member: MemberStatistic): void => {
     setSelectedMember(member);
     setModalOpen(true);
   };
 
-  // Close history modal
   const closeHistoryModal = (): void => {
     setModalOpen(false);
     setSelectedMember(null);
   };
 
-  // Format date
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("id-ID", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
+  // ========================================
+  // RENDER
+  // ========================================
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* ── Filters ── */}
       <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="p-6 space-y-4">
+          {/* Row 1: Status, Search, Sort */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status Member
               </label>
               <select
@@ -283,20 +448,23 @@ export default function MemberStatisticTab({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cari Nama
               </label>
-              <input
-                type="text"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                placeholder="Ketik nama member..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  placeholder="Ketik nama member..."
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Urutkan
               </label>
               <select
@@ -319,30 +487,159 @@ export default function MemberStatisticTab({
                 <option value="createdAt-asc">Terlama - Terbaru</option>
               </select>
             </div>
+          </div>
 
-            {/* <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
-                Tampilkan
-              </label>
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="10">10 per halaman</option>
-                <option value="25">25 per halaman</option>
-                <option value="50">50 per halaman</option>
-                <option value="100">100 per halaman</option>
-              </select>
-            </div> */}
+          {/* Row 2: Date range + isNew + tombol */}
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dari Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={dateFromInput}
+                  max={dateToInput || undefined}
+                  onChange={(e) => setDateFromInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sampai Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={dateToInput}
+                  min={dateFromInput || undefined}
+                  onChange={(e) => setDateToInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex flex-col justify-end min-w-[140px]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Member Baru
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsNewInput((prev) => !prev)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    isNewInput
+                      ? "bg-green-50 border-green-500 text-green-700"
+                      : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isNewInput
+                        ? "bg-green-500 border-green-500"
+                        : "border-gray-400"
+                    }`}
+                  >
+                    {isNewInput && (
+                      <svg
+                        className="w-2.5 h-2.5 text-white"
+                        fill="none"
+                        viewBox="0 0 10 10"
+                      >
+                        <path
+                          d="M1.5 5l2.5 2.5 4.5-4.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  Hanya Member Baru
+                </button>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <button
+                  onClick={handleApplyFilter}
+                  disabled={!hasUnappliedChanges}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  <Filter className="w-4 h-4" />
+                  Terapkan Filter
+                </button>
+
+                {isFilterActive && (
+                  <button
+                    onClick={handleResetDateFilter}
+                    className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active filter badges */}
+            {isFilterActive && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(appliedDateFrom || appliedDateTo) && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-full font-medium">
+                    <Filter className="w-3 h-3" />
+                    {appliedDateFrom && appliedDateTo
+                      ? `${appliedDateFrom} — ${appliedDateTo}`
+                      : appliedDateFrom
+                        ? `Dari ${appliedDateFrom}`
+                        : `Sampai ${appliedDateTo}`}
+                  </span>
+                )}
+                {appliedIsNew && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 border border-green-200 text-green-700 text-xs rounded-full font-medium">
+                    ✦ Member Baru
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Data Table */}
+      {/* ── Table header + Export button ── */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {!loading && meta.total > 0 && `${meta.total} member ditemukan`}
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={exporting || loading || data.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+        >
+          {exporting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              Mengekspor...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Export Excel
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── Data Table ── */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -377,7 +674,7 @@ export default function MemberStatisticTab({
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center">
                       <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                       </div>
                       <p className="text-gray-500 mt-2">
                         Memuat data statistik member...
@@ -443,7 +740,7 @@ export default function MemberStatisticTab({
           {!loading && data.length > 0 && (
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Menampilkan {meta.skip + 1} -{" "}
+                Menampilkan {meta.skip + 1} –{" "}
                 {Math.min(meta.skip + limit, meta.total)} dari {meta.total}{" "}
                 member
               </div>
@@ -461,7 +758,7 @@ export default function MemberStatisticTab({
                   {Array.from(
                     { length: Math.min(5, meta.totalPages) },
                     (_, i) => {
-                      let pageNum;
+                      let pageNum: number;
                       if (meta.totalPages <= 5) {
                         pageNum = i + 1;
                       } else if (currentPage <= 3) {
