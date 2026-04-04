@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   Upload,
   X,
@@ -40,6 +40,17 @@ const EXT_TO_MIME: Record<string, string> = {
   webp: "image/webp",
 };
 
+// VALID image MIME types accepted by browsers generally
+const VALID_IMAGE_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+  "image/tiff",
+]);
+
 export default function ImageUpload({
   value,
   onChange,
@@ -52,9 +63,15 @@ export default function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string>("");
   const [validationError, setValidationError] = useState<string>("");
+  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
+  // Detect mobile safely inside useEffect (avoids SSR issues)
+  useEffect(() => {
+    setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+  }, []);
+
+  useEffect(() => {
     if (value instanceof File) {
       const objectUrl = URL.createObjectURL(value);
       setPreview(objectUrl);
@@ -68,34 +85,45 @@ export default function ImageUpload({
 
   /**
    * Resolve the "real" MIME type for a file.
-   * iOS Safari sends wrong / empty MIME types for HEIC and some JPEGs.
-   * We fall back to extension-based detection when needed.
+   * Handles:
+   * - iOS HEIC/HEIF sent with wrong MIME
+   * - Chrome Android sometimes sends empty string for certain picks
+   * - Files with no MIME (fallback to extension)
    */
   const resolveMimeType = (file: File): string => {
     // 1. Normalize known iOS quirks
     if (IOS_MIME_MAP[file.type]) return IOS_MIME_MAP[file.type];
 
-    // 2. If a valid MIME is already present, trust it
+    // 2. If a valid image MIME is already present, trust it
+    if (file.type && VALID_IMAGE_MIMES.has(file.type)) return file.type;
+
+    // 3. If type starts with image/ but isn't in our set, still accept it
     if (file.type && file.type.startsWith("image/")) return file.type;
 
-    // 3. Fall back to file extension
+    // 4. Fall back to file extension (Chrome Android can send empty MIME)
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    return EXT_TO_MIME[ext] ?? "image/jpeg"; // default jpeg for iOS camera shots
+    if (EXT_TO_MIME[ext]) return EXT_TO_MIME[ext];
+
+    // 5. Last resort: assume jpeg (covers most camera shots)
+    return "image/jpeg";
   };
 
   const validateFile = (file: File): string | null => {
+    // Guard: empty file object (shouldn't happen but defensive)
+    if (!file) return "No file selected";
+
     const resolvedType = resolveMimeType(file);
 
-    // Must be an image
+    // Must resolve to an image
     if (!resolvedType.startsWith("image/")) {
       return "Please select an image file";
     }
 
-    // Check against accepted types (using resolved type)
+    // Check against accepted types (normalize both sides for comparison)
     const normalizedAccepted = acceptedTypes.map((t) => IOS_MIME_MAP[t] ?? t);
     if (!normalizedAccepted.includes(resolvedType)) {
       const readableTypes = acceptedTypes
-        .map((t) => t.split("/")[1].replace("jpeg", "jpg"))
+        .map((t) => (IOS_MIME_MAP[t] ?? t).split("/")[1].replace("jpeg", "jpg"))
         .join(", ");
       return `File type not supported. Please use: ${readableTypes}`;
     }
@@ -107,7 +135,8 @@ export default function ImageUpload({
     }
 
     // Sanity check for corrupted / empty files
-    if (file.size < 512) {
+    // Note: lower threshold (100 bytes) to avoid false positives on small valid files
+    if (file.size < 100) {
       return "File appears to be corrupted or too small";
     }
 
@@ -117,6 +146,11 @@ export default function ImageUpload({
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
+
+      // Reset input value so the same file can be re-selected if removed
+      // Do this AFTER reading the file reference
+      const inputEl = event.target;
+
       if (!file) return;
 
       setValidationError("");
@@ -124,28 +158,32 @@ export default function ImageUpload({
       const validationErr = validateFile(file);
       if (validationErr) {
         setValidationError(validationErr);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        inputEl.value = "";
         return;
       }
 
       setUploading(true);
 
-      // For HEIC/HEIF files from iOS, we can't preview natively in most browsers.
-      // Create a renamed File object with corrected MIME so downstream FormData works.
+      // For HEIC/HEIF files from iOS, rename to .jpg so downstream works correctly
       const resolvedType = resolveMimeType(file);
-      const normalizedFile =
-        resolvedType !== file.type
-          ? new File([file], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
-              type: resolvedType,
-              lastModified: file.lastModified,
-            })
-          : file;
+      const needsRename =
+        resolvedType !== file.type || /\.(heic|heif)$/i.test(file.name);
 
-      setTimeout(() => {
-        onChange(normalizedFile);
-        setUploading(false);
-      }, 400);
+      const normalizedFile = needsRename
+        ? new File([file], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
+            type: resolvedType,
+            lastModified: file.lastModified,
+          })
+        : file;
+
+      // Call onChange synchronously — no artificial delay needed
+      onChange(normalizedFile);
+      setUploading(false);
+
+      // Reset input so user can re-pick the same file later if needed
+      inputEl.value = "";
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onChange, maxSize, acceptedTypes],
   );
 
@@ -161,14 +199,53 @@ export default function ImageUpload({
     fileInputRef.current?.click();
   };
 
-  const isMobile =
-    typeof window !== "undefined" &&
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // Drag-and-drop support (desktop Chrome)
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      if (disabled || uploading) return;
+
+      const file = event.dataTransfer.files?.[0];
+      if (!file) return;
+
+      setValidationError("");
+
+      const validationErr = validateFile(file);
+      if (validationErr) {
+        setValidationError(validationErr);
+        return;
+      }
+
+      setUploading(true);
+      const resolvedType = resolveMimeType(file);
+      const needsRename =
+        resolvedType !== file.type || /\.(heic|heif)$/i.test(file.name);
+      const normalizedFile = needsRename
+        ? new File([file], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
+            type: resolvedType,
+            lastModified: file.lastModified,
+          })
+        : file;
+
+      onChange(normalizedFile);
+      setUploading(false);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onChange, maxSize, acceptedTypes, disabled, uploading],
+  );
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Accept image/* broadly — let our own validation filter; 
-          iOS ignores granular MIME lists anyway */}
+      {/*
+        Key fixes for Chrome Android:
+        - Do NOT use capture="camera" unless you ONLY want camera (it hides file picker on Android)
+        - accept="image/*" is the most compatible value — granular MIME lists are ignored on many Android browsers
+        - Do NOT set capture={undefined} — just omit the attribute entirely
+      */}
       <input
         ref={fileInputRef}
         type="file"
@@ -176,13 +253,18 @@ export default function ImageUpload({
         onChange={handleFileChange}
         disabled={disabled || uploading}
         className="hidden"
-        // Prevent iOS from showing "Documents" tab first
-        capture={undefined}
       />
 
       {/* Upload Area */}
       <div
         onClick={handleClick}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        role="button"
+        tabIndex={disabled || uploading ? -1 : 0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") handleClick();
+        }}
         className={`
           relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200
           ${disabled || uploading ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400 active:border-blue-400"}
@@ -213,7 +295,7 @@ export default function ImageUpload({
                   : "Upload an image"}
               </p>
               <p className="text-sm text-gray-600">
-                {isMobile ? "Tap to select" : "Click to browse"}
+                {isMobile ? "Tap to select" : "Click or drag & drop"}
               </p>
               <p className="text-xs text-gray-500 mt-2">
                 Supports: JPG, PNG, GIF{isMobile ? ", HEIC" : ""} • Max:{" "}
