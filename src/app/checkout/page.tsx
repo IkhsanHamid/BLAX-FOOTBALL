@@ -12,7 +12,6 @@ import {
   X,
   Shirt,
   Plus,
-  Minus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
@@ -54,7 +53,6 @@ export default function CheckoutPage() {
     "individual",
   );
 
-  // === PERUBAHAN: Ganti selectedRole + bookingQuantity dengan slots array ===
   const [slots, setSlots] = useState<IndividualSlot[]>([
     { role: null, name: "", jerseySize: "", phone: "", email: "" },
   ]);
@@ -134,7 +132,6 @@ export default function CheckoutPage() {
       setEmail(user.email || "");
       setWhatsapp(user.phone || "");
       if (user.isMember) setIsMember(true);
-      // Pre-fill slot pertama dengan nama user
       setSlots((prev) =>
         prev.map((s, i) => (i === 0 ? { ...s, name: user.name || "" } : s)),
       );
@@ -166,7 +163,6 @@ export default function CheckoutPage() {
         })),
       );
 
-      // Reset to individual if PADEL
       if (selectedSchedule.typeMatch === "PADEL") {
         setBookingType("individual");
       }
@@ -202,7 +198,6 @@ export default function CheckoutPage() {
         : selectedSchedule.typeMatch === "MINI-SOCCER-BEKASI"
           ? 7
           : 10;
-    // Max total slot = min dari available slots (gabungan GK + Player), dibatasi match type
     const totalAvailable =
       selectedSchedule.availableGkSlots + selectedSchedule.availablePlayerSlots;
     return Math.min(totalAvailable, maxByMatchType);
@@ -225,21 +220,18 @@ export default function CheckoutPage() {
 
   const setSlotRole = (index: number, role: SlotRole) => {
     const updated = [...slots];
-    // Cek apakah masih ada slot tersedia untuk role ini
     const currentCount = updated.filter((s) => s.role === role).length;
     const available =
       role === "goalkeeper"
         ? (selectedSchedule?.availableGkSlots ?? 0)
         : (selectedSchedule?.availablePlayerSlots ?? 0);
 
-    // Jika role yang dipilih sama dengan sekarang, toggle off (null)
     if (updated[index].role === role) {
       updated[index].role = null;
       setSlots(updated);
       return;
     }
 
-    // Cek apakah masih ada slot untuk role ini
     if (currentCount >= available) {
       showError(
         `Slot ${role === "goalkeeper" ? "Goalkeeper" : "Player"} sudah penuh`,
@@ -251,7 +243,6 @@ export default function CheckoutPage() {
     setSlots(updated);
   };
 
-  // Hitung jumlah GK dan Player dari slots
   const countGk = () => slots.filter((s) => s.role === "goalkeeper").length;
   const countPlayer = () => slots.filter((s) => s.role === "player").length;
   const bookingQuantity = slots.length;
@@ -261,7 +252,6 @@ export default function CheckoutPage() {
     if (bookingType === "individual") {
       const allRoleSelected = slots.every((s) => s.role !== null);
       const allJerseySizes = slots.every((s) => s.jerseySize !== "");
-      // Slot 2+ wajib isi nama dan phone
       const allFriendsValid = slots.every(
         (s, i) => i === 0 || (validateName(s.name) && validatePhone(s.phone)),
       );
@@ -275,7 +265,6 @@ export default function CheckoutPage() {
         allFriendsValid
       );
     } else {
-      // Team booking
       const isPicValid =
         validateName(picName) &&
         validateEmail(picEmail) &&
@@ -438,12 +427,10 @@ export default function CheckoutPage() {
         memberDiscount = 0;
       }
     } else {
-      // INDIVIDUAL booking
       const canGetDiscount = isMember && !hasExistingBooking;
       basePrice = getPrice();
 
       if (canGetDiscount && bookingQuantity > 0) {
-        // Member discount 10% hanya untuk 1 booking pertama (gunakan harga terendah / player)
         const firstBookingPrice =
           gkCount > 0
             ? Number(selectedSchedule?.feeGk)
@@ -502,13 +489,11 @@ export default function CheckoutPage() {
       isGk: bookingType === "team" ? true : bookerRole === "goalkeeper",
       isTeam: bookingType === "team" && includeRoster,
       voucherCode: appliedVoucher?.code || undefined,
-      // jerseySize untuk slot pertama (backward compat)
       jerseySize:
         bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,
       gkQuantity: bookingType === "individual" ? gkCount : undefined,
       playerQuantity: bookingType === "individual" ? playerCount : undefined,
       quantity: bookingType === "individual" ? bookingQuantity : 1,
-      // Detail per slot (nama + jersey size + phone + email per orang)
       slotDetails:
         bookingType === "individual"
           ? slots.map((s, i) => ({
@@ -640,7 +625,6 @@ export default function CheckoutPage() {
   const gkCount = countGk();
   const playerCount = countPlayer();
 
-  // Helper: apakah masih bisa tambah role tertentu di slot ini
   const canSelectRole = (slotIndex: number, role: SlotRole) => {
     if (!role) return true;
     const currentForRole = slots.filter(
@@ -850,45 +834,14 @@ export default function CheckoutPage() {
 
                   {/* ===== SLOT SELECTION ===== */}
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    {/* Header — hanya judul, tanpa tombol +/- */}
+                    <div className="flex items-center justify-between mb-3">
                       <h3 className="text-blue-600">
                         Pilih Slot & Posisi
                         <span className="ml-2 text-sm font-normal text-gray-500">
                           ({slots.length} slot)
                         </span>
                       </h3>
-                      <div className="flex items-center gap-2">
-                        <motion.button
-                          whileHover={{ scale: slots.length <= 1 ? 1 : 1.05 }}
-                          whileTap={{ scale: slots.length <= 1 ? 1 : 0.95 }}
-                          onClick={() => removeSlot(slots.length - 1)}
-                          disabled={slots.length <= 1}
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                            slots.length <= 1
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              : "bg-blue-100 text-blue-600 hover:bg-blue-200"
-                          }`}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{
-                            scale: slots.length >= getMaxQuantity() ? 1 : 1.05,
-                          }}
-                          whileTap={{
-                            scale: slots.length >= getMaxQuantity() ? 1 : 0.95,
-                          }}
-                          onClick={addSlot}
-                          disabled={slots.length >= getMaxQuantity()}
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                            slots.length >= getMaxQuantity()
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </motion.button>
-                      </div>
                     </div>
 
                     <p className="text-xs text-gray-500 mb-4">
@@ -897,7 +850,7 @@ export default function CheckoutPage() {
                     </p>
 
                     {/* Slot availability info */}
-                    <div className="flex gap-3 mb-4">
+                    {/* <div className="flex gap-3 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 rounded-xl px-3 py-2">
                         <Shield className="w-4 h-4 text-blue-500" />
                         <span>
@@ -919,7 +872,7 @@ export default function CheckoutPage() {
                           / {selectedSchedule.availablePlayerSlots}
                         </span>
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Slot cards */}
                     <div className="space-y-3">
@@ -946,12 +899,14 @@ export default function CheckoutPage() {
                                 </span>
                               )}
                             </div>
-                            {slots.length > 1 && index > 0 && (
+                            {/* Tombol hapus hanya muncul di slot teman (index > 0) */}
+                            {index > 0 && (
                               <button
                                 onClick={() => removeSlot(index)}
-                                className="text-gray-400 hover:text-red-500 transition-colors"
+                                className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100"
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
+                                <span>Hapus</span>
                               </button>
                             )}
                           </div>
@@ -1185,6 +1140,28 @@ export default function CheckoutPage() {
                         </motion.div>
                       ))}
                     </div>
+
+                    {/* ===== TOMBOL TAMBAH TEMAN — di bawah daftar slot ===== */}
+                    {slots.length < getMaxQuantity() && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={addSlot}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-blue-300 rounded-2xl text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-all text-sm font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Tambah Teman
+                        <span className="text-xs text-gray-400 font-normal">
+                          ({slots.length}/{getMaxQuantity()} slot)
+                        </span>
+                      </motion.button>
+                    )}
+
+                    {slots.length >= getMaxQuantity() && (
+                      <p className="mt-3 text-center text-xs text-gray-400">
+                        Slot sudah penuh ({slots.length}/{getMaxQuantity()})
+                      </p>
+                    )}
 
                     {/* Slot summary */}
                     {slots.some((s) => s.role !== null) && (
