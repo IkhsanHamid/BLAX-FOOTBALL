@@ -66,7 +66,6 @@ export default function ImageUpload({
   const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Detect mobile safely inside useEffect (avoids SSR issues)
   useEffect(() => {
     setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
   }, []);
@@ -108,83 +107,135 @@ export default function ImageUpload({
     return "image/jpeg";
   };
 
-  const validateFile = (file: File): string | null => {
-    // Guard: empty file object (shouldn't happen but defensive)
-    if (!file) return "No file selected";
+  /**
+   * Map any resolved MIME to the closest type in acceptedTypes.
+   * e.g. "image/webp" → try to match against acceptedTypes, else
+   * on mobile we fall back to the first accepted type to avoid
+   * false rejections from Chrome Android gallery picks.
+   */
+  const normalizeToAccepted = (
+    resolvedType: string,
+    accepted: string[],
+  ): string | null => {
+    const normalizedAccepted = accepted.map((t) => IOS_MIME_MAP[t] ?? t);
 
-    const resolvedType = resolveMimeType(file);
+    // Direct match
+    if (normalizedAccepted.includes(resolvedType)) return resolvedType;
 
-    // Must resolve to an image
-    if (!resolvedType.startsWith("image/")) {
-      return "Please select an image file";
-    }
-
-    // Check against accepted types (normalize both sides for comparison)
-    const normalizedAccepted = acceptedTypes.map((t) => IOS_MIME_MAP[t] ?? t);
-    if (!normalizedAccepted.includes(resolvedType)) {
-      const readableTypes = acceptedTypes
-        .map((t) => (IOS_MIME_MAP[t] ?? t).split("/")[1].replace("jpeg", "jpg"))
-        .join(", ");
-      return `File type not supported. Please use: ${readableTypes}`;
-    }
-
-    // Size check
-    const maxSizeBytes = maxSize * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      return `File too large. Maximum size is ${maxSize}MB`;
-    }
-
-    // Sanity check for corrupted / empty files
-    // Note: lower threshold (100 bytes) to avoid false positives on small valid files
-    if (file.size < 100) {
-      return "File appears to be corrupted or too small";
+    // If it's any valid image type and we're on mobile, accept it
+    // Chrome Android/Samsung Browser can return webp even for jpg gallery picks
+    if (resolvedType.startsWith("image/") && isMobile) {
+      // Return the first accepted jpeg-compatible type as the "effective" type
+      const jpegAccepted = normalizedAccepted.find((t) =>
+        ["image/jpeg", "image/png", "image/gif"].includes(t),
+      );
+      return jpegAccepted ?? normalizedAccepted[0] ?? null;
     }
 
     return null;
   };
 
-  const handleFileChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
+  const validateFile = (
+    file: File,
+  ): { error: string | null; effectiveMime: string } => {
+    if (!file) return { error: "No file selected", effectiveMime: "" };
 
-      // Reset input value so the same file can be re-selected if removed
-      // Do this AFTER reading the file reference
-      const inputEl = event.target;
+    const resolvedType = resolveMimeType(file);
 
-      if (!file) return;
+    // Must resolve to an image
+    if (!resolvedType.startsWith("image/")) {
+      return { error: "Please select an image file", effectiveMime: "" };
+    }
 
+    // Check size
+    const maxSizeBytes = maxSize * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return {
+        error: `File too large. Maximum size is ${maxSize}MB`,
+        effectiveMime: "",
+      };
+    }
+
+    if (file.size < 100) {
+      return {
+        error: "File appears to be corrupted or too small",
+        effectiveMime: "",
+      };
+    }
+
+    // Check accepted types — with mobile fallback
+    const effectiveMime = normalizeToAccepted(resolvedType, acceptedTypes);
+    if (!effectiveMime) {
+      const readableTypes = acceptedTypes
+        .map((t) => (IOS_MIME_MAP[t] ?? t).split("/")[1].replace("jpeg", "jpg"))
+        .join(", ");
+      return {
+        error: `File type not supported. Please use: ${readableTypes}`,
+        effectiveMime: "",
+      };
+    }
+
+    return { error: null, effectiveMime };
+  };
+
+  const processFile = useCallback(
+    (file: File) => {
       setValidationError("");
 
-      const validationErr = validateFile(file);
+      const { error: validationErr, effectiveMime } = validateFile(file);
       if (validationErr) {
         setValidationError(validationErr);
-        inputEl.value = "";
         return;
       }
 
       setUploading(true);
 
-      // For HEIC/HEIF files from iOS, rename to .jpg so downstream works correctly
+      // Normalize file: rename HEIC/HEIF and fix MIME if needed
       const resolvedType = resolveMimeType(file);
       const needsRename =
         resolvedType !== file.type || /\.(heic|heif)$/i.test(file.name);
 
-      const normalizedFile = needsRename
-        ? new File([file], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
-            type: resolvedType,
-            lastModified: file.lastModified,
-          })
-        : file;
+      // On mobile, if Chrome returned webp for a gallery image, keep the
+      // original bytes but tag it with the effective MIME so the server accepts it.
+      const finalMime = effectiveMime || resolvedType;
+      const needsMimeCorrection = file.type !== finalMime;
 
-      // Call onChange synchronously — no artificial delay needed
+      let normalizedFile = file;
+
+      if (needsRename) {
+        normalizedFile = new File(
+          [file],
+          file.name.replace(/\.(heic|heif)$/i, ".jpg"),
+          { type: "image/jpeg", lastModified: file.lastModified },
+        );
+      } else if (needsMimeCorrection) {
+        // Keep original filename/bytes, just fix the MIME tag
+        normalizedFile = new File([file], file.name, {
+          type: finalMime,
+          lastModified: file.lastModified,
+        });
+      }
+
       onChange(normalizedFile);
       setUploading(false);
-
-      // Reset input so user can re-pick the same file later if needed
-      inputEl.value = "";
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onChange, maxSize, acceptedTypes],
+    [onChange, maxSize, acceptedTypes, isMobile],
+  );
+
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const inputEl = event.target;
+
+      if (!file) return;
+
+      processFile(file);
+
+      // Reset so same file can be re-selected
+      inputEl.value = "";
+    },
+    [processFile],
   );
 
   const handleRemove = () => {
@@ -199,7 +250,6 @@ export default function ImageUpload({
     fileInputRef.current?.click();
   };
 
-  // Drag-and-drop support (desktop Chrome)
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -208,30 +258,9 @@ export default function ImageUpload({
       const file = event.dataTransfer.files?.[0];
       if (!file) return;
 
-      setValidationError("");
-
-      const validationErr = validateFile(file);
-      if (validationErr) {
-        setValidationError(validationErr);
-        return;
-      }
-
-      setUploading(true);
-      const resolvedType = resolveMimeType(file);
-      const needsRename =
-        resolvedType !== file.type || /\.(heic|heif)$/i.test(file.name);
-      const normalizedFile = needsRename
-        ? new File([file], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
-            type: resolvedType,
-            lastModified: file.lastModified,
-          })
-        : file;
-
-      onChange(normalizedFile);
-      setUploading(false);
+      processFile(file);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onChange, maxSize, acceptedTypes, disabled, uploading],
+    [processFile, disabled, uploading],
   );
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -241,10 +270,13 @@ export default function ImageUpload({
   return (
     <div className={`space-y-4 ${className}`}>
       {/*
-        Key fixes for Chrome Android:
-        - Do NOT use capture="camera" unless you ONLY want camera (it hides file picker on Android)
-        - accept="image/*" is the most compatible value — granular MIME lists are ignored on many Android browsers
-        - Do NOT set capture={undefined} — just omit the attribute entirely
+        FIX: Use accept="image/*" — do NOT list specific MIME types.
+        On Chrome Android, listing "image/jpeg,image/png,image/gif" can cause
+        the file picker to behave unexpectedly or show no files at all.
+        "image/*" is the most compatible value across all mobile browsers.
+
+        Do NOT add capture="camera" unless you ONLY want the camera —
+        it hides the file picker (gallery) on Android Chrome.
       */}
       <input
         ref={fileInputRef}
