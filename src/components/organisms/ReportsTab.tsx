@@ -22,11 +22,17 @@ interface Venue {
 
 type TabType = "schedules" | "membership" | "member-statistic";
 
+interface ReportsTabProps {
+  userRole?: string;
+}
+
 // ========================================
 // MAIN REPORTS TAB COMPONENT
 // ========================================
 
-export default function ReportsTab(): JSX.Element {
+export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
+  const isMagnifico = userRole === "Admin-magnifico";
+
   const [activeTab, setActiveTab] = useState<TabType>("schedules");
   const [loading, setLoading] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<string>("7d");
@@ -74,6 +80,13 @@ export default function ReportsTab(): JSX.Element {
     fetchVenues();
   }, []);
 
+  // Force schedules tab for Admin-magnifico
+  useEffect(() => {
+    if (isMagnifico) {
+      setActiveTab("schedules");
+    }
+  }, [isMagnifico]);
+
   const handleDateRangeChange = (range: string): void => {
     setDateRange(range);
 
@@ -102,9 +115,7 @@ export default function ReportsTab(): JSX.Element {
 
   const handleRefresh = (): void => {
     setLoading(true);
-    // Increment refresh key to force child component remount
     setRefreshKey((prev) => prev + 1);
-    // Reset loading after short delay
     setTimeout(() => setLoading(false), 500);
   };
 
@@ -154,42 +165,48 @@ export default function ReportsTab(): JSX.Element {
               <span>Laporan Jadwal</span>
             </div>
           </button>
-          <button
-            onClick={() => setActiveTab("membership")}
-            className={`
-              py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === "membership"
-                  ? "border-green-500 text-green-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }
-            `}
-          >
-            <div className="flex items-center space-x-2">
-              <CreditCard className="w-5 h-5" />
-              <span>History Membership</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("member-statistic")}
-            className={`
-              py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === "member-statistic"
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }
-            `}
-          >
-            <div className="flex items-center space-x-2">
-              <Users className="w-5 h-5" />
-              <span>Statistik Member</span>
-            </div>
-          </button>
+
+          {!isMagnifico && (
+            <>
+              <button
+                onClick={() => setActiveTab("membership")}
+                className={`
+                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                  ${
+                    activeTab === "membership"
+                      ? "border-green-500 text-green-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }
+                `}
+              >
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="w-5 h-5" />
+                  <span>History Membership</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("member-statistic")}
+                className={`
+                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                  ${
+                    activeTab === "member-statistic"
+                      ? "border-purple-500 text-purple-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }
+                `}
+              >
+                <div className="flex items-center space-x-2">
+                  <Users className="w-5 h-5" />
+                  <span>Statistik Member</span>
+                </div>
+              </button>
+            </>
+          )}
         </nav>
       </div>
 
-      {/* Filters - Only show for schedules and membership tabs */}
+      {/* Filters */}
       {activeTab !== "member-statistic" && (
         <Card>
           <CardContent className="p-6">
@@ -234,7 +251,6 @@ export default function ReportsTab(): JSX.Element {
                 />
               </div>
 
-              {/* Venue Filter - Only show for Schedules tab */}
               {activeTab === "schedules" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -256,7 +272,6 @@ export default function ReportsTab(): JSX.Element {
                 </div>
               )}
 
-              {/* Empty div for spacing when venue filter is hidden */}
               {activeTab === "membership" && <div></div>}
 
               <div className="flex items-end">

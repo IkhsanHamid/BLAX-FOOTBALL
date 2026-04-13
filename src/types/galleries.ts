@@ -15,6 +15,7 @@ export interface GalleryData {
   time: string;
   linkVideos?: string;
   scheduleId: string;
+  community: string;
   linkVideosMatch?: string;
   linkVideosSlowmo?: string;
   linkPhotos: string;

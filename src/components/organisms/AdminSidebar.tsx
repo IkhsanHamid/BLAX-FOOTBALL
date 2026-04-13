@@ -50,6 +50,9 @@ const navItems: NavItem[] = [
   { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 
+// Items that Admin-magnifico cannot access
+const MAGNIFICO_RESTRICTED = ["users", "news", "reschedule", "master-data"];
+
 export default function AdminSidebar({
   selectedTab,
   onTabChange,
@@ -57,6 +60,8 @@ export default function AdminSidebar({
   onMobileToggle,
   userRole,
 }: AdminSidebarProps) {
+  const isMagnifico = userRole === "Admin-magnifico";
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isMobileOpen) {
@@ -93,12 +98,10 @@ export default function AdminSidebar({
     }
   };
 
-  // Filter navigation items based on user role
   const filteredNavItems = navItems.filter((item) => {
-    // Only Owner can access reports
-    if (item.id === "reports") {
-      return userRole === "Owner";
-    }
+    if (item.id === "reports")
+      return userRole === "Owner" || userRole === "Admin-magnifico";
+    if (isMagnifico && MAGNIFICO_RESTRICTED.includes(item.id)) return false;
     return true;
   });
 
@@ -113,7 +116,6 @@ export default function AdminSidebar({
         aria-expanded={isMobileOpen}
       >
         <div className="h-full flex flex-col overflow-hidden">
-          {/* Added padding top for mobile to account for fixed header */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1 pt-20 lg:pt-4">
             {filteredNavItems.map((item) => {
               const Icon = item.icon;

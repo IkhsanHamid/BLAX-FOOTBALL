@@ -764,7 +764,7 @@ export default function NewsTab() {
                 onChange={handleImageChange}
                 error={formErrors.image}
                 disabled={isSubmitting}
-                maxSize={5}
+                maxSize={2}
                 acceptedTypes={[
                   "image/jpeg",
                   "image/png",

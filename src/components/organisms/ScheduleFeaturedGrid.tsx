@@ -63,13 +63,22 @@ export default function ScheduleFeaturedGrid() {
   const [isLoading, setIsLoading] = useState(true);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>("Semua");
+  const [selectedCommunity, setSelectedCommunity] = useState<string>("all");
   const { showSuccess, showError } = useNotifications();
   const { setSelectedSchedule } = useSchedule();
 
-  // Filter schedules
+  // Filter schedules by both community and match type
   const filteredSchedules = schedules.filter((schedule) => {
-    if (selectedFilter === "Semua") return true;
-    return schedule.typeMatch.toLowerCase() === selectedFilter.toLowerCase();
+    const matchesCommunity =
+      selectedCommunity === "all" ||
+      (schedule.community || "").toLowerCase() ===
+        selectedCommunity.toLowerCase();
+
+    const matchesType =
+      selectedFilter === "Semua" ||
+      schedule.typeMatch.toLowerCase() === selectedFilter.toLowerCase();
+
+    return matchesCommunity && matchesType;
   });
 
   // Transform to matches data
@@ -91,12 +100,12 @@ export default function ScheduleFeaturedGrid() {
     canRegistTeam: schedule.canRegistTeam,
     availableGkSlots: schedule.availableGkSlots,
     availablePlayerSlots: schedule.availablePlayerSlots,
+    community: schedule.community,
   }));
 
   // Get featured matches (3 closest upcoming matches)
   const getFeaturedMatches = () => {
     if (matchesData.length === 0) return [];
-    // Sort by date and get the 3 closest upcoming matches
     const sorted = [...matchesData].sort((a, b) => {
       const dateA = new Date(a.date + " " + a.time);
       const dateB = new Date(b.date + " " + b.time);
@@ -156,6 +165,27 @@ export default function ScheduleFeaturedGrid() {
     router.push(`/checkout`);
   };
 
+  const communityButtons = [
+    {
+      label: "Blax",
+      value: "blax",
+      activeClass:
+        "bg-gray-900 text-white shadow-lg shadow-gray-900/30 scale-105",
+      inactiveClass:
+        "bg-white text-gray-800 border border-gray-300 hover:border-gray-800 hover:bg-gray-50 hover:shadow-md",
+      logo: "/blax-logo.png",
+    },
+    {
+      label: "Magnifico",
+      value: "magnifico",
+      activeClass:
+        "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 scale-105",
+      inactiveClass:
+        "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
+      logo: "/magnifico-logo.png",
+    },
+  ];
+
   const filterButtons = [
     { label: "Semua", value: "Semua", icon: Star },
     { label: "Football", value: "FOOTBALL", icon: Zap },
@@ -163,13 +193,12 @@ export default function ScheduleFeaturedGrid() {
     { label: "Padel", value: "PADEL", icon: TrendingUp },
   ];
 
-  // Featured Card Component (Larger cards for closest matches)
+  // Featured Card Component
   const FeaturedCard = ({ match, index }: { match: any; index: number }) => {
     const isBookable = isBookingAllowed(match.date, match.time);
     const filledPercentage =
       (Number(match.bookedSlots) / Number(match.totalSlots)) * 100;
 
-    // Parse date for better display
     const matchDate = new Date(match.date);
     const dayName = matchDate.toLocaleDateString("id-ID", { weekday: "long" });
     const dayNum = matchDate.getDate();
@@ -195,7 +224,7 @@ export default function ScheduleFeaturedGrid() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
 
-          {/* Date Badge - Large and Bold */}
+          {/* Date Badge */}
           <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow-xl border-2 border-white/50 min-w-[80px] sm:min-w-[100px] text-center">
               <div className="text-xs sm:text-sm font-bold text-blue-600 uppercase tracking-wide mb-1">
@@ -520,7 +549,46 @@ export default function ScheduleFeaturedGrid() {
           </p>
         </div>
 
-        {/* Filter Buttons */}
+        {/* Community Filter Buttons */}
+        <div className="flex justify-center gap-3 sm:gap-4 mb-5 sm:mb-7">
+          {communityButtons.map((btn) => (
+            <button
+              key={btn.value}
+              onClick={() =>
+                setSelectedCommunity(
+                  selectedCommunity === btn.value ? "all" : btn.value,
+                )
+              }
+              className={`relative flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 ${
+                selectedCommunity === btn.value
+                  ? btn.activeClass
+                  : btn.inactiveClass
+              }`}
+            >
+              {btn.logo ? (
+                <img
+                  src={btn.logo}
+                  alt={btn.label}
+                  className="w-10 h-10 object-contain"
+                />
+              ) : (
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${(btn as any).dotColor} ${
+                    selectedCommunity === btn.value ? "bg-white/80" : ""
+                  }`}
+                />
+              )}
+              {btn.label}
+              {selectedCommunity === btn.value && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-xs font-black text-slate-800">✓</span>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Match Type Filter Buttons */}
         <div className="flex justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 flex-wrap">
           {filterButtons.map((filter) => {
             const Icon = filter.icon;
@@ -546,7 +614,12 @@ export default function ScheduleFeaturedGrid() {
           <div className="text-center py-12 sm:py-16">
             <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 mx-auto mb-4" />
             <h3 className="text-lg sm:text-xl font-semibold text-slate-700 mb-2">
-              Tidak ada jadwal {selectedFilter}
+              Tidak ada jadwal{" "}
+              {selectedCommunity !== "all"
+                ? `community ${selectedCommunity}`
+                : selectedFilter !== "Semua"
+                  ? selectedFilter
+                  : ""}
             </h3>
             <p className="text-sm sm:text-base text-slate-600">
               Coba filter lain atau cek kembali nanti!
@@ -554,16 +627,16 @@ export default function ScheduleFeaturedGrid() {
           </div>
         ) : (
           <>
-            {/* Featured Grid - 3 Featured Cards + 2 Regular Cards */}
+            {/* Featured Grid */}
             <div className="max-w-7xl mx-auto">
-              {/* 3 Featured Cards (Larger) */}
+              {/* 3 Featured Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
                 {featuredMatches.map((match, index) => (
                   <FeaturedCard key={match.id} match={match} index={index} />
                 ))}
               </div>
 
-              {/* 2 Regular Cards (Smaller) */}
+              {/* 2 Regular Cards */}
               {otherMatches.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12">
                   {otherMatches.map((match) => (
@@ -573,7 +646,7 @@ export default function ScheduleFeaturedGrid() {
               )}
             </div>
 
-            {/* View All CTA - Centered */}
+            {/* View All CTA */}
             <div className="flex flex-col items-center justify-center gap-3 sm:gap-4">
               <Button
                 onClick={() => router.push("/schedule")}

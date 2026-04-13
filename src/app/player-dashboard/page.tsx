@@ -380,7 +380,8 @@ export default function PlayerDashboardPage() {
       if (
         user.role !== "Player" &&
         user.role !== "Admin" &&
-        user.role !== "Owner"
+        user.role !== "Owner" &&
+        user.role !== "Admin-magnifico"
       ) {
         showError("Access Denied", "This dashboard is only for players");
         router.push("/");
@@ -470,11 +471,11 @@ export default function PlayerDashboardPage() {
     totalBookings: bookingHistory.length,
     availableVouchers: userVouchers.length, // All vouchers from voucherUser are considered available
     successfulPayments: bookingHistory.filter(
-      (b) => b.statusPayment === "PAID" || b.statusPayment === "SUCCESS"
+      (b) => b.statusPayment === "PAID" || b.statusPayment === "SUCCESS",
     ).length,
     totalSpent: bookingHistory
       .filter(
-        (b) => b.statusPayment === "PAID" || b.statusPayment === "SUCCESS"
+        (b) => b.statusPayment === "PAID" || b.statusPayment === "SUCCESS",
       )
       .reduce((sum, b) => sum + b.amount, 0),
   };
@@ -699,7 +700,7 @@ export default function PlayerDashboardPage() {
                                 </div>
                                 <Badge
                                   className={`flex items-center space-x-1 ${getStatusColor(
-                                    booking.statusPayment
+                                    booking.statusPayment,
                                   )}`}
                                 >
                                   {getStatusIcon(booking.statusPayment)}
@@ -726,7 +727,7 @@ export default function PlayerDashboardPage() {
                                 <div className="text-xs text-purple-600">
                                   Booked:{" "}
                                   {new Date(
-                                    booking.bookedAt
+                                    booking.bookedAt,
                                   ).toLocaleDateString("id-ID", {
                                     year: "numeric",
                                     month: "short",

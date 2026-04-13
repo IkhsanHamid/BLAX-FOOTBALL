@@ -11,6 +11,7 @@ export interface Schedule {
   feeGk: string;
   typeEvent: string;
   typeMatch: string;
+  community: string;
   imageUrl: string;
   description: string;
   gmapLink: string;
@@ -47,6 +48,7 @@ export interface ScheduleOverview {
   team: number;
   typeEvent: string;
   typeMatch: string;
+  community: string;
   image: string;
   openSlots: number;
   bookedSlots: number;
