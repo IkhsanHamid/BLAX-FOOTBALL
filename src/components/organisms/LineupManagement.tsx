@@ -19,6 +19,7 @@ import {
   Lock,
   Unlock,
   Download,
+  Crown,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../atoms/Card";
@@ -73,7 +74,6 @@ interface TeamColors {
 }
 
 // ========== CONSTANTS ==========
-// Mapping warna berdasarkan nama tim dari backend
 const TEAM_COLOR_MAP: Record<string, TeamColors> = {
   MERAH: {
     gradient: "from-rose-50 to-white",
@@ -157,18 +157,17 @@ const TEAM_COLOR_MAP: Record<string, TeamColors> = {
   },
 };
 
-// Default colors for fallback - matching backend order
 const DEFAULT_TEAM_COLORS: TeamColors[] = [
-  TEAM_COLOR_MAP.MERAH, // 1
-  TEAM_COLOR_MAP.PUTIH, // 2
-  TEAM_COLOR_MAP.BIRU, // 3
-  TEAM_COLOR_MAP.KUNING, // 4
-  TEAM_COLOR_MAP["BIRU MUDA"], // 5
-  TEAM_COLOR_MAP.HITAM, // 6
-  TEAM_COLOR_MAP.HIJAU, // 7
-  TEAM_COLOR_MAP.ORANYE, // 8
-  TEAM_COLOR_MAP.UNGU, // 9
-  TEAM_COLOR_MAP.PINK, // 10
+  TEAM_COLOR_MAP.MERAH,
+  TEAM_COLOR_MAP.PUTIH,
+  TEAM_COLOR_MAP.BIRU,
+  TEAM_COLOR_MAP.KUNING,
+  TEAM_COLOR_MAP["BIRU MUDA"],
+  TEAM_COLOR_MAP.HITAM,
+  TEAM_COLOR_MAP.HIJAU,
+  TEAM_COLOR_MAP.ORANYE,
+  TEAM_COLOR_MAP.UNGU,
+  TEAM_COLOR_MAP.PINK,
 ];
 
 const STATUS_COLORS = {
@@ -179,13 +178,10 @@ const STATUS_COLORS = {
 
 // ========== UTILITY FUNCTIONS ==========
 const getTeamColor = (teamName: string, index: number): TeamColors => {
-  // Try to get color from team name mapping
   const upperTeamName = teamName.toUpperCase();
   if (TEAM_COLOR_MAP[upperTeamName]) {
     return TEAM_COLOR_MAP[upperTeamName];
   }
-
-  // Fallback to index-based color
   return DEFAULT_TEAM_COLORS[index % DEFAULT_TEAM_COLORS.length];
 };
 
@@ -205,7 +201,6 @@ const getAllPlayers = (lineup: LineupMatch): LineupPlayer[] => {
 
 // ========== COMPONENTS ==========
 
-// Sortable Player Card
 const SortablePlayerCard = React.memo(
   ({
     player,
@@ -275,6 +270,9 @@ const SortablePlayerCard = React.memo(
                 <h4 className="font-semibold text-sm sm:text-base text-gray-900 truncate">
                   {player.name}
                 </h4>
+                {player.isMember && (
+                  <Crown className="w-4 h-4 ml-1 fill-purple-700 text-purple-700" />
+                )}
                 <Badge
                   className={`text-xs ${
                     isGK
@@ -309,7 +307,6 @@ const SortablePlayerCard = React.memo(
 
 SortablePlayerCard.displayName = "SortablePlayerCard";
 
-// Player Card for Drag Overlay
 const PlayerCard = React.memo(
   ({ player }: { player: LineupPlayer; index: number }) => {
     const isGK = player.position === "GK";
@@ -327,9 +324,14 @@ const PlayerCard = React.memo(
               {player.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h4 className="font-semibold text-sm sm:text-base text-gray-900">
-                {player.name}
-              </h4>
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-semibold text-sm sm:text-base text-gray-900">
+                  {player.name}
+                </h4>
+                {player.isMember && (
+                  <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                )}
+              </div>
               <Badge
                 className={`text-xs ${
                   isGK
@@ -349,7 +351,6 @@ const PlayerCard = React.memo(
 
 PlayerCard.displayName = "PlayerCard";
 
-// Team Dropzone
 const TeamDropzone = React.memo(
   ({ teamKey, isActive, children }: TeamDropzoneProps) => {
     const { setNodeRef, isOver } = useSortable({
@@ -440,9 +441,6 @@ export default function LineupManagement() {
       setLoading(true);
       const data = await lineupService.fetchLineups();
       console.log("data", data);
-
-      // Data sudah dalam format yang benar dari service
-      // Tidak perlu transform lagi karena sudah menggunakan nama warna tim
       setLineups(data);
       if (data.length > 0) setSelectedLineup(data[0]);
     } catch (error) {
@@ -523,7 +521,6 @@ export default function LineupManagement() {
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet("Lineup");
 
-      // ── Mapping nama tim → warna hex (ARGB format untuk ExcelJS) ──
       const TEAM_COLOR_HEX: Record<string, { bg: string; font: string }> = {
         MERAH: { bg: "FFFCE8E6", font: "FFC0392B" },
         PUTIH: { bg: "FFF2F3F4", font: "FF5D6D7E" },
@@ -542,7 +539,6 @@ export default function LineupManagement() {
         return TEAM_COLOR_HEX[upper] ?? { bg: "FFE8EAF6", font: "FF283593" };
       };
 
-      // ── Helper: style cell ──
       const styleCell = (
         cell: ExcelJS.Cell,
         options: {
@@ -590,7 +586,6 @@ export default function LineupManagement() {
         { key: "jersey", width: 16 },
       ];
 
-      // ── Judul utama ──
       ws.mergeCells("A1:D1");
       const titleCell = ws.getCell("A1");
       titleCell.value = selectedLineup.scheduleName;
@@ -603,7 +598,6 @@ export default function LineupManagement() {
       });
       ws.getRow(1).height = 30;
 
-      // ── Info match ──
       const infoRows: [string, string][] = [
         ["Tanggal", formatDate(selectedLineup.date)],
         ["Waktu", selectedLineup.time],
@@ -626,9 +620,8 @@ export default function LineupManagement() {
         styleCell(valueCell, { bgColor: "FFFFFFFF", fontColor: "FF2C3E50" });
       });
 
-      let currentRow = 6; // baris kosong setelah info
+      let currentRow = 6;
 
-      // ── Per tim ──
       const teamKeys = selectedLineup.teams
         ? Object.keys(selectedLineup.teams)
         : [];
@@ -637,7 +630,6 @@ export default function LineupManagement() {
         const teamPlayers = selectedLineup.teams[teamKey] || [];
         const colors = getTeamColorHex(teamKey);
 
-        // Baris nama tim
         ws.mergeCells(`A${currentRow}:D${currentRow}`);
         const teamHeaderCell = ws.getCell(`A${currentRow}`);
         teamHeaderCell.value = `TEAM ${teamKey}`;
@@ -649,7 +641,6 @@ export default function LineupManagement() {
           alignment: "center",
           border: true,
         });
-        // Border bawah lebih tebal sebagai separator
         teamHeaderCell.border = {
           top: { style: "medium", color: { argb: colors.font } },
           left: { style: "medium", color: { argb: colors.font } },
@@ -659,7 +650,6 @@ export default function LineupManagement() {
         ws.getRow(currentRow).height = 24;
         currentRow++;
 
-        // Header kolom
         const headerRow = ws.getRow(currentRow);
         headerRow.height = 20;
         const headers = ["No", "Nama Pemain", "Posisi", "Jersey Size"];
@@ -676,7 +666,6 @@ export default function LineupManagement() {
         });
         currentRow++;
 
-        // Data pemain
         if (teamPlayers.length > 0) {
           teamPlayers.forEach((player, idx) => {
             const dataRow = ws.getRow(currentRow);
@@ -721,10 +710,9 @@ export default function LineupManagement() {
           currentRow++;
         }
 
-        currentRow++; // baris kosong antar tim
+        currentRow++;
       });
 
-      // ── Generate & download ──
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -912,7 +900,80 @@ export default function LineupManagement() {
         return;
       }
 
-      // Validasi normal untuk non-GK swap
+      // ── BARU: Tim tujuan penuh → coba SWAP dengan player yang di-hover ──
+      const targetTeamFull =
+        targetTeamPlayers.length >= getPlayersPerTeam(selectedLineup);
+      const overPlayer = allPlayers.find((p) => p.id === overId);
+
+      if (targetTeamFull && overPlayer && overPlayer.team === targetTeam) {
+        // Simulasi setelah swap
+        const sourceAfterSwap = updatedTeams[sourceTeam]
+          .filter((p) => p.id !== activeId)
+          .concat({ ...overPlayer, team: sourceTeam });
+        const targetAfterSwap = updatedTeams[targetTeam]
+          .filter((p) => p.id !== overPlayer.id)
+          .concat({ ...activePlayer, team: targetTeam });
+
+        // Validasi: tidak boleh ada tim dengan >1 GK
+        const sourceGKCount = sourceAfterSwap.filter(
+          (p) => p.position === "GK",
+        ).length;
+        const targetGKCount = targetAfterSwap.filter(
+          (p) => p.position === "GK",
+        ).length;
+
+        if (sourceGKCount > 1 || targetGKCount > 1) {
+          showWarning(
+            "Cannot swap",
+            "Swap ini akan membuat satu tim memiliki lebih dari satu GK",
+          );
+          return;
+        }
+
+        updatedTeams[sourceTeam] = sourceAfterSwap.map((p, idx) => ({
+          ...p,
+          order: idx + 1,
+        }));
+        updatedTeams[targetTeam] = targetAfterSwap.map((p, idx) => ({
+          ...p,
+          order: idx + 1,
+        }));
+
+        const updatedLineup = { ...selectedLineup, teams: updatedTeams };
+        setSelectedLineup(updatedLineup);
+        setLineups((prev) =>
+          prev.map((l) => (l.id === selectedLineup.id ? updatedLineup : l)),
+        );
+
+        try {
+          await Promise.all([
+            lineupService.updatePlayerTeam(activePlayer.id, targetTeam),
+            lineupService.updatePlayerTeam(overPlayer.id, sourceTeam),
+          ]);
+          showSuccess(
+            "Players swapped",
+            `${activePlayer.name} ↔ ${overPlayer.name}`,
+          );
+        } catch (error) {
+          showError("Error", "Failed to swap players");
+          setSelectedLineup(selectedLineup);
+          setLineups((prev) =>
+            prev.map((l) => (l.id === selectedLineup.id ? selectedLineup : l)),
+          );
+        }
+        return;
+      }
+
+      // Tim tujuan penuh tapi tidak ada player target yang valid → tolak
+      if (targetTeamFull) {
+        showWarning(
+          "Team is full",
+          "Drag player ke atas player lain di tim tujuan untuk menukar posisi",
+        );
+        return;
+      }
+
+      // Validasi normal untuk pindah ke tim yang belum full
       const { canAccept, reason } = canAcceptPlayer(
         targetTeam,
         activePlayer,
@@ -1034,20 +1095,27 @@ export default function LineupManagement() {
             : true;
           const isDragOver = overId === `team-${teamKey}-container`;
 
+          // Cek apakah player yang sedang di-drag bisa di-swap ke tim ini
+          const canSwap =
+            activeDragPlayer &&
+            isFull &&
+            activeDragPlayer.team !== teamKey &&
+            !isLocked;
+
           return (
             <TeamDropzone
               key={teamKey}
               teamKey={teamKey}
-              isActive={!!activeId && canAccept && !isLocked}
+              isActive={!!activeId && (canAccept || !!canSwap) && !isLocked}
             >
               <Card
                 className={`shadow-lg border-2 bg-gradient-to-br transition-all ${
                   teamColor.gradient
                 } ${
-                  isDragOver && canAccept && !isLocked
+                  isDragOver && (canAccept || canSwap) && !isLocked
                     ? teamColor.dragOver
                     : teamColor.border
-                } ${(!canAccept || isLocked) && activeId ? "opacity-50" : ""}`}
+                } ${!canAccept && !canSwap && activeId && !isLocked ? "opacity-50" : ""}`}
               >
                 <CardHeader className={`border-b ${teamColor.bg} p-3 sm:p-4`}>
                   <button
@@ -1117,6 +1185,11 @@ export default function LineupManagement() {
                           <div className="text-xs font-normal text-gray-600">
                             {teamPlayers.length}/{maxPlayersPerTeam} players
                             {hasGK && " • Has GK"}
+                            {canSwap && (
+                              <span className="ml-1 text-blue-500 font-medium">
+                                • Drop to swap
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1165,7 +1238,7 @@ export default function LineupManagement() {
                               player={player}
                               index={idx}
                               teamKey={teamKey}
-                              canAcceptPlayer={canAccept}
+                              canAcceptPlayer={canAccept || !!canSwap}
                               isLocked={isLocked}
                             />
                           ))

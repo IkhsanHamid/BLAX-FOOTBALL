@@ -19,6 +19,7 @@ import GalleriesManagement from "@/components/organisms/GalleriesManagement";
 import RescheduleManagementComponent from "@/components/organisms/RescheduleManagement";
 import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
 import { firebaseService } from "@/utils/firebase";
+import EventTab from "@/components/organisms/EventTabComponent";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -191,7 +192,6 @@ export default function AdminPage() {
   const renderTabContent = () => {
     switch (selectedTab) {
       case "reports":
-        // return <ReportsTab />;
         return <ReportsTab userRole={user?.role} />;
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
@@ -214,6 +214,15 @@ export default function AdminPage() {
         return <GalleriesManagement userRole={user?.role} />;
       case "reschedule":
         return <RescheduleManagementComponent />;
+
+      // ── Event children ──────────────────────────────────────────────────────
+      case "event-kelola":
+        return <EventTab showError={showError} showSuccess={showSuccess} />;
+      // Tambah child lain di sini jika diperlukan:
+      // case "event-bracket":
+      //   return <BracketTab />;
+      // ────────────────────────────────────────────────────────────────────────
+
       default:
         return <BookingHistoryTab />;
     }

@@ -491,6 +491,71 @@ class AdminService {
 
     return result;
   }
+
+  async postEvent(eventData: FormData): Promise<any> {
+    const response = await apiClient.post("/api/v1/events", eventData);
+    return response.data;
+  }
+
+  async getEvents(): Promise<[]> {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+    return result.data;
+  }
+
+  async getEventDetail(id: string) {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events/${id}`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+    return result.data;
+  }
+
+  async editEvents(id: string, eventData: FormData): Promise<any> {
+    try {
+      const response = await apiClient.put(`/api/v1/events/${id}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating event:", error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(id: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(`/api/v1/events/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      throw error;
+    }
+  }
+
+  async toggleEventOpen(id: string, data: { isOpen: Boolean }) {
+    try {
+      const response = await apiClient.delete(`/api/v1/events/open/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      throw error;
+    }
+  }
 }
 
 export const adminService = new AdminService();

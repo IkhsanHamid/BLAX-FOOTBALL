@@ -1,5 +1,5 @@
 import { encryptWithPublicKey } from "@/lib/helper";
-import { bookingRequest } from "@/types/booking";
+import { bookingEventReq, bookingRequest } from "@/types/booking";
 import { AuthService } from "./auth";
 import { apiClient } from "./api";
 
@@ -19,6 +19,32 @@ class BookingService {
     }
 
     const response = await fetch(`${API_BASE_URL}/book-schedule`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(encrypt),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Booking failed");
+    }
+
+    return result.data;
+  }
+  async bookEvent(data: bookingEventReq) {
+    const encrypt = await encryptWithPublicKey(data);
+    const session = await AuthService.getSession();
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/book-event`, {
       method: "POST",
       headers,
       body: JSON.stringify(encrypt),
@@ -66,7 +92,7 @@ class BookingService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     const result = await response.json();
 
@@ -79,7 +105,7 @@ class BookingService {
 
   async checkExistingBooking(scheduleId: string) {
     const response = await apiClient.get(
-      `/api/v1/booking/check-existing/${scheduleId}`
+      `/api/v1/booking/check-existing/${scheduleId}`,
     );
     return response.data;
   }
