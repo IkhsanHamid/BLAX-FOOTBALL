@@ -7,18 +7,19 @@ import ScheduleFeaturedGrid from "@/components/organisms/ScheduleFeaturedGrid";
 import NewsSection from "@/components/organisms/News";
 import PaymentChecker from "@/components/molecules/PaymentChecker";
 import PopupBanner from "@/components/molecules/PopupBanner";
-import banner from "@/assets/FCL-banner.jpeg";
+import banner from "@/assets/FWC.jpeg";
+import EventFeaturedGrid from "@/components/organisms/EventFeaturedGrid";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Popup Banner - akan muncul otomatis saat pertama kali buka */}
-      {/* <PopupBanner
+      <PopupBanner
         bannerImage={banner}
-        title="FCL Tournament! 🏆"
-        description="Ikuti Fantasy Champions League terbaru kami. Daftar sekarang dan menangkan hadiah menarik!"
+        title="FWC Tournament! 🏆"
+        description="Ikuti Fantasy World Cup terbaru kami. Daftar sekarang dan menangkan hadiah menarik!"
         storageKey="hasSeenTournamentPopup" // Key untuk localStorage
-      /> */}
+      />
 
       <Navbar
         useScrollEffect={true}
@@ -28,6 +29,7 @@ export default function HomePage() {
         }}
       />
       <Hero />
+      <EventFeaturedGrid />
       <ScheduleFeaturedGrid />
 
       {/* Payment Checker Section */}
