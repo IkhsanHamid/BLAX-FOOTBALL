@@ -470,27 +470,36 @@ function ToggleSwitch({
   checked,
   onChange,
   disabled,
+  loading,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  loading?: boolean;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      disabled={disabled}
+      disabled={disabled || loading}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-        checked ? "bg-green-500" : "bg-gray-300"
-      }`}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 disabled:cursor-not-allowed
+        ${loading ? "opacity-70 bg-gray-200" : checked ? "bg-green-500" : "bg-gray-300"}
+      `}
     >
-      <span
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-          checked ? "translate-x-4" : "translate-x-0"
-        }`}
-      />
+      {loading ? (
+        // Spinner menggantikan thumb saat loading
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="w-3 h-3 border-2 border-gray-400 border-t-sky-500 rounded-full animate-spin" />
+        </span>
+      ) : (
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            checked ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      )}
     </button>
   );
 }
@@ -2100,16 +2109,12 @@ function EventListView({
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <ToggleSwitch
-                            checked={event.isOpen}
-                            onChange={() => handleToggleOpen(event)}
-                            disabled={isToggling}
-                          />
-                          {isToggling && (
-                            <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-gray-300 border-t-sky-500 rounded-full" />
-                          )}
-                        </div>
+                        <ToggleSwitch
+                          checked={event.isOpen}
+                          onChange={() => handleToggleOpen(event)}
+                          disabled={isToggling}
+                          loading={togglingIds.has(event.id)}
+                        />
                       </TableCell>
 
                       <TableCell>

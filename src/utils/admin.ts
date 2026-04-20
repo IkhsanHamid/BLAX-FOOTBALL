@@ -547,12 +547,15 @@ class AdminService {
     }
   }
 
-  async toggleEventOpen(id: string, data: { isOpen: Boolean }) {
+  async toggleEventOpen(id: string, data: { isOpen: boolean }) {
     try {
-      const response = await apiClient.delete(`/api/v1/events/open/${id}`);
-      return response.data;
+      const response = await apiClient.patch(`/api/v1/events`, {
+        id,
+        status: data.isOpen,
+      });
+      return response;
     } catch (error) {
-      console.error("Error deleting event:", error);
+      console.error("Error toggling event status:", error);
       throw error;
     }
   }

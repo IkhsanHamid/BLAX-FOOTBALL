@@ -16,7 +16,7 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(
-    isFormData: boolean = false
+    isFormData: boolean = false,
   ): Promise<HeadersInit> {
     const session = await AuthService.getSession();
     const headers: HeadersInit = {};
@@ -77,7 +77,7 @@ export class ApiClient {
   async post(
     endpoint: string,
     data?: any,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     const isFormData = data instanceof FormData;
     const headers = await this.getAuthHeaders(isFormData);
@@ -95,7 +95,7 @@ export class ApiClient {
   async put(
     endpoint: string,
     data?: any,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     const isFormData = data instanceof FormData;
     const headers = await this.getAuthHeaders(isFormData);
@@ -116,6 +116,24 @@ export class ApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       method: "DELETE",
       headers: { ...headers, ...options.headers },
+      ...options,
+    });
+
+    return this.handleResponse(response);
+  }
+
+  async patch(
+    endpoint: string,
+    data?: any,
+    options: RequestInit = {},
+  ): Promise<any> {
+    const isFormData = data instanceof FormData;
+    const headers = await this.getAuthHeaders(isFormData);
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: "PATCH",
+      headers: { ...headers, ...options.headers },
+      body: isFormData ? data : data ? JSON.stringify(data) : undefined,
       ...options,
     });
 
