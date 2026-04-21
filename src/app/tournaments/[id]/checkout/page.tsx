@@ -46,11 +46,6 @@ const validateName = (value: string) => value.trim().length > 0;
 
 const JERSEY_SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL"];
 
-/**
- * Biaya tambahan ukuran jersey besar.
- * 2XL / 3XL → +20.000
- * 4XL       → +40.000
- */
 const JERSEY_SURCHARGE: Record<string, number> = {
   "2XL": 20_000,
   "3XL": 20_000,
@@ -170,7 +165,7 @@ interface RosterPlayer {
   isGk: boolean;
 }
 
-// ─── Pot color helpers (sama seperti EventDetailPage) ─────────────────────────
+// ─── Pot color helpers ────────────────────────────────────────────────────────
 
 const POT_COLORS = [
   "bg-blue-50 border-blue-200 text-blue-700",
@@ -202,10 +197,6 @@ const getActivePhase = (phases?: Phase[]): Phase | null => {
   );
 };
 
-/**
- * Resolve fee untuk tim tertentu berdasarkan pot (multi) atau event global (single).
- * Phase berlaku sebagai DISKON dari harga dasar: effectiveFee = max(0, base - phase.discount)
- */
 const resolveTeamFee = (
   team: Team | null,
   pots: Pot[],
@@ -243,11 +234,6 @@ const resolveTeamFee = (
   return { feePlayer, feeGk, baseFeePlayer, baseFeeGk, pot };
 };
 
-/**
- * Hitung berapa slot yang dapat diskon early bird (partial quota).
- * quotaX === 0 → unlimited
- * quotaX > 0  → sisa = quota - used
- */
 const calcPartialDiscount = (
   phase: Phase | null,
   gkQty: number,
@@ -257,7 +243,7 @@ const calcPartialDiscount = (
   discountedPlayer: number;
   normalGk: number;
   normalPlayer: number;
-  remainingGkQuota: number | null; // null = unlimited
+  remainingGkQuota: number | null;
   remainingPlayerQuota: number | null;
 } => {
   if (!phase) {
@@ -274,7 +260,7 @@ const calcPartialDiscount = (
   const remGk =
     (phase.quotaGk ?? 0) > 0
       ? Math.max(0, (phase.quotaGk ?? 0) - (phase.usedQuotaGk ?? 0))
-      : null; // null = unlimited
+      : null;
 
   const remPlayer =
     (phase.quotaPlayer ?? 0) > 0
@@ -323,9 +309,6 @@ function PhaseBadge({ phase }: { phase: Phase }) {
   );
 }
 
-/**
- * Tampilan sisa kuota + rincian partial discount untuk user.
- */
 function PhaseQuotaInfo({
   phase,
   discountedGk,
@@ -365,14 +348,12 @@ function PhaseQuotaInfo({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden"
     >
-      {/* Header — sisa kuota */}
       <div className="px-4 py-3 border-b border-amber-200 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-600" />
           <span className="text-sm font-bold text-amber-800">{phase.name}</span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Sisa kuota player */}
           {remainingPlayerQuota !== null ? (
             <div className="flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-amber-600" />
@@ -395,7 +376,6 @@ function PhaseQuotaInfo({
               <span className="text-xs text-amber-600">Player: unlimited</span>
             </div>
           )}
-          {/* Sisa kuota GK */}
           {remainingGkQuota !== null ? (
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-amber-600" />
@@ -419,10 +399,8 @@ function PhaseQuotaInfo({
         </div>
       </div>
 
-      {/* Body — rincian per slot */}
       {hasAnySelected && (
         <div className="px-4 py-3 space-y-2">
-          {/* Slot yang dapat diskon */}
           {discountedGk > 0 && (
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
@@ -463,8 +441,6 @@ function PhaseQuotaInfo({
               </div>
             </div>
           )}
-
-          {/* Slot harga normal */}
           {normalGk > 0 && (
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
@@ -495,8 +471,6 @@ function PhaseQuotaInfo({
               </span>
             </div>
           )}
-
-          {/* Status info */}
           {hasPartial && (
             <div className="mt-2 pt-2 border-t border-amber-200">
               <p className="text-[11px] text-amber-700">
@@ -517,7 +491,6 @@ function PhaseQuotaInfo({
         </div>
       )}
 
-      {/* Jika belum ada slot dipilih — hanya tampil info kuota */}
       {!hasAnySelected && (
         <div className="px-4 py-3">
           <p className="text-xs text-amber-600">
@@ -529,7 +502,6 @@ function PhaseQuotaInfo({
   );
 }
 
-/** Badge pot kecil untuk ditampilkan di dalam card tim */
 function PotBadge({ pot, index }: { pot: Pot; index: number }) {
   const color = POT_COLORS[index % POT_COLORS.length];
   const dot = POT_BADGE_BG[index % POT_BADGE_BG.length];
@@ -543,7 +515,6 @@ function PotBadge({ pot, index }: { pot: Pot; index: number }) {
   );
 }
 
-/** Info tambahan biaya jersey besar */
 function JerseySurchargeNote({ size }: { size: string }) {
   const surcharge = getJerseySurcharge(size);
   if (!surcharge) return null;
@@ -765,7 +736,6 @@ function TeamSelector({
               <span className="text-gray-800 font-medium text-sm block">
                 {selected.name}
               </span>
-              {/* Pot badge di selected */}
               {(() => {
                 const pot = getPotForTeam(selected);
                 if (!pot) return null;
@@ -845,7 +815,6 @@ function TeamSelector({
                         <p className="text-sm font-semibold text-gray-800">
                           {team.name}
                         </p>
-                        {/* Pot badge + fee info di dropdown */}
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {pot && <PotBadge pot={pot} index={potIdx} />}
                           {team.slot && (
@@ -900,19 +869,12 @@ export default function EventCheckoutPage() {
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
 
-  // ── Event data ────────────────────────────────────────────────────────────────
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
-
-  // ── Booking type ──────────────────────────────────────────────────────────────
   const [bookingType, setBookingType] = useState<"individual" | "team">(
     "individual",
   );
-
-  // ── Team selection ────────────────────────────────────────────────────────────
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-
-  // ── Individual slots ──────────────────────────────────────────────────────────
   const [slots, setSlots] = useState<IndividualSlot[]>([
     {
       role: null,
@@ -925,14 +887,12 @@ export default function EventCheckoutPage() {
     },
   ]);
 
-  // ── Individual form ───────────────────────────────────────────────────────────
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [jerseyName, setJerseyName] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
 
-  // ── Team PIC ──────────────────────────────────────────────────────────────────
   const [picName, setPicName] = useState("");
   const [picEmail, setPicEmail] = useState("");
   const [picJerseySize, setPicJerseySize] = useState("");
@@ -941,13 +901,10 @@ export default function EventCheckoutPage() {
   const [picIsGk, setPicIsGk] = useState(false);
 
   const [includeRoster, setIncludeRoster] = useState(false);
-
-  // ── Roster players ────────────────────────────────────────────────────────────
   const [players, setPlayers] = useState<RosterPlayer[]>(
     Array.from({ length: 10 }, makeEmptyPlayer),
   );
 
-  // ── Roster validation errors ──────────────────────────────────────────────────
   const [emailErrors, setEmailErrors] = useState<{ [key: number]: string }>({});
   const [phoneErrors, setPhoneErrors] = useState<{ [key: number]: string }>({});
   const [phoneFormatErrors, setPhoneFormatErrors] = useState<{
@@ -957,12 +914,10 @@ export default function EventCheckoutPage() {
     [key: number]: string;
   }>({});
 
-  // ── Add-ons ───────────────────────────────────────────────────────────────────
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, number>>(
     {},
   );
 
-  // ── Voucher ───────────────────────────────────────────────────────────────────
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState<{
     code: string;
@@ -971,7 +926,6 @@ export default function EventCheckoutPage() {
   } | null>(null);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
 
-  // ── Payment ───────────────────────────────────────────────────────────────────
   const [showPayment, setShowPayment] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [isBookingLoading, setIsBookingLoading] = useState(false);
@@ -979,7 +933,6 @@ export default function EventCheckoutPage() {
   const [amount, setAmount] = useState(0);
   const [isMember, setIsMember] = useState(false);
 
-  // ── Derived from event ────────────────────────────────────────────────────────
   const activePhase = getActivePhase(event?.phases);
   const pricingMode: PricingMode = event?.pricingMode ?? "single";
   const pots = event?.pots ?? [];
@@ -995,7 +948,6 @@ export default function EventCheckoutPage() {
   const teams = event?.teams ?? [];
   const addOns = event?.addOn ?? [];
 
-  // ── Selected team & resolved fees ─────────────────────────────────────────────
   const selectedTeam = teams.find((t) => t.id === selectedTeamId) ?? null;
   const availableGkSlots = selectedTeam?.availableGkSlots ?? 0;
   const availablePlayerSlots = selectedTeam?.availablePlayerSlots ?? 0;
@@ -1023,11 +975,9 @@ export default function EventCheckoutPage() {
     (baseFeePlayer !== effectiveFeePlayer || baseFeeGk !== effectiveFeeGk);
   const countGk = () => slots.filter((s) => s.role === "goalkeeper").length;
   const countPlayer = () => slots.filter((s) => s.role === "player").length;
-  // ── Partial discount calculation (untuk display) ──────────────────────────────
   const gkCount = countGk();
   const playerCount = countPlayer();
 
-  // Untuk TEAM: gkQty=1 (GK selalu 1), playerQty=ROSTER_SIZE
   const teamGkQty = bookingType === "team" ? 1 : gkCount;
   const teamPlayerQty = bookingType === "team" ? ROSTER_SIZE : playerCount;
 
@@ -1037,11 +987,9 @@ export default function EventCheckoutPage() {
     teamPlayerQty,
   );
 
-  // ── GK derived state ──────────────────────────────────────────────────────────
   const gkInRoster = players.findIndex((p) => p.isGk);
   const hasGkAssigned = picIsGk || gkInRoster !== -1;
 
-  // ── Fetch event ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!eventId) return;
     const fetchEvent = async () => {
@@ -1066,7 +1014,6 @@ export default function EventCheckoutPage() {
     fetchEvent();
   }, [eventId]);
 
-  // ── Populate from user ────────────────────────────────────────────────────────
   useEffect(() => {
     if (user) {
       setName(user.name || "");
@@ -1081,7 +1028,6 @@ export default function EventCheckoutPage() {
     }
   }, [user]);
 
-  // ── Reset slots when team changes ─────────────────────────────────────────────
   useEffect(() => {
     setSlots([
       {
@@ -1104,7 +1050,6 @@ export default function EventCheckoutPage() {
     }
   }, [searchParams]);
 
-  // ── Toggle GK ────────────────────────────────────────────────────────────────
   const handleTogglePicGk = () => {
     const next = !picIsGk;
     setPicIsGk(next);
@@ -1125,7 +1070,6 @@ export default function EventCheckoutPage() {
     }
   };
 
-  // ── Slot helpers ──────────────────────────────────────────────────────────────
   const getMaxQuantity = (): number => {
     if (!selectedTeamId) return 1;
     const maxByMatchType =
@@ -1195,14 +1139,10 @@ export default function EventCheckoutPage() {
     return currentForRole < available;
   };
 
-  // ── Jersey surcharge helpers ──────────────────────────────────────────────────
-
-  /** Total surcharge dari semua slot individual */
   const calcIndividualJerseySurcharge = (): number => {
     return slots.reduce((sum, s) => sum + getJerseySurcharge(s.jerseySize), 0);
   };
 
-  /** Total surcharge dari roster team (PIC + players jika includeRoster) */
   const calcTeamJerseySurcharge = (): number => {
     let total = getJerseySurcharge(picJerseySize);
     if (includeRoster) {
@@ -1214,7 +1154,6 @@ export default function EventCheckoutPage() {
     return total;
   };
 
-  // ── Add-on helpers ────────────────────────────────────────────────────────────
   const handleAddOnChange = (id: string, qty: number) => {
     setSelectedAddOns((prev) => ({ ...prev, [id]: qty }));
   };
@@ -1235,7 +1174,6 @@ export default function EventCheckoutPage() {
       })
       .filter(Boolean) as { name: string; qty: number; price: number }[];
 
-  // ── Roster player change ──────────────────────────────────────────────────────
   const handlePlayerChange = (
     index: number,
     field: keyof RosterPlayer,
@@ -1322,14 +1260,12 @@ export default function EventCheckoutPage() {
     let phaseDiscount = 0;
 
     if (bookingType === "individual") {
-      // Hitung per slot berdasarkan partial discount
       const partial = calcPartialDiscount(activePhase, gkCount, playerCount);
       basePrice = gkCount * baseFeeGk + playerCount * baseFeePlayer;
       phaseDiscount =
         partial.discountedGk * (baseFeeGk - effectiveFeeGk) +
         partial.discountedPlayer * (baseFeePlayer - effectiveFeePlayer);
     } else {
-      // TEAM
       const partial = calcPartialDiscount(activePhase, 1, ROSTER_SIZE);
       basePrice = ROSTER_SIZE * baseFeePlayer + baseFeeGk;
       const priceAfterPhase =
@@ -1348,13 +1284,18 @@ export default function EventCheckoutPage() {
       );
     }
 
+    const teamDiscount =
+      bookingType === "team"
+        ? Math.round((basePrice - phaseDiscount) * 0.05)
+        : 0;
+
     const jerseySurcharge =
       bookingType === "individual"
         ? calcIndividualJerseySurcharge()
         : calcTeamJerseySurcharge();
 
     const priceAfterPhaseAndMember =
-      basePrice - phaseDiscount - memberDiscount + adminFee;
+      basePrice - phaseDiscount - memberDiscount - teamDiscount + adminFee;
     let voucherDiscount = 0;
     if (appliedVoucher) {
       voucherDiscount =
@@ -1378,6 +1319,7 @@ export default function EventCheckoutPage() {
       phaseDiscount,
       adminFee,
       memberDiscount,
+      teamDiscount,
       voucherDiscount,
       jerseySurcharge,
       total,
@@ -1421,11 +1363,19 @@ export default function EventCheckoutPage() {
         validateName(name) &&
         validateEmail(email) &&
         validatePhone(whatsapp) &&
+        jerseyName.trim().length > 0 &&
+        jerseyNumber.trim().length > 0 &&
         slots.length > 0 &&
         slots.every((s) => s.role !== null) &&
         slots.every((s) => s.jerseySize !== "") &&
         slots.every((s, i) =>
-          i === 0 ? true : validateName(s.name) && validatePhone(s.phone),
+          i === 0
+            ? true
+            : validateName(s.name) &&
+              validatePhone(s.phone) &&
+              validateEmail(s.email ?? "") &&
+              s.jerseyName.trim().length > 0 &&
+              s.jerseyNumber.trim().length > 0,
         )
       );
     }
@@ -1434,7 +1384,9 @@ export default function EventCheckoutPage() {
       validateName(picName) &&
       validateEmail(picEmail) &&
       validatePhone(whatsapp) &&
-      picJerseySize !== "";
+      picJerseySize !== "" &&
+      picJerseyName.trim().length > 0 &&
+      picJerseyNumber.trim().length > 0;
 
     if (!includeRoster) return isPicValid;
 
@@ -1448,8 +1400,10 @@ export default function EventCheckoutPage() {
         (p) =>
           validateName(p.name) &&
           validatePhone(p.phone) &&
-          (p.email === "" || validateEmail(p.email)) &&
-          p.jerseySize !== "",
+          validateEmail(p.email) &&
+          p.jerseySize !== "" &&
+          p.jerseyName.trim().length > 0 &&
+          p.jerseyNumber.trim().length > 0,
       )
     );
   };
@@ -1463,6 +1417,10 @@ export default function EventCheckoutPage() {
       if (!validateName(name)) return showError("Nama wajib diisi");
       if (!validateEmail(email)) return showError("Email tidak valid");
       if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
+      if (!jerseyName.trim())
+        return showError("Nama jersey Slot 1 wajib diisi");
+      if (!jerseyNumber.trim())
+        return showError("Nomor jersey Slot 1 wajib diisi");
       for (let i = 0; i < slots.length; i++) {
         const s = slots[i];
         if (!s.role) return showError(`Pilih role untuk Slot ${i + 1}`);
@@ -1472,12 +1430,23 @@ export default function EventCheckoutPage() {
           return showError(`Nama teman ${i} wajib diisi`);
         if (i > 0 && !validatePhone(s.phone))
           return showError(`No HP teman ${i} tidak valid`);
+        if (i > 0 && !validateEmail(s.email ?? ""))
+          return showError(`Email teman ${i} wajib diisi dan valid`);
+        if (i > 0 && !s.jerseyName.trim())
+          return showError(`Nama jersey teman ${i} wajib diisi`);
+        if (i > 0 && !s.jerseyNumber.trim())
+          return showError(`Nomor jersey teman ${i} wajib diisi`);
       }
     } else {
       if (!validateName(picName)) return showError("PIC name wajib diisi");
       if (!validateEmail(picEmail)) return showError("PIC email tidak valid");
       if (!validatePhone(whatsapp))
         return showError("WhatsApp PIC tidak valid");
+      if (!picJerseySize) return showError("Ukuran jersey PIC wajib dipilih");
+      if (!picJerseyName.trim())
+        return showError("Nama jersey PIC wajib diisi");
+      if (!picJerseyNumber.trim())
+        return showError("Nomor jersey PIC wajib diisi");
       if (includeRoster) {
         if (Object.keys(emailErrors).length > 0)
           return showError("Terdapat email yang sama di team roster");
@@ -1489,10 +1458,14 @@ export default function EventCheckoutPage() {
             return showError(`Nama Player ${i + 1} wajib diisi`);
           if (!validatePhone(p.phone))
             return showError(`Phone Player ${i + 1} tidak valid`);
-          if (p.email && !validateEmail(p.email))
-            return showError(`Email Player ${i + 1} tidak valid`);
+          if (!validateEmail(p.email))
+            return showError(`Email Player ${i + 1} wajib diisi dan valid`);
           if (!p.jerseySize)
-            return showError(`Jersey Player ${i + 1} wajib dipilih`);
+            return showError(`Jersey size Player ${i + 1} wajib dipilih`);
+          if (!p.jerseyName.trim())
+            return showError(`Nama jersey Player ${i + 1} wajib diisi`);
+          if (!p.jerseyNumber.trim())
+            return showError(`Nomor jersey Player ${i + 1} wajib diisi`);
         }
       }
     }
@@ -1569,7 +1542,6 @@ export default function EventCheckoutPage() {
     user?.email === "ikhsanhamid352@gmail.com";
   const isLocked = !!user && !isAdminEmail;
 
-  // ── Jersey surcharge line items untuk summary ─────────────────────────────────
   const jerseySurchargeItems: { label: string; amount: number }[] = [];
   if (bookingType === "individual") {
     slots.forEach((s, i) => {
@@ -1599,6 +1571,41 @@ export default function EventCheckoutPage() {
       });
     }
   }
+
+  // ── Derive a human-readable reason why the form isn't valid yet ───────────────
+  const getFormInvalidReason = (): string => {
+    if (teams.length > 0 && !selectedTeamId) return "Pilih tim terlebih dahulu";
+    if (bookingType === "individual") {
+      if (slots.some((s) => s.role === null))
+        return "Pilih role untuk semua slot";
+      if (slots.some((s) => !s.jerseySize))
+        return "Pilih ukuran jersey untuk semua slot";
+      if (!jerseyName.trim() || !jerseyNumber.trim())
+        return "Isi nama dan nomor jersey Anda";
+      if (slots.some((s, i) => i > 0 && !validateName(s.name)))
+        return "Isi nama teman dengan benar";
+      if (slots.some((s, i) => i > 0 && !validatePhone(s.phone)))
+        return "Isi no HP teman dengan benar";
+      if (slots.some((s, i) => i > 0 && !validateEmail(s.email ?? "")))
+        return "Isi email teman dengan benar";
+      if (
+        slots.some(
+          (s, i) => i > 0 && (!s.jerseyName.trim() || !s.jerseyNumber.trim()),
+        )
+      )
+        return "Isi nama dan nomor jersey teman";
+    } else {
+      if (!picJerseyName.trim() || !picJerseyNumber.trim())
+        return "Isi nama dan nomor jersey PIC";
+      if (includeRoster) {
+        if (players.some((p) => !validateEmail(p.email)))
+          return "Isi email semua player dengan benar";
+        if (players.some((p) => !p.jerseyName.trim() || !p.jerseyNumber.trim()))
+          return "Isi nama dan nomor jersey semua player";
+      }
+    }
+    return "Lengkapi semua data untuk melanjutkan";
+  };
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -1639,7 +1646,6 @@ export default function EventCheckoutPage() {
           )}
 
           {/* Phase banner */}
-          {/* Phase banner */}
           {!isLoadingEvent && activePhase && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -1647,7 +1653,6 @@ export default function EventCheckoutPage() {
               className="max-w-xl mx-auto mb-8 space-y-3"
             >
               <PhaseBadge phase={activePhase} />
-              {/* Info kuota & partial — tampil setelah team dipilih */}
               {selectedTeamId && (
                 <PhaseQuotaInfo
                   phase={activePhase}
@@ -1737,14 +1742,12 @@ export default function EventCheckoutPage() {
                       bookingType={bookingType}
                     />
 
-                    {/* Fee info setelah tim dipilih */}
                     {selectedTeam && (
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-4 space-y-3"
                       >
-                        {/* Slot badges */}
                         {bookingType === "individual" && (
                           <div className="flex flex-wrap gap-3">
                             <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-blue-50 rounded-xl px-3 py-2">
@@ -1770,7 +1773,6 @@ export default function EventCheckoutPage() {
                           </div>
                         )}
 
-                        {/* Pot + harga berlaku untuk tim ini */}
                         <div
                           className={`rounded-2xl border p-4 ${selectedPot ? POT_COLORS[selectedPotIndex % POT_COLORS.length] : "bg-blue-50 border-blue-200"}`}
                         >
@@ -1899,7 +1901,7 @@ export default function EventCheckoutPage() {
                       }) => (
                         <div key={label}>
                           <label className="block text-gray-600 mb-2">
-                            {label}
+                            {label} <span className="text-red-500">*</span>
                           </label>
                           <div className="relative">
                             <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -1948,7 +1950,8 @@ export default function EventCheckoutPage() {
                         <>
                           <p className="text-xs text-gray-500 mb-4">
                             Slot pertama otomatis untuk Anda. Tambah slot jika
-                            membawa teman — isi nama, no HP, dan jersey mereka.
+                            membawa teman — isi nama, no HP, email, dan jersey
+                            mereka.
                           </p>
 
                           {/* Jersey surcharge info */}
@@ -2044,7 +2047,8 @@ export default function EventCheckoutPage() {
                                     </div>
                                     <div className="mb-3">
                                       <label className="block text-xs text-gray-500 mb-1">
-                                        Email Teman
+                                        Email Teman{" "}
+                                        <span className="text-red-500">*</span>
                                       </label>
                                       <div className="relative">
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2062,15 +2066,15 @@ export default function EventCheckoutPage() {
                                           className="w-full pl-9 pr-4 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 text-sm"
                                         />
                                       </div>
-                                      <p className="text-xs text-blue-400 mt-1 italic">
-                                        Data email berguna untuk share informasi
+                                      <p className="text-xs text-red-400 mt-1">
+                                        Wajib diisi — digunakan untuk informasi
                                         booking
                                       </p>
                                     </div>
                                   </>
                                 )}
 
-                                {/* Jersey size dengan surcharge info */}
+                                {/* Jersey size */}
                                 <div className="mb-3">
                                   <label className="block text-xs text-gray-500 mb-1">
                                     Ukuran Jersey{" "}
@@ -2107,7 +2111,8 @@ export default function EventCheckoutPage() {
                                 <div className="grid grid-cols-2 gap-3 mb-3">
                                   <div>
                                     <label className="block text-xs text-gray-500 mb-1">
-                                      Nama Jersey
+                                      Nama Jersey{" "}
+                                      <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2138,7 +2143,8 @@ export default function EventCheckoutPage() {
                                   </div>
                                   <div>
                                     <label className="block text-xs text-gray-500 mb-1">
-                                      Nomor Jersey
+                                      Nomor Jersey{" "}
+                                      <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2445,7 +2451,7 @@ export default function EventCheckoutPage() {
                       }) => (
                         <div key={label}>
                           <label className="block text-gray-600 mb-2">
-                            {label}
+                            {label} <span className="text-red-500">*</span>
                           </label>
                           <div className="relative">
                             <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -2496,7 +2502,8 @@ export default function EventCheckoutPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-600 mb-2">
-                          Nama Jersey PIC
+                          Nama Jersey PIC{" "}
+                          <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -2513,7 +2520,8 @@ export default function EventCheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-gray-600 mb-2">
-                          Nomor Jersey PIC
+                          Nomor Jersey PIC{" "}
+                          <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -2727,6 +2735,7 @@ export default function EventCheckoutPage() {
                                     )}
                                   </div>
 
+                                  {/* Email — wajib */}
                                   <div className="flex flex-col gap-1 sm:col-span-2">
                                     <input
                                       type="text"
@@ -2738,7 +2747,7 @@ export default function EventCheckoutPage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Email (opsional)"
+                                      placeholder="Email * (wajib diisi)"
                                       className={`px-4 py-2 bg-white border rounded-xl focus:outline-none text-gray-900 text-sm ${
                                         emailErrors[index] ||
                                         emailFormatErrors[index]
@@ -2761,7 +2770,7 @@ export default function EventCheckoutPage() {
                                     )}
                                   </div>
 
-                                  {/* Jersey size dengan surcharge */}
+                                  {/* Jersey size, name, number — semua wajib */}
                                   <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div className="sm:col-span-1">
                                       <select
@@ -2807,7 +2816,7 @@ export default function EventCheckoutPage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Nama Jersey"
+                                      placeholder="Nama Jersey *"
                                       className={`px-4 py-2 bg-white border rounded-xl focus:outline-none text-gray-900 uppercase text-sm ${
                                         player.isGk
                                           ? "border-amber-200 focus:border-amber-400"
@@ -2825,7 +2834,7 @@ export default function EventCheckoutPage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Nomor Jersey"
+                                      placeholder="Nomor Jersey *"
                                       maxLength={3}
                                       className={`px-4 py-2 bg-white border rounded-xl focus:outline-none text-gray-900 text-sm ${
                                         player.isGk
@@ -2895,7 +2904,6 @@ export default function EventCheckoutPage() {
                         <span className="text-gray-600 text-sm">
                           {selectedTeam.name}
                         </span>
-                        {/* Pot info di summary */}
                         {isMulti && selectedPot && (
                           <PotBadge
                             pot={selectedPot}
@@ -2982,7 +2990,6 @@ export default function EventCheckoutPage() {
                       </span>
                     </div>
 
-                    {/* Pot info di breakdown */}
                     {isMulti && selectedPot && (
                       <div className="flex justify-between text-sm text-gray-500">
                         <span>Pot</span>
@@ -3032,18 +3039,15 @@ export default function EventCheckoutPage() {
 
                     <div className="flex justify-between">
                       <span>Harga Booking</span>
-                      <div className="text-right">
-                        <span>
-                          {gkCount > 0 ||
-                          playerCount > 0 ||
-                          bookingType === "team"
-                            ? formatCurrency(pricing.basePrice)
-                            : "-"}
-                        </span>
-                      </div>
+                      <span>
+                        {gkCount > 0 ||
+                        playerCount > 0 ||
+                        bookingType === "team"
+                          ? formatCurrency(pricing.basePrice)
+                          : "-"}
+                      </span>
                     </div>
 
-                    {/* Phase discount baris tersendiri di summary */}
                     {pricing.phaseDiscount > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span className="flex items-center gap-1">
@@ -3057,6 +3061,16 @@ export default function EventCheckoutPage() {
                           )}
                         </span>
                         <span>- {formatCurrency(pricing.phaseDiscount)}</span>
+                      </div>
+                    )}
+
+                    {bookingType === "team" && pricing.teamDiscount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5" />
+                          Diskon Team Booking (5%)
+                        </span>
+                        <span>- {formatCurrency(pricing.teamDiscount)}</span>
                       </div>
                     )}
 
@@ -3093,7 +3107,6 @@ export default function EventCheckoutPage() {
                       </div>
                     ))}
 
-                    {/* Jersey surcharge line items */}
                     {jerseySurchargeItems.map((item, i) => (
                       <div
                         key={i}
@@ -3143,25 +3156,7 @@ export default function EventCheckoutPage() {
 
                   {!isFormValid() && !isBookingLoading && (
                     <p className="text-center text-sm text-red-500">
-                      {teams.length > 0 && !selectedTeamId
-                        ? "Pilih tim terlebih dahulu"
-                        : bookingType === "individual" &&
-                            slots.some((s) => s.role === null)
-                          ? "Pilih role untuk semua slot"
-                          : bookingType === "individual" &&
-                              slots.some((s) => !s.jerseySize)
-                            ? "Pilih ukuran jersey untuk semua slot"
-                            : bookingType === "individual" &&
-                                slots.some(
-                                  (s, i) => i > 0 && !validateName(s.name),
-                                )
-                              ? "Isi nama teman dengan benar"
-                              : bookingType === "individual" &&
-                                  slots.some(
-                                    (s, i) => i > 0 && !validatePhone(s.phone),
-                                  )
-                                ? "Isi no HP teman dengan benar"
-                                : "Lengkapi semua data untuk melanjutkan"}
+                      {getFormInvalidReason()}
                     </p>
                   )}
 

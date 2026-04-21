@@ -63,7 +63,7 @@ const navItems: NavItem[] = [
         icon: Trophy,
       },
       // Tambah child lain di sini jika diperlukan, contoh:
-      // { id: "event-bracket", label: "Bracket", icon: Shield },
+      { id: "event-team", label: "Kelola Team", icon: Shield },
     ],
   },
   // ─────────────────────────────────────────────────────────────────────────

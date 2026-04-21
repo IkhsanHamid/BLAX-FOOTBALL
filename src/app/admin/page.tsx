@@ -20,6 +20,7 @@ import RescheduleManagementComponent from "@/components/organisms/RescheduleMana
 import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
 import { firebaseService } from "@/utils/firebase";
 import EventTab from "@/components/organisms/EventTabComponent";
+import TeamManagementTab from "@/components/organisms/EventTeamManagement";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -219,8 +220,8 @@ export default function AdminPage() {
       case "event-kelola":
         return <EventTab showError={showError} showSuccess={showSuccess} />;
       // Tambah child lain di sini jika diperlukan:
-      // case "event-bracket":
-      //   return <BracketTab />;
+      case "event-team":
+        return <TeamManagementTab />;
       // ────────────────────────────────────────────────────────────────────────
 
       default:
