@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [selectedTab, setSelectedTab] = useState("booking-history");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [initialBookSearch, setInitialBookSearch] = useState("");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -290,16 +291,22 @@ export default function AdminPage() {
       </header>
 
       {/* Main content area with top padding for fixed header */}
-      <div className="flex flex-1 pt-24 md:pt-16 overflow-hidden">
+      <div className="flex flex-1 pt-16 overflow-hidden">
         <AdminSidebar
           selectedTab={selectedTab}
           onTabChange={setSelectedTab}
           isMobileOpen={isMobileSidebarOpen}
           onMobileToggle={toggleMobileSidebar}
           userRole={user?.role}
+          onCollapsedChange={setIsSidebarCollapsed}
         />
 
-        <main className="flex-1 overflow-y-auto">
+        {/* Spacer untuk offset sidebar fixed di desktop */}
+        <div
+          className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isSidebarCollapsed ? "w-16" : "w-64"}`}
+        />
+
+        <main className="flex-1 overflow-y-auto min-w-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
             <div className="animate-fadeIn">{renderTabContent()}</div>
           </div>
