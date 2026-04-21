@@ -77,6 +77,8 @@ const MAGNIFICO_RESTRICTED = [
   "reschedule",
   "master-data",
   "event-kelola",
+  "event",
+  "event-team",
 ];
 
 export default function AdminSidebar({
