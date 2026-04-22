@@ -10,10 +10,6 @@ import { masterDataService } from "@/utils/masterData";
 import MembershipReportTab from "./MembershipTabReport";
 import MemberStatisticTab from "./MemberStatsTab";
 
-// ========================================
-// TYPE DEFINITIONS
-// ========================================
-
 interface Venue {
   id: string;
   name: string;
@@ -26,10 +22,6 @@ interface ReportsTabProps {
   userRole?: string;
 }
 
-// ========================================
-// MAIN REPORTS TAB COMPONENT
-// ========================================
-
 export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const isMagnifico = userRole === "Admin-magnifico";
 
@@ -38,53 +30,56 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const [dateRange, setDateRange] = useState<string>("7d");
   const [refreshKey, setRefreshKey] = useState<number>(0);
 
-  // Venue filter states (for schedules tab)
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
+  const [appliedVenueId, setAppliedVenueId] = useState<string>("");
   const [loadingVenues, setLoadingVenues] = useState<boolean>(false);
 
-  // Get default date range (last 7 days)
-  const getDefaultDates = (): { startDate: string; endDate: string } => {
+  const getDefaultDates = () => {
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
     return {
       startDate: sevenDaysAgo.toISOString().split("T")[0],
       endDate: today.toISOString().split("T")[0],
     };
   };
 
-  const [startDate, setStartDate] = useState<string>(
-    getDefaultDates().startDate,
+  const defaults = getDefaultDates();
+
+  // ── Draft state: apa yang user ubah di input, belum di-apply ──────────────
+  const [draftStartDate, setDraftStartDate] = useState<string>(
+    defaults.startDate,
   );
-  const [endDate, setEndDate] = useState<string>(getDefaultDates().endDate);
+  const [draftEndDate, setDraftEndDate] = useState<string>(defaults.endDate);
+
+  // ── Applied state: yang benar-benar dikirim ke child / API ───────────────
+  const [appliedStartDate, setAppliedStartDate] = useState<string>(
+    defaults.startDate,
+  );
+  const [appliedEndDate, setAppliedEndDate] = useState<string>(
+    defaults.endDate,
+  );
 
   const { showError } = useNotifications();
 
-  // Fetch venues for filter
   const fetchVenues = async (): Promise<void> => {
     setLoadingVenues(true);
     try {
       const venuesData = await masterDataService.getVenues();
       setVenues(venuesData || []);
     } catch (error: any) {
-      console.error("Error fetching venues:", error);
       showError("Error", "Gagal memuat daftar venue");
     } finally {
       setLoadingVenues(false);
     }
   };
 
-  // Initial load - fetch venues
   useEffect(() => {
     fetchVenues();
   }, []);
 
-  // Force schedules tab for Admin-magnifico
   useEffect(() => {
-    if (isMagnifico) {
-      setActiveTab("schedules");
-    }
+    if (isMagnifico) setActiveTab("schedules");
   }, [isMagnifico]);
 
   const handleDateRangeChange = (range: string): void => {
@@ -108,16 +103,40 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
           newStartDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
 
-      setStartDate(newStartDate.toISOString().split("T")[0]);
-      setEndDate(today.toISOString().split("T")[0]);
+      // Update draft saja, belum apply
+      setDraftStartDate(newStartDate.toISOString().split("T")[0]);
+      setDraftEndDate(today.toISOString().split("T")[0]);
     }
   };
 
-  const handleRefresh = (): void => {
+  // ── Terapkan filter: baru di sini applied dates & refreshKey diupdate ─────
+  const handleApplyFilter = (): void => {
+    if (!draftStartDate || !draftEndDate) {
+      showError("Error", "Tanggal mulai dan selesai wajib diisi");
+      return;
+    }
+    if (draftStartDate > draftEndDate) {
+      showError(
+        "Error",
+        "Tanggal mulai tidak boleh lebih dari tanggal selesai",
+      );
+      return;
+    }
+
+    setAppliedStartDate(draftStartDate);
+    setAppliedEndDate(draftEndDate);
+    setAppliedVenueId(selectedVenueId);
+
     setLoading(true);
     setRefreshKey((prev) => prev + 1);
     setTimeout(() => setLoading(false), 500);
   };
+
+  // Cek apakah ada perubahan yang belum di-apply
+  const hasUnappliedChanges =
+    draftStartDate !== appliedStartDate ||
+    draftEndDate !== appliedEndDate ||
+    selectedVenueId !== appliedVenueId;
 
   return (
     <div className="space-y-6">
@@ -129,21 +148,6 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
             Analisis performa dan statistik platform booking
           </p>
         </div>
-
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading}
-            className="flex items-center"
-          >
-            <RefreshCw
-              className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-        </div>
       </div>
 
       {/* Tab Navigation */}
@@ -151,14 +155,11 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
         <nav className="flex space-x-8" aria-label="Tabs">
           <button
             onClick={() => setActiveTab("schedules")}
-            className={`
-              py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === "schedules"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }
-            `}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === "schedules"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <div className="flex items-center space-x-2">
               <Calendar className="w-5 h-5" />
@@ -170,14 +171,11 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
             <>
               <button
                 onClick={() => setActiveTab("membership")}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  ${
-                    activeTab === "membership"
-                      ? "border-green-500 text-green-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }
-                `}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "membership"
+                    ? "border-green-500 text-green-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               >
                 <div className="flex items-center space-x-2">
                   <CreditCard className="w-5 h-5" />
@@ -187,14 +185,11 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
 
               <button
                 onClick={() => setActiveTab("member-statistic")}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  ${
-                    activeTab === "member-statistic"
-                      ? "border-purple-500 text-purple-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }
-                `}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "member-statistic"
+                    ? "border-purple-500 text-purple-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               >
                 <div className="flex items-center space-x-2">
                   <Users className="w-5 h-5" />
@@ -233,8 +228,11 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                 </label>
                 <input
                   type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  value={draftStartDate}
+                  onChange={(e) => {
+                    setDraftStartDate(e.target.value);
+                    setDateRange("custom");
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -245,8 +243,11 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                 </label>
                 <input
                   type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  value={draftEndDate}
+                  onChange={(e) => {
+                    setDraftEndDate(e.target.value);
+                    setDateRange("custom");
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -272,44 +273,70 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                 </div>
               )}
 
-              {activeTab === "membership" && <div></div>}
+              {activeTab === "membership" && <div />}
 
               <div className="flex items-end">
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={handleRefresh}
-                  disabled={loading || !startDate || !endDate}
-                  className="w-full flex items-center justify-center"
+                  onClick={handleApplyFilter}
+                  disabled={loading || !draftStartDate || !draftEndDate}
+                  className={`w-full flex items-center justify-center transition-all ${
+                    hasUnappliedChanges
+                      ? "ring-2 ring-offset-1 ring-blue-400"
+                      : ""
+                  }`}
                 >
                   <Filter className="w-4 h-4 mr-2" />
                   {loading ? "Memfilter..." : "Terapkan Filter"}
+                  {hasUnappliedChanges && !loading && (
+                    <span className="ml-2 w-2 h-2 rounded-full bg-yellow-300 animate-pulse" />
+                  )}
                 </Button>
               </div>
+            </div>
+
+            {/* Info tanggal yang sedang aktif */}
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
+              <span className="font-medium">Filter aktif:</span>
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-mono">
+                {appliedStartDate} → {appliedEndDate}
+              </span>
+              {appliedVenueId && activeTab === "schedules" && (
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">
+                  {venues.find((v) => v.id === appliedVenueId)?.name ??
+                    appliedVenueId}
+                </span>
+              )}
+              {hasUnappliedChanges && (
+                <span className="text-amber-600 font-medium">
+                  ⚠ Ada perubahan yang belum diterapkan
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Tab Content */}
+      {/* Tab Content — pakai applied dates, bukan draft */}
       {activeTab === "schedules" ? (
         <ScheduleReportTab
           key={`schedule-${refreshKey}`}
-          startDate={startDate}
-          endDate={endDate}
-          venueId={selectedVenueId}
+          startDate={appliedStartDate}
+          endDate={appliedEndDate}
+          venueId={appliedVenueId}
         />
       ) : activeTab === "membership" ? (
         <MembershipReportTab
           key={`membership-${refreshKey}`}
-          startDate={startDate}
-          endDate={endDate}
+          startDate={appliedStartDate}
+          endDate={appliedEndDate}
         />
       ) : (
         <MemberStatisticTab
           key={`member-statistic-${refreshKey}`}
-          startDate={startDate}
-          endDate={endDate}
+          startDate={appliedStartDate}
+          endDate={appliedEndDate}
         />
       )}
     </div>
