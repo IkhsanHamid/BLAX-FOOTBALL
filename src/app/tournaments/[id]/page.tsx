@@ -126,6 +126,31 @@ const formatDate = (dateStr: string) => {
   });
 };
 
+const parseTextWithLinks = (text: string): React.ReactNode[] => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Reset lastIndex karena split + test mengubah state regex
+      urlRegex.lastIndex = 0;
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 underline underline-offset-2 hover:text-blue-700 break-all transition-colors"
+        >
+          {part}
+        </a>
+      );
+    }
+    urlRegex.lastIndex = 0;
+    return <span key={i}>{part}</span>;
+  });
+};
+
 const formatDateShort = (dateStr: string) => {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -684,7 +709,7 @@ export default function EventDetailPage() {
             {event.description && (
               <Section icon={<Layers className="w-4 h-4" />} title="Deskripsi">
                 <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-                  {event.description}
+                  {parseTextWithLinks(event.description)}
                 </p>
               </Section>
             )}
