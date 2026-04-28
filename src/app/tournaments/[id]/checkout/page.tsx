@@ -677,22 +677,32 @@ function TeamSelector({
 
   const isTeamFull = (team: Team): boolean => {
     if (!team.slot) return false;
-    if (bookingType === "team") return team.slot.bookedSlots !== 0;
-    return team.slot.openSlots === 0;
+    if (bookingType === "team") return (
+      team.slot.bookedSlots !== 0 ||
+      team.availableGkSlots! + team.availablePlayerSlots! === 0
+    );
+    return team.availableGkSlots! + team.availablePlayerSlots! === 0;
   };
 
   const getSlotLabel = (team: Team): string => {
     if (!team.slot) return "";
     if (bookingType === "team")
-      return team.slot.bookedSlots !== 0 ? "Sudah ada booking" : "Tersedia";
-    if (team.slot.openSlots === 0) return "Penuh";
-    return `${team.slot.openSlots} slot tersisa`;
+      return team.slot.bookedSlots !== 0 ||
+        team.availableGkSlots! + team.availablePlayerSlots! === 0
+        ? "Sudah ada booking"
+        : "Tersedia";
+    if (team.availableGkSlots! + team.availablePlayerSlots! === 0)
+      return "Penuh";
+    return `${team.availableGkSlots! + team.availablePlayerSlots!} slot tersisa`;
   };
 
   const getSlotBadgeClass = (team: Team): string => {
     const full = isTeamFull(team);
     if (full) return "bg-red-100 text-red-600";
-    if (bookingType === "individual" && (team.slot?.openSlots ?? 0) <= 3)
+    if (
+      bookingType === "individual" &&
+      (team.availableGkSlots ?? 0) + (team.availablePlayerSlots ?? 0) <= 3
+    )
       return "bg-amber-100 text-amber-600";
     return "bg-green-100 text-green-600";
   };
@@ -821,7 +831,7 @@ function TeamSelector({
                             <p className="text-[11px] text-gray-400">
                               {bookingType === "team"
                                 ? `Booked: ${team.slot.bookedSlots} · GK: ${team.slot.gkSlots} · Player: ${team.slot.playerSlots}`
-                                : `${team.slot.openSlots}/${team.slot.totalSlots} slot · GK: ${team.availableGkSlots} · Player: ${team.availablePlayerSlots}`}
+                                : `${team.availableGkSlots! + team.availablePlayerSlots!}/${team.slot.totalSlots} slot · GK: ${team.availableGkSlots} · Player: ${team.availablePlayerSlots}`}
                             </p>
                           )}
                         </div>

@@ -432,6 +432,25 @@ class AdminService {
     }
   }
 
+  async lockSlotsEvent(
+    eventTeamId: string,
+    slotGk: number,
+    slotPlayer: number,
+  ) {
+    try {
+      const response = await apiClient.put(`/api/v1/events/lock-slots`, {
+        slotGk,
+
+        slotPlayer,
+        eventTeamId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error lock slots:", error);
+      throw error;
+    }
+  }
+
   async listAvailReschedule(skip: number, limit: number, search: string) {
     try {
       const queryParams = new URLSearchParams();

@@ -66,7 +66,7 @@ const navItems: NavItem[] = [
   { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 
-const MAGNIFICO_RESTRICTED = [
+const RESTRICTED = [
   "users",
   "news",
   "reschedule",
@@ -85,6 +85,7 @@ export default function AdminSidebar({
   onCollapsedChange,
 }: AdminSidebarProps) {
   const isMagnifico = userRole === "Admin-magnifico";
+  const isRedAlert = userRole === "Admin-red-alert";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
@@ -143,8 +144,13 @@ export default function AdminSidebar({
 
   const filteredNavItems = navItems.filter((item) => {
     if (item.id === "reports")
-      return userRole === "Owner" || userRole === "Admin-magnifico";
-    if (isMagnifico && MAGNIFICO_RESTRICTED.includes(item.id)) return false;
+      return (
+        userRole === "Owner" ||
+        userRole === "Admin-magnifico" ||
+        userRole === "Admin-red-alert"
+      );
+    if ((isMagnifico || isRedAlert) && RESTRICTED.includes(item.id))
+      return false;
     return true;
   });
 

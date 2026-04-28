@@ -140,6 +140,7 @@ export default function AdminPage() {
         user?.role !== "Admin" &&
         user?.role !== "Owner" &&
         user?.role !== "Admin-magnifico" &&
+        user?.role !== "Admin-red-alert" &&
         !adminStatus?.isAdmin
       ) {
         showError("Access Denied", "You don't have admin privileges");

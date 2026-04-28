@@ -772,7 +772,8 @@ export default function EventDetailPage() {
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 <span className="text-[11px] text-slate-500">
                                   <span className="font-semibold text-blue-600">
-                                    {team.slot.openSlots}
+                                    {team.availableGkSlots +
+                                      team.availablePlayerSlots}
                                   </span>
                                   /{team.slot.totalSlots} slot
                                 </span>
@@ -789,21 +790,35 @@ export default function EventDetailPage() {
                           </div>
 
                           {/* Slot badge */}
-                          {team.slot && (
-                            <span
-                              className={`flex-shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg ${
-                                team.slot.openSlots === 0
-                                  ? "bg-red-100 text-red-600"
-                                  : team.slot.openSlots <= 3
-                                    ? "bg-amber-100 text-amber-600"
-                                    : "bg-green-100 text-green-600"
-                              }`}
-                            >
-                              {team.slot.openSlots === 0
+                          {team.slot &&
+                            (() => {
+                              const remainingSlots =
+                                team.availableGkSlots +
+                                team.availablePlayerSlots;
+                              const isFull =
+                                team.slot.openSlots === 0 ||
+                                remainingSlots === 0;
+
+                              const isAlmostFull = team.slot.openSlots <= 3;
+
+                              const colorClass = isFull
+                                ? "bg-red-100 text-red-600"
+                                : isAlmostFull
+                                  ? "bg-amber-100 text-amber-600"
+                                  : "bg-green-100 text-green-600";
+
+                              const label = isFull
                                 ? "Penuh"
-                                : `${team.slot.openSlots} tersisa`}
-                            </span>
-                          )}
+                                : `${remainingSlots} tersisa`;
+
+                              return (
+                                <span
+                                  className={`flex-shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg ${colorClass}`}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })()}
                         </div>
 
                         {/* Row 2: pot badge + fee tim ini */}

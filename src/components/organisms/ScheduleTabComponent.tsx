@@ -55,7 +55,7 @@ const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-SOCCER-BEKASI"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
-const COMMUNITY_OPTIONS = ["blax", "magnifico"];
+const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert"];
 
 const DATE_FILTER_LABELS = {
   today: "Today",

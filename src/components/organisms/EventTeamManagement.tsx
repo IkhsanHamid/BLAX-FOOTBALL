@@ -25,6 +25,12 @@ import {
   List,
   Zap,
   Download,
+  Lock,
+  Unlock,
+  X,
+  Minus,
+  Plus,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/atoms/Card";
 import Badge from "@/components/atoms/Badge";
@@ -93,12 +99,16 @@ interface TeamDetail {
   name: string;
   imageUrl: string;
   potId?: string | null;
+  availableGkSlots?: number;
+  availablePlayerSlots?: number;
   slot?: {
     totalSlots: number;
     openSlots: number;
     bookedSlots: number;
     gkSlots: number;
     playerSlots: number;
+    lock_slot_gk?: number;
+    lock_slot_player?: number;
   };
   players?: Player[];
 }
@@ -109,7 +119,6 @@ interface TabProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Slot config per tipe pertandingan */
 const MATCH_SLOTS: Record<
   TypeMatch,
   { gk: number; player: number; total: number }
@@ -228,12 +237,8 @@ const exportAllTeamsExcel = (
   pots?: Pot[],
   typeMatch?: TypeMatch,
 ) => {
-  // Dinamis import SheetJS (sudah bundle via npm xlsx)
-  // Pastikan 'xlsx' sudah di-install: npm install xlsx
   import("xlsx").then((XLSX) => {
     const wb = XLSX.utils.book_new();
-
-    // ── Sheet 1: RINGKASAN ──────────────────────────────────────────────────
     const slotConfig = MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
     const summaryRows: any[][] = [
       [`RINGKASAN EVENT: ${eventName.toUpperCase()}`],
@@ -283,8 +288,6 @@ const exportAllTeamsExcel = (
     });
 
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-
-    // Lebar kolom ringkasan
     wsSummary["!cols"] = [
       { wch: 5 },
       { wch: 30 },
@@ -294,12 +297,9 @@ const exportAllTeamsExcel = (
       { wch: 10 },
       { wch: 16 },
     ];
-    // Merge judul
     wsSummary["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
-
     XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
 
-    // ── Sheet per Tim ────────────────────────────────────────────────────────
     teams.forEach((team) => {
       const potName = pots?.find((p) => p.id === team.potId)?.name ?? "-";
       const players = team.players ?? [];
@@ -311,7 +311,6 @@ const exportAllTeamsExcel = (
       const playerCount = players.filter((p) => !p.isGk).length;
 
       const rows: any[][] = [
-        // Baris info tim
         [`TIM: ${team.name.toUpperCase()}`],
         ["Pot", potName],
         [
@@ -319,7 +318,6 @@ const exportAllTeamsExcel = (
           `${players.length} / ${slotConfig.total} (GK: ${gkCount}/${slotConfig.gk}, Player: ${playerCount}/${slotConfig.player})`,
         ],
         [],
-        // Header tabel
         [
           "NO",
           "POSISI",
@@ -364,10 +362,9 @@ const exportAllTeamsExcel = (
         });
       }
 
-      // Baris kosong sisa slot
       const remaining = slotConfig.total - sorted.length;
       if (remaining > 0) {
-        rows.push([]); // spacer
+        rows.push([]);
         for (let i = 0; i < remaining; i++) {
           rows.push([
             sorted.length + i + 1,
@@ -397,10 +394,8 @@ const exportAllTeamsExcel = (
         { wch: 28 },
         { wch: 14 },
       ];
-      // Merge judul nama tim
       ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
 
-      // Nama sheet: maks 31 karakter (limit Excel)
       const sheetName = team.name
         .substring(0, 31)
         .replace(/[:\\/?\*\[\]]/g, "");
@@ -411,7 +406,6 @@ const exportAllTeamsExcel = (
       );
     });
 
-    // ── Download ─────────────────────────────────────────────────────────────
     const safeName = eventName.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
     XLSX.writeFile(wb, `${safeName}_data_tim.xlsx`);
   });
@@ -482,7 +476,7 @@ const EmptyState = ({
   </div>
 );
 
-// ─── Player Position Slot ─────────────────────────────────────────────────────
+// ─── Player Slot ──────────────────────────────────────────────────────────────
 
 function PlayerSlot({
   player,
@@ -510,7 +504,6 @@ function PlayerSlot({
             : "border-blue-100 bg-white"
       }`}
     >
-      {/* Position label */}
       <div className="flex items-center gap-1.5 mb-2">
         {isGk ? (
           <Shield className="w-3.5 h-3.5 text-amber-500" />
@@ -571,6 +564,252 @@ function PlayerSlot({
   );
 }
 
+// ─── Lock Slot Inline Panel ───────────────────────────────────────────────────
+
+function LockSlotPanel({
+  team,
+  slotConfig,
+  onLock,
+  onClose,
+  isLoading,
+}: {
+  team: TeamDetail;
+  slotConfig: { gk: number; player: number; total: number };
+  onLock: (gk: number, player: number) => Promise<void>;
+  onClose: () => void;
+  isLoading: boolean;
+}) {
+  const slot = team.slot;
+  const bookedSlots = slot?.bookedSlots ?? 0;
+  const lockedGk = slot?.lock_slot_gk ?? 0;
+  const lockedPlayer = slot?.lock_slot_player ?? 0;
+  const totalSlots = slot?.totalSlots ?? slotConfig.total;
+
+  // Available to lock = total - booked - already locked
+  const availableToLock = Math.max(
+    0,
+    totalSlots - bookedSlots - lockedGk - lockedPlayer,
+  );
+  const maxGk = Math.max(0, slotConfig.gk - lockedGk);
+  const maxPlayer = Math.max(0, slotConfig.player - lockedPlayer);
+
+  const [gkCount, setGkCount] = useState(0);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const totalToLock = gkCount + playerCount;
+  const canSubmit = totalToLock > 0 && !isLoading && !isResetting;
+  const canReset =
+    (lockedGk > 0 || lockedPlayer > 0) && !isLoading && !isResetting;
+
+  const handleSubmit = async () => {
+    await onLock(gkCount, playerCount);
+  };
+
+  const handleReset = async () => {
+    setIsResetting(true);
+    try {
+      await onLock(0, 0);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  return (
+    <div className="mx-5 mb-5 rounded-2xl border-2 border-blue-200 bg-blue-50 overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200 bg-blue-100/60">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-blue-200 flex items-center justify-center">
+            <Lock className="w-3.5 h-3.5 text-blue-700" />
+          </div>
+          <span className="text-sm font-black text-blue-800">Lock Slots</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-lg hover:bg-blue-200 flex items-center justify-center transition-colors"
+          disabled={isLoading}
+        >
+          <X className="w-3.5 h-3.5 text-blue-400" />
+        </button>
+      </div>
+
+      {/* Slot status summary */}
+      <div className="px-4 py-3 grid grid-cols-4 gap-2 border-b border-blue-200">
+        {[
+          { label: "Total", value: totalSlots, color: "text-slate-700" },
+          { label: "Booked", value: bookedSlots, color: "text-blue-600" },
+          { label: "Locked GK", value: lockedGk, color: "text-amber-600" },
+          {
+            label: "Locked Player",
+            value: lockedPlayer,
+            color: "text-violet-600",
+          },
+        ].map((s) => (
+          <div key={s.label} className="text-center">
+            <p className={`text-lg font-black ${s.color}`}>{s.value}</p>
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+              {s.label}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Available notice */}
+      <div className="px-4 py-2.5 flex items-center gap-2 bg-blue-100/40 border-b border-blue-200">
+        {availableToLock === 0 ? (
+          <>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <span className="text-xs text-amber-700 font-medium">
+              Semua slot sudah terkunci atau terisi
+            </span>
+          </>
+        ) : (
+          <>
+            <Unlock className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+            <span className="text-xs text-slate-600 font-medium">
+              <span className="text-green-700 font-bold">
+                {availableToLock} slot
+              </span>{" "}
+              tersedia untuk dikunci
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Input area */}
+      <div className="p-4 space-y-3">
+        {/* GK counter */}
+        {slotConfig.gk > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">GK Slots</p>
+                <p className="text-[11px] text-slate-400">
+                  Max {maxGk} tersedia
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setGkCount(Math.max(0, gkCount - 1))}
+                disabled={gkCount === 0 || isLoading || availableToLock === 0}
+                className="w-8 h-8 rounded-lg bg-white border border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
+              >
+                <Minus className="w-3.5 h-3.5 text-slate-600" />
+              </button>
+              <span className="w-8 text-center text-lg font-black text-slate-800">
+                {gkCount}
+              </span>
+              <button
+                onClick={() => setGkCount(Math.min(maxGk, gkCount + 1))}
+                disabled={
+                  gkCount >= maxGk || isLoading || availableToLock === 0
+                }
+                className="w-8 h-8 rounded-lg bg-white border border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5 text-slate-600" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Player counter */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">
+              <User className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-700">Player Slots</p>
+              <p className="text-[11px] text-slate-400">
+                Max {maxPlayer} tersedia
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPlayerCount(Math.max(0, playerCount - 1))}
+              disabled={playerCount === 0 || isLoading || availableToLock === 0}
+              className="w-8 h-8 rounded-lg bg-white border border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Minus className="w-3.5 h-3.5 text-slate-600" />
+            </button>
+            <span className="w-8 text-center text-lg font-black text-slate-800">
+              {playerCount}
+            </span>
+            <button
+              onClick={() =>
+                setPlayerCount(Math.min(maxPlayer, playerCount + 1))
+              }
+              disabled={
+                playerCount >= maxPlayer || isLoading || availableToLock === 0
+              }
+              className="w-8 h-8 rounded-lg bg-white border border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 text-slate-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="pt-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              disabled={isLoading || isResetting}
+              className="flex-1 py-2.5 rounded-xl border border-blue-200 bg-white text-sm font-semibold text-slate-500 hover:bg-blue-50 disabled:opacity-40 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit || availableToLock === 0}
+              className="flex-[2] py-2.5 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-blue-300 border-t-white animate-spin" />
+                  <span>Mengunci...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>
+                    Kunci {totalToLock > 0 ? `${totalToLock} ` : ""}Slot
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+          {canReset && (
+            <button
+              onClick={handleReset}
+              disabled={!canReset}
+              className="w-full py-2 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-500 hover:bg-red-100 hover:border-red-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+            >
+              {isResetting ? (
+                <>
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-red-300 border-t-red-500 animate-spin" />
+                  <span>Mereset...</span>
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-3 h-3" />
+                  <span>Reset Semua Lock ({lockedGk + lockedPlayer} slot)</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Team Detail Card ─────────────────────────────────────────────────────────
 
 function TeamDetailCard({
@@ -578,13 +817,21 @@ function TeamDetailCard({
   typeMatch,
   pots,
   pricingMode,
+  showError,
+  onLockSuccess,
 }: {
   team: TeamDetail;
   typeMatch?: TypeMatch;
   pots?: Pot[];
   pricingMode?: "single" | "multi";
+  showError?: (title: string, message: string) => void;
+  onLockSuccess?: (teamId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [showLockPanel, setShowLockPanel] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+  const [lockSuccess, setLockSuccess] = useState(false);
+
   const slotConfig = MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
   const isMulti = pricingMode === "multi" && pots && pots.length > 0;
 
@@ -596,26 +843,54 @@ function TeamDetailCard({
   const potStyle =
     potIndex >= 0 ? POT_COLORS[potIndex % POT_COLORS.length] : null;
 
-  // Resolve players into GK + field players slots
   const players = team.players ?? [];
   const gkPlayers = players.filter((p) => p.isGk);
   const fieldPlayers = players.filter((p) => !p.isGk);
 
-  const filledGk = gkPlayers.length;
-  const filledPlayer = fieldPlayers.length;
-  const totalFilled = players.length;
+  const filledGk =
+    team.availableGkSlots !== undefined
+      ? slotConfig.gk - team.availableGkSlots
+      : gkPlayers.length;
+  const filledPlayer =
+    team.availablePlayerSlots !== undefined
+      ? slotConfig.player - team.availablePlayerSlots
+      : fieldPlayers.length;
+  const totalFilled = filledGk + filledPlayer;
   const fillPercent =
     slotConfig.total > 0
       ? Math.round((totalFilled / slotConfig.total) * 100)
       : 0;
-
   const isFull = totalFilled >= slotConfig.total;
-  const slot = team.slot;
+
+  const lockedGk = team.slot?.lock_slot_gk ?? 0;
+  const lockedPlayer = team.slot?.lock_slot_player ?? 0;
+  const totalLocked = lockedGk + lockedPlayer;
+  const hasLocked = totalLocked > 0;
+
+  const handleLock = async (gk: number, player: number) => {
+    setIsLocking(true);
+    try {
+      await adminService.lockSlotsEvent(team.id, gk, player);
+      setLockSuccess(true);
+      setShowLockPanel(false);
+      onLockSuccess?.(team.id);
+      // Reset success indicator after 3s
+      setTimeout(() => setLockSuccess(false), 3000);
+    } catch (err: any) {
+      showError?.("Gagal Lock Slot", err.message ?? "Terjadi kesalahan");
+    } finally {
+      setIsLocking(false);
+    }
+  };
 
   return (
     <div
       className={`bg-white rounded-2xl border-2 overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md ${
-        potStyle ? `${potStyle.border}` : "border-slate-200"
+        showLockPanel
+          ? "border-blue-400"
+          : potStyle
+            ? `${potStyle.border}`
+            : "border-slate-200"
       }`}
     >
       {/* Card Header */}
@@ -661,6 +936,20 @@ function TeamDetailCard({
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${potStyle.dot}`} />
                 {assignedPot.name}
+              </span>
+            )}
+            {/* Lock badge */}
+            {hasLocked && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold bg-blue-50 text-blue-700 border-blue-200">
+                <Lock className="w-2.5 h-2.5" />
+                {totalLocked} Terkunci
+              </span>
+            )}
+            {/* Success flash */}
+            {lockSuccess && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700 animate-pulse">
+                <CheckCircle2 className="w-2.5 h-2.5" />
+                Berhasil dikunci
               </span>
             )}
           </div>
@@ -713,8 +1002,33 @@ function TeamDetailCard({
           </div>
         </div>
 
-        {/* Fill progress + chevron */}
+        {/* Right side: fill % + lock button + chevron */}
         <div className="flex-shrink-0 flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            {/* Lock slot button — stops click propagation so card doesn't toggle */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLockPanel((v) => !v);
+                if (!expanded) setExpanded(true);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                showLockPanel
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : hasLocked
+                    ? "bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+              }`}
+            >
+              {showLockPanel ? (
+                <X className="w-3 h-3" />
+              ) : (
+                <Lock className="w-3 h-3" />
+              )}
+              {showLockPanel ? "Tutup" : "Lock Slot"}
+            </button>
+          </div>
+
           <div className="text-right">
             <span
               className={`text-lg font-black ${isFull ? "text-green-600" : "text-slate-700"}`}
@@ -735,6 +1049,17 @@ function TeamDetailCard({
           </div>
         </div>
       </div>
+
+      {/* Lock Slot Panel — inline, dark style */}
+      {showLockPanel && (
+        <LockSlotPanel
+          team={team}
+          slotConfig={slotConfig}
+          onLock={handleLock}
+          onClose={() => setShowLockPanel(false)}
+          isLoading={isLocking}
+        />
+      )}
 
       {/* Expanded: Player Grid */}
       {expanded && (
@@ -791,7 +1116,7 @@ function TeamDetailCard({
             </div>
           </div>
 
-          {/* Player full detail table (if any booked) */}
+          {/* Player full detail table */}
           {players.length > 0 && (
             <details className="group">
               <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-700 select-none py-1">
@@ -954,7 +1279,6 @@ function EventListView({
     });
   }, [events, searchTerm, filterStatus]);
 
-  // Stats
   const totalTeams = events.reduce((s, e) => s + (e.teams?.length ?? 0), 0);
   const stats = [
     {
@@ -979,7 +1303,6 @@ function EventListView({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-black text-slate-900">Kelola Tim</h2>
@@ -989,7 +1312,6 @@ function EventListView({
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s) => (
           <Card key={s.label}>
@@ -1014,7 +1336,6 @@ function EventListView({
         ))}
       </div>
 
-      {/* Search + filter */}
       <Card>
         <CardContent className="p-4 mt-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -1047,7 +1368,6 @@ function EventListView({
         </CardContent>
       </Card>
 
-      {/* Event grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -1079,7 +1399,6 @@ function EventListView({
                 className="group text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-blue-300 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Image */}
                 <div className="relative h-36 overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700">
                   {event.imageUrl ? (
                     <img
@@ -1093,8 +1412,6 @@ function EventListView({
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-                  {/* Status */}
                   <div className="absolute top-3 left-3">
                     {isExpired ? (
                       <span className="px-2 py-1 rounded-full text-[10px] font-black bg-slate-700/80 text-slate-300 backdrop-blur-sm">
@@ -1111,16 +1428,12 @@ function EventListView({
                       </span>
                     )}
                   </div>
-
-                  {/* Team count chip */}
                   <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow">
                     <Users className="w-3 h-3 text-slate-600" />
                     <span className="text-[11px] font-black text-slate-700">
                       {teamCount} Tim
                     </span>
                   </div>
-
-                  {/* Date */}
                   <div className="absolute bottom-3 left-3 text-white">
                     <p className="text-xs font-semibold opacity-80">
                       {formatDateShort(event.startDate)}
@@ -1129,14 +1442,10 @@ function EventListView({
                         : ""}
                     </p>
                   </div>
-
-                  {/* Arrow */}
                   <div className="absolute bottom-3 right-3 w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/40 transition-colors">
                     <ChevronRight className="w-4 h-4 text-white" />
                   </div>
                 </div>
-
-                {/* Content */}
                 <div className="p-4">
                   <h3 className="text-sm font-black text-slate-900 mb-1.5 line-clamp-1">
                     {event.name}
@@ -1147,8 +1456,6 @@ function EventListView({
                       {getVenueName(event.venue)}
                     </span>
                   </div>
-
-                  {/* Tags */}
                   <div className="flex flex-wrap gap-1.5">
                     {event.typeMatch && (
                       <span
@@ -1199,42 +1506,52 @@ function EventDetailView({
   const typeConf = TYPE_MATCH_STYLE[event.typeMatch ?? "FOOTBALL"];
   const typeLabel = event.typeMatch ? TYPE_MATCH_LABEL[event.typeMatch] : "-";
 
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const detail = await adminService.getEventDetail(event.id);
-        // Map teams from full event detail
-        const rawTeams: TeamDetail[] = (detail.teams ?? []).map((t: any) => ({
-          id: t.id,
-          name: t.name?.trim() ?? "",
-          imageUrl: t.imageUrl ?? "",
-          potId: t.potId ?? null,
-          slot: t.slot,
-          // Players come from bookings. We attempt to pull them if available.
-          players: (t.players ?? t.bookings ?? []).map((b: any) => ({
-            id: b.id ?? b.bookingId,
-            name: b.name ?? b.playerName ?? "",
-            phone: b.phone ?? b.phoneNumber ?? "",
-            email: b.email ?? "",
-            jerseySize: b.jerseySize ?? "",
-            jerseyName: b.jerseyName ?? "",
-            jerseyNumber: b.jerseyNumber ?? "",
-            isGk: b.isGk ?? false,
-            isPlayer: b.isPlayer ?? !b.isGk,
-            bookingId: b.bookingId ?? b.id,
-            paymentStatus: b.paymentStatus ?? b.status ?? "",
-          })),
-        }));
-        setTeams(rawTeams);
-      } catch (err: any) {
-        showError?.("Error", err.message ?? "Gagal memuat detail event");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
+  const loadTeams = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const detail = await adminService.getEventDetail(event.id);
+      const rawTeams: TeamDetail[] = (detail.teams ?? []).map((t: any) => ({
+        id: t.id,
+        name: t.name?.trim() ?? "",
+        imageUrl: t.imageUrl ?? "",
+        potId: t.potId ?? null,
+        availableGkSlots: t.availableGkSlots,
+        availablePlayerSlots: t.availablePlayerSlots,
+        slot: t.slot,
+        players: (t.players ?? t.bookings ?? []).map((b: any) => ({
+          id: b.id ?? b.bookingId,
+          name: b.name ?? b.playerName ?? "",
+          phone: b.phone ?? b.phoneNumber ?? "",
+          email: b.email ?? "",
+          jerseySize: b.jerseySize ?? "",
+          jerseyName: b.jerseyName ?? "",
+          jerseyNumber: b.jerseyNumber ?? "",
+          isGk: b.isGk ?? false,
+          isPlayer: b.isPlayer ?? !b.isGk,
+          bookingId: b.bookingId ?? b.id,
+          paymentStatus: b.paymentStatus ?? b.status ?? "",
+        })),
+      }));
+      setTeams(rawTeams);
+    } catch (err: any) {
+      showError?.("Error", err.message ?? "Gagal memuat detail event");
+    } finally {
+      setIsLoading(false);
+    }
   }, [event.id, showError]);
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
+
+  // Refresh a single team's slot data after lock
+  const handleLockSuccess = useCallback(
+    async (teamId: string) => {
+      // Re-fetch to get updated slot data
+      await loadTeams();
+    },
+    [loadTeams],
+  );
 
   const filteredTeams = useMemo(() => {
     return teams.filter((t) => {
@@ -1245,7 +1562,6 @@ function EventDetailView({
     });
   }, [teams, searchTeam, filterPot]);
 
-  // Summary stats
   const totalPlayers = teams.reduce((s, t) => s + (t.players?.length ?? 0), 0);
   const totalSlots = teams.length * slotConfig.total;
   const fillPct =
@@ -1256,7 +1572,6 @@ function EventDetailView({
 
   return (
     <div className="space-y-6">
-      {/* Back */}
       <button
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-semibold transition-colors"
@@ -1458,6 +1773,8 @@ function EventDetailView({
               typeMatch={event.typeMatch}
               pots={event.pots}
               pricingMode={event.pricingMode}
+              showError={showError}
+              onLockSuccess={handleLockSuccess}
             />
           ))}
         </div>

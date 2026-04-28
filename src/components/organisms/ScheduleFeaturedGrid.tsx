@@ -76,7 +76,9 @@ export default function ScheduleFeaturedGrid() {
 
     const matchesType =
       selectedFilter === "Semua" ||
-      schedule.typeMatch.toLowerCase() === selectedFilter.toLowerCase();
+      (selectedFilter === "MINI-SOCCER"
+        ? schedule.typeMatch.toLowerCase().startsWith("mini-soccer")
+        : schedule.typeMatch.toLowerCase() === selectedFilter.toLowerCase());
 
     return matchesCommunity && matchesType;
   });
@@ -183,6 +185,15 @@ export default function ScheduleFeaturedGrid() {
       inactiveClass:
         "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
       logo: "/magnifico-logo.png",
+    },
+    {
+      label: "Red Alert",
+      value: "red-alert",
+      activeClass:
+        "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 scale-105",
+      inactiveClass:
+        "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
+      logo: "/red-alert.png",
     },
   ];
 

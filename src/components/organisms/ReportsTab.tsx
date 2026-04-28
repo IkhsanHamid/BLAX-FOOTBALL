@@ -24,6 +24,7 @@ interface ReportsTabProps {
 
 export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const isMagnifico = userRole === "Admin-magnifico";
+  const isRedAlert = userRole === "Admin-red-alert";
 
   const [activeTab, setActiveTab] = useState<TabType>("schedules");
   const [loading, setLoading] = useState<boolean>(false);
@@ -79,8 +80,8 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (isMagnifico) setActiveTab("schedules");
-  }, [isMagnifico]);
+    if (isMagnifico || isRedAlert) setActiveTab("schedules");
+  }, [isMagnifico, isRedAlert]);
 
   const handleDateRangeChange = (range: string): void => {
     setDateRange(range);
