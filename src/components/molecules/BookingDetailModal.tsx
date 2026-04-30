@@ -360,9 +360,17 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                             </div>
                             <div className="flex items-center mt-1">
                               <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-400 mr-1 shrink-0" />
-                              <span className="text-xs text-gray-500 truncate">
+                              <a
+                                href={`https://wa.me/${booking.userPhone.replace(
+                                  /^0/,
+                                  "62",
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline hover:text-blue-700"
+                              >
                                 {booking.userPhone}
-                              </span>
+                              </a>
                             </div>
                           </div>
                         </div>
