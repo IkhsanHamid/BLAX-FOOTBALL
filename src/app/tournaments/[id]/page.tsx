@@ -26,7 +26,7 @@ import { useEffect, useState } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-SOCCER-BEKASI" | "PADEL";
+type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-FOOTBALL" | "PADEL";
 type PricingMode = "single" | "multi";
 
 interface TeamSlot {
@@ -170,14 +170,14 @@ const getVenueName = (
 const TYPE_MATCH_LABEL: Record<string, string> = {
   FOOTBALL: "Football",
   "MINI-SOCCER": "Mini Soccer",
-  "MINI-SOCCER-BEKASI": "Mini Soccer Bekasi",
+  "MINI-FOOTBALL": "Mini Football",
   PADEL: "Padel",
 };
 
 const TYPE_MATCH_COLOR: Record<string, string> = {
   FOOTBALL: "bg-emerald-50 text-emerald-700 border-emerald-200",
   "MINI-SOCCER": "bg-sky-50 text-sky-700 border-sky-200",
-  "MINI-SOCCER-BEKASI": "bg-violet-50 text-violet-700 border-violet-200",
+  "MINI-FOOTBALL": "bg-violet-50 text-violet-700 border-violet-200",
   PADEL: "bg-amber-50 text-amber-700 border-amber-200",
 };
 

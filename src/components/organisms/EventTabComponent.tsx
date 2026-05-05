@@ -36,7 +36,7 @@ import { masterDataService } from "@/utils/masterData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-SOCCER-BEKASI" | "PADEL";
+type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-FOOTBALL" | "PADEL";
 type SubView = "list" | "add" | "edit";
 type PricingMode = "single" | "multi";
 
@@ -165,7 +165,7 @@ const ITEMS_PER_PAGE = 10;
 const TYPE_MATCH_OPTIONS: { value: TypeMatch; label: string }[] = [
   { value: "FOOTBALL", label: "Football" },
   { value: "MINI-SOCCER", label: "Mini Soccer" },
-  { value: "MINI-SOCCER-BEKASI", label: "Mini Soccer Bekasi" },
+  { value: "MINI-FOOTBALL", label: "Mini Football" },
   { value: "PADEL", label: "Padel" },
 ];
 

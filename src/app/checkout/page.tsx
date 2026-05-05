@@ -97,7 +97,7 @@ export default function CheckoutPage() {
     if (!selectedSchedule) return 10;
     return selectedSchedule.typeMatch === "MINI-SOCCER"
       ? 6
-      : selectedSchedule.typeMatch === "MINI-SOCCER-BEKASI"
+      : selectedSchedule.typeMatch === "MINI-FOOTBALL"
         ? 7
         : 10;
   };
@@ -195,7 +195,7 @@ export default function CheckoutPage() {
     const maxByMatchType =
       selectedSchedule.typeMatch === "MINI-SOCCER"
         ? 6
-        : selectedSchedule.typeMatch === "MINI-SOCCER-BEKASI"
+        : selectedSchedule.typeMatch === "MINI-FOOTBALL"
           ? 7
           : 10;
     const totalAvailable =

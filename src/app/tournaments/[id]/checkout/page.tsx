@@ -677,10 +677,11 @@ function TeamSelector({
 
   const isTeamFull = (team: Team): boolean => {
     if (!team.slot) return false;
-    if (bookingType === "team") return (
-      team.slot.bookedSlots !== 0 ||
-      team.availableGkSlots! + team.availablePlayerSlots! === 0
-    );
+    if (bookingType === "team")
+      return (
+        team.slot.bookedSlots !== 0 ||
+        team.availableGkSlots! + team.availablePlayerSlots! === 0
+      );
     return team.availableGkSlots! + team.availablePlayerSlots! === 0;
   };
 
@@ -950,11 +951,7 @@ export default function EventCheckoutPage() {
   const canRegistTeam = event?.canRegistTeam ?? false;
   const typeMatch = event?.typeMatch;
   const ROSTER_SIZE =
-    typeMatch === "MINI-SOCCER"
-      ? 6
-      : typeMatch === "MINI-SOCCER-BEKASI"
-        ? 7
-        : 10;
+    typeMatch === "MINI-SOCCER" ? 6 : typeMatch === "MINI-FOOTBALL" ? 7 : 10;
   const teams = event?.teams ?? [];
   const addOns = event?.addOn ?? [];
 
@@ -1011,7 +1008,7 @@ export default function EventCheckoutPage() {
         const rosterSize =
           res.typeMatch === "MINI-SOCCER"
             ? 6
-            : res.typeMatch === "MINI-SOCCER-BEKASI"
+            : res.typeMatch === "MINI-FOOTBALL"
               ? 7
               : 10;
         setPlayers(Array.from({ length: rosterSize }, makeEmptyPlayer));
@@ -1083,11 +1080,7 @@ export default function EventCheckoutPage() {
   const getMaxQuantity = (): number => {
     if (!selectedTeamId) return 1;
     const maxByMatchType =
-      typeMatch === "MINI-SOCCER"
-        ? 6
-        : typeMatch === "MINI-SOCCER-BEKASI"
-          ? 7
-          : 10;
+      typeMatch === "MINI-SOCCER" ? 6 : typeMatch === "MINI-FOOTBALL" ? 7 : 10;
     const totalAvailable = availableGkSlots + availablePlayerSlots;
     return Math.min(totalAvailable, maxByMatchType);
   };

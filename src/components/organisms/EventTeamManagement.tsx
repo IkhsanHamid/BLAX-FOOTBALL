@@ -38,7 +38,7 @@ import { adminService } from "@/utils/admin";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-SOCCER-BEKASI" | "PADEL";
+type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-FOOTBALL" | "PADEL";
 type ViewMode = "events" | "detail";
 
 interface Pot {
@@ -125,14 +125,14 @@ const MATCH_SLOTS: Record<
 > = {
   FOOTBALL: { gk: 1, player: 10, total: 11 },
   "MINI-SOCCER": { gk: 1, player: 5, total: 6 },
-  "MINI-SOCCER-BEKASI": { gk: 1, player: 6, total: 7 },
+  "MINI-FOOTBALL": { gk: 1, player: 6, total: 7 },
   PADEL: { gk: 0, player: 4, total: 4 },
 };
 
 const TYPE_MATCH_LABEL: Record<TypeMatch, string> = {
   FOOTBALL: "Football",
   "MINI-SOCCER": "Mini Soccer",
-  "MINI-SOCCER-BEKASI": "Mini Soccer Bekasi",
+  "MINI-FOOTBALL": "Mini Football",
   PADEL: "Padel",
 };
 
@@ -146,7 +146,7 @@ const TYPE_MATCH_STYLE: Record<
     dot: "bg-emerald-500",
   },
   "MINI-SOCCER": { bg: "bg-sky-50", text: "text-sky-700", dot: "bg-sky-500" },
-  "MINI-SOCCER-BEKASI": {
+  "MINI-FOOTBALL": {
     bg: "bg-violet-50",
     text: "text-violet-700",
     dot: "bg-violet-500",

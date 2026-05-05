@@ -151,7 +151,7 @@ const TYPE_MATCH_CONFIG: Record<
     color: "text-sky-600",
     bg: "bg-sky-500",
   },
-  "MINI-SOCCER-BEKASI": {
+  "MINI-FOOTBALL": {
     label: "Mini Soccer",
     color: "text-violet-600",
     bg: "bg-violet-500",
