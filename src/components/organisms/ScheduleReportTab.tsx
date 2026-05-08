@@ -66,6 +66,7 @@ interface ScheduleReportTabProps {
   startDate: string;
   endDate: string;
   venueId: string;
+  community?: string;
   onRefreshRequest?: () => void;
 }
 
@@ -77,6 +78,7 @@ export default function ScheduleReportTab({
   startDate,
   endDate,
   venueId,
+  community,
   onRefreshRequest,
 }: ScheduleReportTabProps): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
@@ -116,6 +118,7 @@ export default function ScheduleReportTab({
         skip,
         itemsPerPage,
         venueId,
+        community,
       );
       setReportData(reportResponse);
 
@@ -172,7 +175,7 @@ export default function ScheduleReportTab({
     if (!isInitialMount.current) {
       fetchScheduleData();
     }
-  }, [currentPage, itemsPerPage, startDate, endDate, venueId]);
+  }, [currentPage, itemsPerPage, startDate, endDate, venueId, community]);
 
   // Generate PDF Report
   const generatePDF = (): void => {

@@ -3,12 +3,14 @@ import { apiClient } from "./api";
 import {
   BookingHistory,
   BookingHistoryResponse,
+  DepositHistory,
   ListUserMember,
   ReportBooking,
   RescheduleManagement,
   Roles,
   UserManagement,
   Users,
+  VoucherHistoryRecord,
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
@@ -182,6 +184,7 @@ class AdminService {
     skip?: 0 | number,
     limit?: 10 | number,
     venueId?: string,
+    community?: string,
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
@@ -190,6 +193,7 @@ class AdminService {
       if (skip) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
       if (venueId) queryParams.append("venueId", venueId.toString());
+      if (community) queryParams.append("community", community.toString());
 
       const response = await apiClient.get(
         "/api/v1/reports/booking-reports?" + queryParams,
@@ -393,6 +397,21 @@ class AdminService {
     }
   }
 
+  async listScheduleActiveByVenue(venueId: string, scheduleId?: string): Promise<ListSchedule[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("venueId", venueId);
+      if (scheduleId) queryParams.append("scheduleId", scheduleId);
+      const response = await apiClient.get(
+        `/api/v1/matches/list-schedule-active-by-venue?${queryParams}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error get list schedule active by venue data:", error);
+      throw error;
+    }
+  }
+
   async deleteGallery(id: string) {
     try {
       const response = await apiClient.delete(
@@ -468,11 +487,10 @@ class AdminService {
     }
   }
 
-  async createRescheduleRecord(bookId: string, reason: string) {
-    const response = await apiClient.post("/api/v1/reschedule", {
-      bookId,
-      reason,
-    });
+  async createRescheduleRecord(bookId: string, reason: string, scheduleId?: string) {
+    const payload: Record<string, string> = { bookId, reason };
+    if (scheduleId) payload.scheduleId = scheduleId;
+    const response = await apiClient.post("/api/v1/reschedule", payload);
     return response;
   }
 
@@ -487,6 +505,151 @@ class AdminService {
     );
 
     return result;
+  }
+
+  async createVoucher(
+    depositId: string,
+    nominal: number,
+    name?: string,
+    description?: string,
+  ) {
+    try {
+      const payload: Record<string, unknown> = { depositId, nominal };
+      if (name) payload.name = name;
+      if (description) payload.description = description;
+
+      const response = await apiClient.post(
+        `/api/v1/deposit/create-voucher`,
+        payload,
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Error create voucher:", error);
+      throw error;
+    }
+  }
+
+  async getDepositHistories(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: DepositHistory[];
+    totalData: number;
+    skip: number;
+    limit: number;
+    summary: { totalRemainingDeposit: number };
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/histories?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get deposit histories:", error);
+      throw error;
+    }
+  }
+
+  async getVoucherHistories(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: VoucherHistoryRecord[];
+    totalData: number;
+    skip: number;
+    limit: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get voucher histories:", error);
+      throw error;
+    }
+  }
+
+  async exportDepositHistories(
+    search?: string,
+  ): Promise<{
+    data: DepositHistory[];
+    totalData: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/histories?${queryParams}&limit=1`,
+      );
+
+      const totalData = result.totalData || 0;
+      if (totalData === 0) {
+        return { data: [], totalData: 0 };
+      }
+
+      const exportParams = new URLSearchParams();
+      if (search) exportParams.append("search", search);
+      exportParams.append("limit", totalData.toString());
+
+      const exportResult = await apiClient.get(
+        `/api/v1/deposit/histories?${exportParams}`,
+      );
+
+      return { data: exportResult.data, totalData };
+    } catch (error: any) {
+      console.error("Error export deposit histories:", error);
+      throw error;
+    }
+  }
+
+  async exportVoucherHistories(
+    search?: string,
+  ): Promise<{
+    data: VoucherHistoryRecord[];
+    totalData: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${queryParams}&limit=1`,
+      );
+
+      const totalData = result.totalData || 0;
+      if (totalData === 0) {
+        return { data: [], totalData: 0 };
+      }
+
+      const exportParams = new URLSearchParams();
+      if (search) exportParams.append("search", search);
+      exportParams.append("limit", totalData.toString());
+
+      const exportResult = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${exportParams}`,
+      );
+
+      return { data: exportResult.data, totalData };
+    } catch (error: any) {
+      console.error("Error export voucher histories:", error);
+      throw error;
+    }
   }
 
   async changeNameTeam(

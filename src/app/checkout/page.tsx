@@ -13,7 +13,7 @@ import {
   Shirt,
   Plus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/organisms/Navbar";
@@ -78,6 +78,7 @@ export default function CheckoutPage() {
     code: string;
     nominal: number;
     type: "PERCENTAGE" | "FIXED";
+    isFromDeposit?: boolean;
   } | null>(null);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
 
@@ -441,7 +442,8 @@ export default function CheckoutPage() {
       }
     }
 
-    const adminFee = isMember ? 0 : 1000;
+    const adminFee =
+      isMember || appliedVoucher?.isFromDeposit ? 0 : 1000;
     const priceAfterMemberDiscount = basePrice - memberDiscount + adminFee;
 
     let voucherDiscount = 0;
@@ -470,6 +472,12 @@ export default function CheckoutPage() {
       total,
     };
   };
+
+  const isVoucherValid = useMemo(() => {
+    if (!appliedVoucher) return true;
+    const pricing = calculatePricing();
+    return pricing.total >= 0;
+  }, [appliedVoucher]);
 
   // ===== PAYLOAD =====
   const createBookingPayload = () => {
@@ -1690,12 +1698,12 @@ export default function CheckoutPage() {
                         : undefined,
                   }}
                   whileTap={{
-                    scale: isFormValid() && !isBookingLoading ? 0.98 : 1,
+                    scale: isFormValid() && isVoucherValid && !isBookingLoading ? 0.98 : 1,
                   }}
                   onClick={handleBookingConfirmation}
-                  disabled={isBookingLoading || !isFormValid()}
+                  disabled={isBookingLoading || !isFormValid() || !isVoucherValid}
                   className={`w-full px-6 py-4 rounded-full transition-all shadow-md ${
-                    isFormValid() && !isBookingLoading
+                    isFormValid() && isVoucherValid && !isBookingLoading
                       ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
@@ -1705,7 +1713,9 @@ export default function CheckoutPage() {
 
                 {!isFormValid() && !isBookingLoading && (
                   <p className="text-center text-sm text-red-500">
-                    {bookingType === "individual"
+                    {!isVoucherValid
+                      ? "Nominal voucher melebihi total pembayaran"
+                      : bookingType === "individual"
                       ? slots.some((s) => s.role === null)
                         ? "Pilih role untuk semua slot"
                         : slots.some((s) => !s.jerseySize)

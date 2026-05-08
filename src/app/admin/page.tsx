@@ -21,6 +21,7 @@ import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
 import { firebaseService } from "@/utils/firebase";
 import EventTab from "@/components/organisms/EventTabComponent";
 import TeamManagementTab from "@/components/organisms/EventTeamManagement";
+import DepositManagementComponent from "@/components/organisms/DepositManagement";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -217,6 +218,8 @@ export default function AdminPage() {
         return <GalleriesManagement userRole={user?.role} />;
       case "reschedule":
         return <RescheduleManagementComponent />;
+      case "deposit":
+        return <DepositManagementComponent />;
 
       // ── Event children ──────────────────────────────────────────────────────
       case "event-kelola":

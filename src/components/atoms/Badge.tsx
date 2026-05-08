@@ -2,7 +2,7 @@ import React from "react";
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: "default" | "secondary" | "destructive" | "outline";
+  variant?: "default" | "secondary" | "destructive" | "outline" | "success";
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -24,6 +24,8 @@ export default function Badge({
     destructive:
       "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
     outline: "text-foreground",
+    success:
+      "border-transparent bg-green-100 text-green-800 hover:bg-green-200",
   };
 
   const sizeClasses = {

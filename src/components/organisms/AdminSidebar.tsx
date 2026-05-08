@@ -16,6 +16,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Wallet,
 } from "lucide-react";
 
 interface NavItem {
@@ -63,6 +64,7 @@ const navItems: NavItem[] = [
       { id: "event-team", label: "Kelola Team", icon: Shield },
     ],
   },
+  { id: "deposit", label: "Deposit", icon: Wallet },
   { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 

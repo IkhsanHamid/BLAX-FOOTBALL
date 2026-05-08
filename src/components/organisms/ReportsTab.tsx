@@ -36,6 +36,9 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const [appliedVenueId, setAppliedVenueId] = useState<string>("");
   const [loadingVenues, setLoadingVenues] = useState<boolean>(false);
 
+  const [selectedCommunity, setSelectedCommunity] = useState<string>("");
+  const [appliedCommunity, setAppliedCommunity] = useState<string>("");
+
   const getDefaultDates = () => {
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -127,6 +130,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
     setAppliedStartDate(draftStartDate);
     setAppliedEndDate(draftEndDate);
     setAppliedVenueId(selectedVenueId);
+    setAppliedCommunity(selectedCommunity);
 
     setLoading(true);
     setRefreshKey((prev) => prev + 1);
@@ -137,7 +141,8 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const hasUnappliedChanges =
     draftStartDate !== appliedStartDate ||
     draftEndDate !== appliedEndDate ||
-    selectedVenueId !== appliedVenueId;
+    selectedVenueId !== appliedVenueId ||
+    selectedCommunity !== appliedCommunity;
 
   return (
     <div className="space-y-6">
@@ -205,16 +210,17 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
       {/* Filters */}
       {activeTab !== "member-statistic" && (
         <Card>
-          <CardContent className="p-6">
-            <div className="pt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
+          <CardContent className="p-4 sm:p-6">
+            {/* Date Range Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Rentang Tanggal
                 </label>
                 <select
                   value={dateRange}
                   onChange={(e) => handleDateRangeChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="7d">7 hari terakhir</option>
                   <option value="30d">30 hari terakhir</option>
@@ -224,7 +230,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Tanggal Mulai
                 </label>
                 <input
@@ -234,12 +240,12 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                     setDraftStartDate(e.target.value);
                     setDateRange("custom");
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Tanggal Selesai
                 </label>
                 <input
@@ -249,20 +255,41 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                     setDraftEndDate(e.target.value);
                     setDateRange("custom");
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               {activeTab === "schedules" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Filter Venue
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Komunitas
+                  </label>
+                  <select
+                    value={selectedCommunity}
+                    onChange={(e) => setSelectedCommunity(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Semua</option>
+                    <option value="blax">Blax</option>
+                    <option value="red-alert">Red Alert</option>
+                    <option value="magnifico">Magnifico</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Additional Filters Row */}
+            {activeTab === "schedules" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Venue
                   </label>
                   <select
                     value={selectedVenueId}
                     onChange={(e) => setSelectedVenueId(e.target.value)}
                     disabled={loadingVenues}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Semua Venue</option>
                     {venues.map((venue) => (
@@ -272,37 +299,43 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                     ))}
                   </select>
                 </div>
-              )}
-
-              {activeTab === "membership" && <div />}
-
-              <div className="flex items-end">
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={handleApplyFilter}
-                  disabled={loading || !draftStartDate || !draftEndDate}
-                  className={`w-full flex items-center justify-center transition-all ${
-                    hasUnappliedChanges
-                      ? "ring-2 ring-offset-1 ring-blue-400"
-                      : ""
-                  }`}
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  {loading ? "Memfilter..." : "Terapkan Filter"}
-                  {hasUnappliedChanges && !loading && (
-                    <span className="ml-2 w-2 h-2 rounded-full bg-yellow-300 animate-pulse" />
-                  )}
-                </Button>
               </div>
+            )}
+
+            {activeTab === "membership" && <div />}
+
+            {/* Apply Button */}
+            <div className="flex items-end">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleApplyFilter}
+                disabled={loading || !draftStartDate || !draftEndDate}
+                className={`w-full sm:w-auto px-6 flex items-center justify-center transition-all ${
+                  hasUnappliedChanges
+                    ? "ring-2 ring-offset-1 ring-blue-400"
+                    : ""
+                }`}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {loading ? "Memfilter..." : "Terapkan"}
+                {hasUnappliedChanges && !loading && (
+                  <span className="ml-2 w-2 h-2 rounded-full bg-yellow-300 animate-pulse" />
+                )}
+              </Button>
             </div>
 
             {/* Info tanggal yang sedang aktif */}
-            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
-              <span className="font-medium">Filter aktif:</span>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              <span className="font-medium">Filter:</span>
               <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-mono">
                 {appliedStartDate} → {appliedEndDate}
               </span>
+              {appliedCommunity && activeTab === "schedules" && (
+                <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-md capitalize">
+                  {appliedCommunity.replace("-", " ")}
+                </span>
+              )}
               {appliedVenueId && activeTab === "schedules" && (
                 <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">
                   {venues.find((v) => v.id === appliedVenueId)?.name ??
@@ -311,7 +344,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
               )}
               {hasUnappliedChanges && (
                 <span className="text-amber-600 font-medium">
-                  ⚠ Ada perubahan yang belum diterapkan
+                  ⚠ Ada perubahan
                 </span>
               )}
             </div>
@@ -326,6 +359,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
           startDate={appliedStartDate}
           endDate={appliedEndDate}
           venueId={appliedVenueId}
+          community={appliedCommunity}
         />
       ) : activeTab === "membership" ? (
         <MembershipReportTab

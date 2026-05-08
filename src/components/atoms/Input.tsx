@@ -10,6 +10,7 @@ interface InputProps {
   min?: string;
   max?: string;
   disabled?: boolean;
+  error?: string;
 }
 
 export default function Input({
@@ -22,6 +23,7 @@ export default function Input({
   min,
   max,
   disabled,
+  error,
 }: InputProps) {
   return (
     <div className="relative">
@@ -40,8 +42,11 @@ export default function Input({
         disabled={disabled}
         className={`w-full ${
           icon ? "pl-10" : "pl-4"
-        } pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`}
+        } pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          error ? "border-red-500" : "border-gray-300"
+        } ${className}`}
       />
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }

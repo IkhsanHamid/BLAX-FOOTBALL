@@ -106,10 +106,51 @@ export interface ListUserMember {
 export interface RescheduleManagement {
   id: string;
   bookId: string;
+  scheduleId?: string;
   playerName: string;
   playerPhone: string;
   venueName: string;
+  venueId: string;
   date: string;
   time: string;
   status: string;
+}
+
+export interface DepositHistory {
+  id: string;
+  total: number;
+  createdAt: string;
+  isActive: boolean;
+  userName: string;
+  userPhone: string;
+  bookingId: string;
+  voucherHistories: VoucherHistory[];
+}
+
+export interface VoucherHistory {
+  id: string;
+  voucherId: string;
+  voucherName: string;
+  voucherCode: string;
+  voucherNominal: number;
+  voucherType: string;
+  createdAt: string;
+}
+
+export interface VoucherHistoryRecord {
+  id: string;
+  depositId: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  depositRemaining: number;
+  voucherId: string;
+  voucherName: string;
+  voucherCode: string;
+  voucherNominal: number;
+  voucherType: string;
+  usedBookingId?: string;
+  usedScheduleName?: string;
+  createdAt: string;
+  createdByName: string;
 }
