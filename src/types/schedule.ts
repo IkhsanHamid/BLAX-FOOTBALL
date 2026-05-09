@@ -16,10 +16,11 @@ export interface Schedule {
   description: string;
   gmapLink: string;
   address: string;
-  facilities: Facilites[];
+facilities: Facilites[];
   canRegistTeam: boolean;
   availableGkSlots: number;
   availablePlayerSlots: number;
+  isOpen: boolean;
 }
 
 export interface ScheduleDetail extends Schedule {
@@ -59,6 +60,7 @@ export interface ScheduleOverview {
   status: string;
   rules: Rules[];
   facilities: Facilites[];
+  isOpen: boolean;
 }
 
 export interface ListSchedule {

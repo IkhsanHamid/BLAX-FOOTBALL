@@ -122,6 +122,7 @@ export default function SchedulePage() {
         canRegistTeam: schedule.canRegistTeam,
         availableGkSlots: schedule.availableGkSlots,
         availablePlayerSlots: schedule.availablePlayerSlots,
+        isOpen: schedule.isOpen,
       })),
     [schedules],
   );
@@ -144,8 +145,11 @@ export default function SchedulePage() {
     matchDate: string,
     matchTime: string,
     email: string | undefined,
+    isOpen: boolean,
   ): boolean => {
     try {
+      if (!isOpen) return false;
+
       const isSpecialEmail =
         email === "ardiantosandi@gmail.com" ||
         email === "ikhsanhamid352@gmail.com";
@@ -672,6 +676,7 @@ export default function SchedulePage() {
       match.date,
       match.time,
       user?.email,
+      match.isOpen,
     );
     const isFullyBooked = Number(match.openSlots) === 0;
 
@@ -769,30 +774,34 @@ export default function SchedulePage() {
                 </div>
 
                 <div className="flex gap-1.5 sm:gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDetailClick(match.id)}
-                    className="border-slate-300 hover:bg-slate-50 text-xs sm:text-sm px-2 sm:px-3"
-                  >
-                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Detail</span>
-                  </Button>
-                  {isBookingClosed ? (
-                    <Button
-                      variant="primary"
+<Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => handleBooking(match)}
-                      disabled={isFullyBooked}
-                      className="shadow-md hover:shadow-lg text-xs sm:text-sm px-3 sm:px-4"
+                      onClick={() => handleDetailClick(match.id)}
+                      className="border-slate-300 hover:bg-slate-50 text-xs sm:text-sm px-2 sm:px-3"
                     >
-                      {isFullyBooked ? "Penuh" : "Booking"}
+                      <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Detail</span>
                     </Button>
-                  ) : (
-                    <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-500 rounded-lg text-xs sm:text-sm font-medium">
-                      Booking Ditutup
-                    </div>
-                  )}
+                    {!match.isOpen ? (
+                      <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 text-amber-700 rounded-lg text-xs sm:text-sm font-medium">
+                        Belum Dibuka
+                      </div>
+                    ) : isBookingClosed ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleBooking(match)}
+                        disabled={isFullyBooked}
+                        className="shadow-md hover:shadow-lg text-xs sm:text-sm px-3 sm:px-4"
+                      >
+                        {isFullyBooked ? "Penuh" : "Booking"}
+                      </Button>
+                    ) : (
+                      <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-500 rounded-lg text-xs sm:text-sm font-medium">
+                        Booking Ditutup
+                      </div>
+                    )}
                 </div>
               </div>
             </div>

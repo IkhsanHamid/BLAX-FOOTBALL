@@ -12,6 +12,8 @@ import {
   Users,
   DollarSign,
   Lock,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -210,6 +212,7 @@ export default function ScheduleTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<string | null>(null);
 
   // Helper function to check if schedule is within H-3
   const isWithinH3 = useCallback((scheduleDate: string) => {
@@ -374,6 +377,19 @@ export default function ScheduleTab({
     setLockSlotCounts({ gk: "", player: "" });
     setShowLockDialog(true);
   }, []);
+
+  const handleToggleIsOpen = useCallback(async (schedule: ScheduleOverview) => {
+    setTogglingScheduleId(schedule.id);
+    try {
+      await adminService.toggleScheduleIsOpen(schedule.id, !schedule.isOpen);
+      showSuccess(`Booking ${!schedule.isOpen ? "Dibuka" : "Ditutup"}!`);
+      fetchScheduleOverview();
+    } catch (error) {
+      showError("Error", "Failed to toggle schedule status");
+    } finally {
+      setTogglingScheduleId(null);
+    }
+  }, [showSuccess, showError, fetchScheduleOverview]);
 
   const handleConfirmLockSlots = useCallback(async () => {
     if (!lockingSchedule) return;
@@ -887,6 +903,23 @@ export default function ScheduleTab({
                             onClick={() => handleEditSchedule(schedule)}
                           >
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleToggleIsOpen(schedule)}
+                            disabled={togglingScheduleId === schedule.id}
+                            className={
+                              schedule.isOpen
+                                ? "text-green-600"
+                                : "text-amber-600"
+                            }
+                          >
+                            {schedule.isOpen ? (
+                              <ToggleRight className="w-4 h-4" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4" />
+                            )}
                           </Button>
                           <Button
                             size="sm"

@@ -265,14 +265,15 @@ export default function ScheduleDetailPage() {
       matchDate: string,
       matchTime: string,
       email: string | undefined,
+      isOpen: boolean,
     ): boolean => {
       try {
-        // Cek apakah email adalah email khusus
+        if (!isOpen) return false;
+
         const isSpecialEmail =
           email === "ardiantosandi@gmail.com" ||
           email === "ikhsanhamid352@gmail.com";
 
-        // Jika email khusus, selalu izinkan booking
         if (isSpecialEmail) {
           return true;
         }
@@ -280,15 +281,12 @@ export default function ScheduleDetailPage() {
         const now = new Date();
         const matchDateTime = new Date(matchDate);
 
-        // Parse time (format: "HH:MM")
         const [hours, minutes] = matchTime.split(":").map(Number);
         matchDateTime.setHours(hours, minutes, 0, 0);
 
-        // Calculate difference in hours
         const diffInMs = matchDateTime.getTime() - now.getTime();
         const diffInHours = diffInMs / (1000 * 60 * 60);
 
-        // Allow booking if match is more than 2 hours away
         return diffInHours >= 3;
       } catch (error) {
         console.error("Error checking booking time:", error);
@@ -301,10 +299,8 @@ export default function ScheduleDetailPage() {
   // Function to check if lineup should be visible (H-2 hours or if user is member)
   const isLineupVisible = useMemo(() => {
     if (!schedule) return false;
-    // If user is a member, always show lineup
     if (user?.isMember) return true;
-    // If not a member, show lineup only if H-2 hours has passed
-    return !isBookingAllowed(schedule.date, schedule.time, user?.email);
+    return !isBookingAllowed(schedule.date, schedule.time, user?.email, schedule.isOpen);
   }, [schedule, user?.isMember, isBookingAllowed]);
 
   useEffect(() => {
@@ -533,11 +529,16 @@ export default function ScheduleDetailPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-3">
-                      {isBookingAllowed(
-                        schedule.date,
-                        schedule.time,
-                        user?.email,
-                      ) ? (
+                      {!schedule.isOpen ? (
+                        <div className="w-full px-4 py-3 bg-amber-100 text-amber-700 rounded-lg text-center font-medium">
+                          Booking Belum Dibuka
+                        </div>
+                      ) : isBookingAllowed(
+                          schedule.date,
+                          schedule.time,
+                          user?.email,
+                          schedule.isOpen,
+                        ) ? (
                         <Button
                           className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
                           variant="primary"

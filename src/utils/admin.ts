@@ -168,6 +168,19 @@ class AdminService {
     }
   }
 
+  async toggleScheduleIsOpen(id: string, isOpen: boolean): Promise<any> {
+    try {
+      const response = await apiClient.patch(`/api/v1/matches/toggle-is-open`, {
+        id,
+        isOpen,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error toggling schedule isOpen:", error);
+      throw error;
+    }
+  }
+
   async getRoles(): Promise<Roles[]> {
     try {
       const response = await apiClient.get(`/api/v1/roles/getRoles`);

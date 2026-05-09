@@ -103,6 +103,7 @@ export default function ScheduleFeaturedGrid() {
     availableGkSlots: schedule.availableGkSlots,
     availablePlayerSlots: schedule.availablePlayerSlots,
     community: schedule.community,
+    isOpen: schedule.isOpen,
   }));
 
   // Get featured matches (3 closest upcoming matches)
@@ -144,8 +145,14 @@ export default function ScheduleFeaturedGrid() {
     }
   };
 
-  const isBookingAllowed = (matchDate: string, matchTime: string): boolean => {
+  const isBookingAllowed = (
+    matchDate: string,
+    matchTime: string,
+    isOpen: boolean,
+  ): boolean => {
     try {
+      if (!isOpen) return false;
+
       const now = new Date();
       const matchDateTime = new Date(matchDate);
       const [hours, minutes] = matchTime.split(":").map(Number);
@@ -206,7 +213,7 @@ export default function ScheduleFeaturedGrid() {
 
   // Featured Card Component
   const FeaturedCard = ({ match, index }: { match: any; index: number }) => {
-    const isBookable = isBookingAllowed(match.date, match.time);
+    const isBookable = isBookingAllowed(match.date, match.time, match.isOpen);
     const filledPercentage =
       (Number(match.bookedSlots) / Number(match.totalSlots)) * 100;
 
@@ -364,7 +371,11 @@ export default function ScheduleFeaturedGrid() {
               <span className="hidden sm:inline">Detail</span>
               <span className="sm:hidden">Info</span>
             </Button>
-            {isBookable ? (
+            {!match.isOpen ? (
+              <div className="flex-1 px-4 py-2.5 bg-amber-100 text-amber-700 rounded-lg text-sm text-center font-bold">
+                Belum Dibuka
+              </div>
+            ) : isBookable ? (
               <Button
                 variant="primary"
                 onClick={() => handleBooking(match)}
@@ -386,7 +397,7 @@ export default function ScheduleFeaturedGrid() {
 
   // Regular Card Component
   const RegularCard = ({ match }: { match: any }) => {
-    const isBookable = isBookingAllowed(match.date, match.time);
+    const isBookable = isBookingAllowed(match.date, match.time, match.isOpen);
     const filledPercentage =
       (Number(match.bookedSlots) / Number(match.totalSlots)) * 100;
 
@@ -500,7 +511,11 @@ export default function ScheduleFeaturedGrid() {
               <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
               <span className="hidden sm:inline">Detail</span>
             </Button>
-            {isBookable ? (
+            {!match.isOpen ? (
+              <div className="flex-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs text-center font-bold">
+                Belum Dibuka
+              </div>
+            ) : isBookable ? (
               <Button
                 variant="primary"
                 size="sm"
