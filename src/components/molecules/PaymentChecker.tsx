@@ -49,38 +49,43 @@ export default function PaymentChecker() {
         bookingId.trim()
       );
 
-      if (response.data.status) {
-        setPaymentStatus(response.data);
-        showSuccess("Payment status retrieved successfully");
+      if (response.status && response.data) {
+        const paymentData = response.data;
 
-        // Show preview modal if payment is successful
-        if (response.data.status === "SUCCESS") {
-          const mockPreviewData = {
-            bookingId: bookingId,
-            amount: response.data.total,
-            paymentDate: response.data.paymentDate,
-            paymentTime: response.data.paymentTime,
+        if (paymentData.status === "SUCCESS") {
+          setPaymentStatus(paymentData);
+          showSuccess("Payment status retrieved successfully");
+
+          const previewData = {
+            bookingId: paymentData.bookId,
+            amount: paymentData.total,
+            paymentDate: paymentData.paymentDate || "",
+            paymentTime: paymentData.paymentTime || "",
             paymentMethod: "QRIS",
-            customerName: response.data.name,
-            customerPhone: response.data.phone,
-            scheduleName: response.data.scheduleName,
-            venue: response.data.venue,
-            matchDate: response.data.matchDate,
-            matchTime: response.data.matchTime,
-            status: response.data.status,
+            customerName: paymentData.name,
+            customerPhone: paymentData.phone,
+            scheduleName: paymentData.scheduleName || "",
+            venue: paymentData.venue || "",
+            matchDate: paymentData.matchDate,
+            matchTime: paymentData.matchTime || "",
+            status: paymentData.status,
+            bookingType: paymentData.bookingType,
+            bookingTeam: paymentData.bookingTeam,
           };
-          setPreviewData(mockPreviewData);
+          setPreviewData(previewData);
           setShowPreviewModal(true);
+        } else if (paymentData.status === "PENDING") {
+          setPaymentStatus(paymentData);
+          setError("");
+          router.push(`/checkout?paymentId=${paymentData.id}`);
         } else {
-          // Auto-redirect to payment page for non-successful payments
-          handleViewFullPayment(response.data.id);
+          setError(`Status: ${paymentData.status}`);
         }
       } else {
         setError("Booking ID not found");
         showError("Booking ID not found");
       }
     } catch (error: any) {
-      // console.error("Error checking payment:", error);
       setError("Failed to check payment status. Please try again.");
       showError("Error", error);
     } finally {
