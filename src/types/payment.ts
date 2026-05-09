@@ -7,6 +7,8 @@ export interface PaymentStatus {
   status: string;
   paymentDate: string;
   paymentTime: string;
+  bookingType: string;
+  bookingTeam: [];
   matchDate: string;
   matchTime: string;
   scheduleName: string;

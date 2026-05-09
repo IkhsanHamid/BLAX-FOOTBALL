@@ -9,9 +9,12 @@ import {
   Hash,
   Clock,
   User,
+  Users,
   MapPin,
   Download,
   ExternalLink,
+  Shirt,
+  Phone,
 } from "lucide-react";
 import Button from "../atoms/Button";
 import { Card, CardContent } from "../atoms/Card";
@@ -19,19 +22,28 @@ import Badge from "../atoms/Badge";
 import { formatCurrency } from "@/lib/helper";
 import html2canvas from "html2canvas";
 
+interface TeamMember {
+  name: string;
+  phone: string;
+  jerseySize?: string;
+  position: string;
+}
+
 interface PaymentPreviewData {
   bookingId: string;
   amount: number;
-  paymentDate: string;
-  paymentTime: string;
+  paymentDate?: string;
+  paymentTime?: string;
   paymentMethod: string;
   customerName: string;
   customerPhone: string;
-  scheduleName: string;
-  venue: string;
-  matchDate: string;
-  matchTime: string;
+  scheduleName?: string;
+  venue?: string;
+  matchDate?: string;
+  matchTime?: string;
   status: string;
+  bookingType?: string;
+  bookingTeam?: TeamMember[];
 }
 
 interface PaymentPreviewModalProps {
@@ -290,7 +302,7 @@ export default function PaymentPreviewModal({
                     <div class="detail-item">
                         <span class="detail-label">Match Date</span>
                         <span class="detail-value">${new Date(
-                          data.matchDate
+                          data.matchDate!,
                         ).toLocaleDateString("id-ID")}</span>
                     </div>
                     <div class="detail-item">
@@ -303,8 +315,8 @@ export default function PaymentPreviewModal({
         
         <div class="footer-section">
             <p><strong>Transaksi berhasil pada ${data.paymentDate} at ${
-      data.paymentTime
-    } WIB</strong></p>
+              data.paymentTime
+            } WIB</strong></p>
             <p>Simpan struk ini untuk arsip Anda</p>
             
             <div class="company-info">
@@ -329,7 +341,7 @@ export default function PaymentPreviewModal({
       document.body.appendChild(tempContainer);
 
       const receiptElement = tempContainer.querySelector(
-        ".receipt-container"
+        ".receipt-container",
       ) as HTMLElement;
 
       if (!receiptElement) throw new Error("Receipt element not found");
@@ -347,7 +359,7 @@ export default function PaymentPreviewModal({
       link.href = dataUrl;
       link.download = `receipt-${
         paymentData.bookingId
-      }-${paymentData.paymentDate.replace(/\//g, "-")}.png`;
+      }-${paymentData.paymentDate?.replace(/\//g, "-")}.png`;
       document.body.appendChild(link);
       link.click();
 
@@ -497,34 +509,80 @@ export default function PaymentPreviewModal({
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-3">
-                            <MapPin className="w-4 h-4 text-blue-600" />
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {paymentData.scheduleName}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {paymentData.venue}
+                          {paymentData.scheduleName && (
+                            <div className="flex items-center space-x-3">
+                              <MapPin className="w-4 h-4 text-blue-600" />
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {paymentData.scheduleName}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {paymentData.venue}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
 
-                          <div className="flex items-center space-x-3">
-                            <Clock className="w-4 h-4 text-blue-600" />
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {new Date(
-                                  paymentData.matchDate
-                                ).toLocaleDateString("id-ID")}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {paymentData.matchTime} WIB
+                          {paymentData.matchDate && (
+                            <div className="flex items-center space-x-3">
+                              <Clock className="w-4 h-4 text-blue-600" />
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {new Date(
+                                    paymentData.matchDate,
+                                  ).toLocaleDateString("id-ID")}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {paymentData.matchTime} WIB
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </div>
+
+                    {paymentData.bookingTeam &&
+                      paymentData.bookingTeam.length > 0 && (
+                        <div className="mt-6">
+                          <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                            <Users className="w-5 h-5 mr-2 text-purple-600" />
+                            Team Members ({paymentData.bookingTeam.length})
+                          </h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {paymentData.bookingTeam.map((member, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg border border-purple-200"
+                              >
+                                <div className="w-10 h-10 bg-purple-200 rounded-full flex items-center justify-center">
+                                  <User className="w-5 h-5 text-purple-700" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 truncate">
+                                    {member.name}
+                                  </div>
+                                  <div className="text-sm text-gray-600 truncate">
+                                    <Phone className="w-3 h-3 inline mr-1" />
+                                    {member.phone}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                  <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
+                                    {member.position}
+                                  </Badge>
+                                  {member.jerseySize && (
+                                    <div className="flex items-center text-xs text-gray-600 mt-1">
+                                      <Shirt className="w-3 h-3 mr-1" />
+                                      {member.jerseySize}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </CardContent>
                 </Card>
 
