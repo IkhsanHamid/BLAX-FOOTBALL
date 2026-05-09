@@ -21,6 +21,7 @@ export interface ApiLineupResponse {
         phone: string;
         jerseySize: string;
         type?: string;
+        isMember: boolean;
       };
       PLAYERS?: Array<{
         id: string;
@@ -28,6 +29,7 @@ export interface ApiLineupResponse {
         phone: string;
         jerseySize: string;
         type?: string;
+        isMember: boolean;
       }>;
     }
   >;
@@ -54,6 +56,7 @@ export interface LineupPlayer {
   order: number;
   notes?: string;
   type?: string;
+  isMember: boolean;
 }
 
 export interface LineupMatch {
@@ -98,6 +101,7 @@ export class LineupService {
           team: teamKey,
           order: 1,
           type: teamData.GK.type,
+          isMember: teamData.GK.isMember,
         };
         allPlayers.push(gkPlayer);
         groupedTeams[teamKey].push(gkPlayer);
@@ -116,6 +120,7 @@ export class LineupService {
             team: teamKey,
             order: index + 2,
             type: player.type,
+            isMember: player.isMember,
           };
           allPlayers.push(lineupPlayer);
           groupedTeams[teamKey].push(lineupPlayer);

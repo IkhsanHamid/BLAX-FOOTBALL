@@ -57,7 +57,7 @@ export default function ImageUpload({
   className = "",
   disabled = false,
   error,
-  maxSize = 5,
+  maxSize = 2,
   acceptedTypes = ["image/jpeg", "image/png", "image/gif"],
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);

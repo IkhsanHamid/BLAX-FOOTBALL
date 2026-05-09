@@ -16,8 +16,8 @@ interface PopupBannerProps {
 
 export default function PopupBanner({
   bannerImage,
-  title = "FCL Tournament! 🏆",
-  description = "Ikuti Fantasy Champions League terbaru kami. Daftar sekarang dan menangkan hadiah menarik!",
+  title = "FWC Tournament! 🏆",
+  description = "Ikuti Fantasy World Cup terbaru kami. Daftar sekarang dan menangkan hadiah menarik!",
   ctaText = "Lihat Jadwal Tournament",
   storageKey = "hasSeenPopupBanner",
 }: PopupBannerProps) {
@@ -51,7 +51,7 @@ export default function PopupBanner({
     handleClose();
     // Redirect ke schedule page dengan query parameter untuk filter tournament
     // autoSelectDate=true akan membuat schedule page otomatis pilih tanggal terdekat tournament
-    router.push("/schedule?event=TOURNAMENT&autoSelectDate=true");
+    router.push("/tournaments");
   };
 
   if (!isOpen) return null;

@@ -3,12 +3,14 @@ import { apiClient } from "./api";
 import {
   BookingHistory,
   BookingHistoryResponse,
+  DepositHistory,
   ListUserMember,
   ReportBooking,
   RescheduleManagement,
   Roles,
   UserManagement,
   Users,
+  VoucherHistoryRecord,
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
@@ -166,6 +168,19 @@ class AdminService {
     }
   }
 
+  async toggleScheduleIsOpen(id: string, isOpen: boolean): Promise<any> {
+    try {
+      const response = await apiClient.patch(`/api/v1/matches/toggle-is-open`, {
+        id,
+        isOpen,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error toggling schedule isOpen:", error);
+      throw error;
+    }
+  }
+
   async getRoles(): Promise<Roles[]> {
     try {
       const response = await apiClient.get(`/api/v1/roles/getRoles`);
@@ -182,6 +197,7 @@ class AdminService {
     skip?: 0 | number,
     limit?: 10 | number,
     venueId?: string,
+    community?: string,
   ): Promise<ReportBooking> {
     try {
       const queryParams = new URLSearchParams();
@@ -190,6 +206,7 @@ class AdminService {
       if (skip) queryParams.append("skip", skip.toString());
       if (limit) queryParams.append("limit", limit.toString());
       if (venueId) queryParams.append("venueId", venueId.toString());
+      if (community) queryParams.append("community", community.toString());
 
       const response = await apiClient.get(
         "/api/v1/reports/booking-reports?" + queryParams,
@@ -393,6 +410,21 @@ class AdminService {
     }
   }
 
+  async listScheduleActiveByVenue(venueId: string, scheduleId?: string): Promise<ListSchedule[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("venueId", venueId);
+      if (scheduleId) queryParams.append("scheduleId", scheduleId);
+      const response = await apiClient.get(
+        `/api/v1/matches/list-schedule-active-by-venue?${queryParams}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error get list schedule active by venue data:", error);
+      throw error;
+    }
+  }
+
   async deleteGallery(id: string) {
     try {
       const response = await apiClient.delete(
@@ -432,6 +464,25 @@ class AdminService {
     }
   }
 
+  async lockSlotsEvent(
+    eventTeamId: string,
+    slotGk: number,
+    slotPlayer: number,
+  ) {
+    try {
+      const response = await apiClient.put(`/api/v1/events/lock-slots`, {
+        slotGk,
+
+        slotPlayer,
+        eventTeamId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error lock slots:", error);
+      throw error;
+    }
+  }
+
   async listAvailReschedule(skip: number, limit: number, search: string) {
     try {
       const queryParams = new URLSearchParams();
@@ -449,11 +500,10 @@ class AdminService {
     }
   }
 
-  async createRescheduleRecord(bookId: string, reason: string) {
-    const response = await apiClient.post("/api/v1/reschedule", {
-      bookId,
-      reason,
-    });
+  async createRescheduleRecord(bookId: string, reason: string, scheduleId?: string) {
+    const payload: Record<string, string> = { bookId, reason };
+    if (scheduleId) payload.scheduleId = scheduleId;
+    const response = await apiClient.post("/api/v1/reschedule", payload);
     return response;
   }
 
@@ -468,6 +518,151 @@ class AdminService {
     );
 
     return result;
+  }
+
+  async createVoucher(
+    depositId: string,
+    nominal: number,
+    name?: string,
+    description?: string,
+  ) {
+    try {
+      const payload: Record<string, unknown> = { depositId, nominal };
+      if (name) payload.name = name;
+      if (description) payload.description = description;
+
+      const response = await apiClient.post(
+        `/api/v1/deposit/create-voucher`,
+        payload,
+      );
+      return response;
+    } catch (error: any) {
+      console.error("Error create voucher:", error);
+      throw error;
+    }
+  }
+
+  async getDepositHistories(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: DepositHistory[];
+    totalData: number;
+    skip: number;
+    limit: number;
+    summary: { totalRemainingDeposit: number };
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/histories?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get deposit histories:", error);
+      throw error;
+    }
+  }
+
+  async getVoucherHistories(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: VoucherHistoryRecord[];
+    totalData: number;
+    skip: number;
+    limit: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get voucher histories:", error);
+      throw error;
+    }
+  }
+
+  async exportDepositHistories(
+    search?: string,
+  ): Promise<{
+    data: DepositHistory[];
+    totalData: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/histories?${queryParams}&limit=1`,
+      );
+
+      const totalData = result.totalData || 0;
+      if (totalData === 0) {
+        return { data: [], totalData: 0 };
+      }
+
+      const exportParams = new URLSearchParams();
+      if (search) exportParams.append("search", search);
+      exportParams.append("limit", totalData.toString());
+
+      const exportResult = await apiClient.get(
+        `/api/v1/deposit/histories?${exportParams}`,
+      );
+
+      return { data: exportResult.data, totalData };
+    } catch (error: any) {
+      console.error("Error export deposit histories:", error);
+      throw error;
+    }
+  }
+
+  async exportVoucherHistories(
+    search?: string,
+  ): Promise<{
+    data: VoucherHistoryRecord[];
+    totalData: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${queryParams}&limit=1`,
+      );
+
+      const totalData = result.totalData || 0;
+      if (totalData === 0) {
+        return { data: [], totalData: 0 };
+      }
+
+      const exportParams = new URLSearchParams();
+      if (search) exportParams.append("search", search);
+      exportParams.append("limit", totalData.toString());
+
+      const exportResult = await apiClient.get(
+        `/api/v1/deposit/voucher-histories?${exportParams}`,
+      );
+
+      return { data: exportResult.data, totalData };
+    } catch (error: any) {
+      console.error("Error export voucher histories:", error);
+      throw error;
+    }
   }
 
   async changeNameTeam(
@@ -490,6 +685,74 @@ class AdminService {
     );
 
     return result;
+  }
+
+  async postEvent(eventData: FormData): Promise<any> {
+    const response = await apiClient.post("/api/v1/events", eventData);
+    return response.data;
+  }
+
+  async getEvents(): Promise<[]> {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+    return result.data;
+  }
+
+  async getEventDetail(id: string) {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events/${id}`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+    return result.data;
+  }
+
+  async editEvents(id: string, eventData: FormData): Promise<any> {
+    try {
+      const response = await apiClient.put(`/api/v1/events/${id}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating event:", error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(id: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(`/api/v1/events/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      throw error;
+    }
+  }
+
+  async toggleEventOpen(id: string, data: { isOpen: boolean }) {
+    try {
+      const response = await apiClient.patch(`/api/v1/events`, {
+        id,
+        status: data.isOpen,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error toggling event status:", error);
+      throw error;
+    }
   }
 }
 

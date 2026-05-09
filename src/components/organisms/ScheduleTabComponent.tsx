@@ -12,6 +12,8 @@ import {
   Users,
   DollarSign,
   Lock,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -48,13 +50,14 @@ const SLOTS_PER_TEAM = {
   FUTSAL: 5,
   "MINI-SOCCER": 7,
   FOOTBALL: 11,
-  "MINI-SOCCER-BEKASI": 8,
+  "MINI-FOOTBALL": 8,
 };
 const EVENT_TYPES = ["FUN GAME", "TOURNAMENT"];
-const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-SOCCER-BEKASI"];
+const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-FOOTBALL"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
+const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert"];
 
 const DATE_FILTER_LABELS = {
   today: "Today",
@@ -94,6 +97,7 @@ interface ScheduleForm {
   image: File | string | null;
   facilityIds: string[];
   ruleIds: string[];
+  community: string;
 }
 
 const initialFormState: ScheduleForm = {
@@ -110,6 +114,7 @@ const initialFormState: ScheduleForm = {
   image: "",
   facilityIds: [],
   ruleIds: [],
+  community: "",
 };
 
 // Helper Components
@@ -207,6 +212,7 @@ export default function ScheduleTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<string | null>(null);
 
   // Helper function to check if schedule is within H-3
   const isWithinH3 = useCallback((scheduleDate: string) => {
@@ -368,9 +374,22 @@ export default function ScheduleTab({
 
   const handleLockSlots = useCallback((schedule: ScheduleOverview) => {
     setLockingSchedule(schedule);
-    setLockSlotCounts({ gk: "", player: "" }); // Reset kedua nilai
+    setLockSlotCounts({ gk: "", player: "" });
     setShowLockDialog(true);
   }, []);
+
+  const handleToggleIsOpen = useCallback(async (schedule: ScheduleOverview) => {
+    setTogglingScheduleId(schedule.id);
+    try {
+      await adminService.toggleScheduleIsOpen(schedule.id, !schedule.isOpen);
+      showSuccess(`Booking ${!schedule.isOpen ? "Dibuka" : "Ditutup"}!`);
+      fetchScheduleOverview();
+    } catch (error) {
+      showError("Error", "Failed to toggle schedule status");
+    } finally {
+      setTogglingScheduleId(null);
+    }
+  }, [showSuccess, showError, fetchScheduleOverview]);
 
   const handleConfirmLockSlots = useCallback(async () => {
     if (!lockingSchedule) return;
@@ -380,7 +399,6 @@ export default function ScheduleTab({
     const countGk = parseInt(lockSlotCounts.gk) || 0;
     const countPlayer = parseInt(lockSlotCounts.player) || 0;
 
-    // Hitung available slots
     const availableSlotsGk =
       lockingSchedule.totalSlots -
       lockingSchedule.bookedSlots -
@@ -435,7 +453,6 @@ export default function ScheduleTab({
       time: "Time is required",
       venueId: "Venue is required",
       feePlayer: "Player fee is required",
-      // Hanya require feeGk jika bukan PADEL
       ...(scheduleForm.typeMatch !== PADEL_MATCH_TYPE && {
         feeGk: "Goalkeeper fee is required",
       }),
@@ -496,6 +513,7 @@ export default function ScheduleTab({
       );
       formData.append("typeEvent", scheduleForm.typeEvent);
       formData.append("typeMatch", scheduleForm.typeMatch);
+      formData.append("community", scheduleForm.community);
 
       if (scheduleForm.image) {
         formData.append("imageUrl", scheduleForm.image as File);
@@ -535,15 +553,6 @@ export default function ScheduleTab({
 
   const handleEditSchedule = useCallback(
     (schedule: ScheduleOverview) => {
-      // Check if within H-3
-      // if (isWithinH3(schedule.date)) {
-      //   showError(
-      //     "Cannot Edit",
-      //     "Schedule cannot be edited within 3 days before the event date (H-3)"
-      //   );
-      //   return;
-      // }
-
       const venue = venues.find((v) => v.name === schedule.venue);
       setEditingSchedule(schedule);
       setScheduleForm({
@@ -565,6 +574,7 @@ export default function ScheduleTab({
         ruleIds:
           schedule.rules?.map((r: any) => (typeof r === "string" ? r : r.id)) ||
           [],
+        community: schedule.community || "",
       });
       setShowScheduleDialog(true);
     },
@@ -774,6 +784,7 @@ export default function ScheduleTab({
                   <TableHead>Venue</TableHead>
                   <TableHead>Teams</TableHead>
                   <TableHead>Booking</TableHead>
+                  <TableHead>Community</TableHead>
                   {user?.role === "Owner" && <TableHead>Revenue</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -784,12 +795,10 @@ export default function ScheduleTab({
                   const isDisabled =
                     schedule.status === "CANCELLED" ||
                     schedule.status === "COMPLETED";
-                  // UPDATE: Hitung total locked slots dari GK dan Player
                   const totalLockedSlots =
                     (schedule.lockedSlotsGk || 0) +
                     (schedule.lockedSlotsPlayer || 0);
 
-                  // UPDATE: Tambahkan total locked slots ke dalam perhitungan
                   const bookingPercentage = Math.round(
                     ((schedule.bookedSlots + totalLockedSlots) /
                       schedule.totalSlots) *
@@ -851,6 +860,21 @@ export default function ScheduleTab({
                           )}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        {schedule.community ? (
+                          <Badge
+                            className={
+                              schedule.community.toLowerCase() === "blax"
+                                ? "bg-gray-900 text-white capitalize"
+                                : "bg-orange-100 text-orange-800 capitalize"
+                            }
+                          >
+                            {schedule.community}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 text-sm">—</span>
+                        )}
+                      </TableCell>
                       {user?.role === "Owner" && (
                         <TableCell>
                           <div className="text-sm font-medium text-green-600">
@@ -877,15 +901,30 @@ export default function ScheduleTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEditSchedule(schedule)}
-                            // disabled={isDisabled || isWithinH3(schedule.date)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => handleToggleIsOpen(schedule)}
+                            disabled={togglingScheduleId === schedule.id}
+                            className={
+                              schedule.isOpen
+                                ? "text-green-600"
+                                : "text-amber-600"
+                            }
+                          >
+                            {schedule.isOpen ? (
+                              <ToggleRight className="w-4 h-4" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => handleLockSlots(schedule)}
-                            // disabled={isDisabled || isWithinH3(schedule.date)}
                           >
                             <Lock className="w-4 h-4" />
                           </Button>
@@ -1055,6 +1094,25 @@ export default function ScheduleTab({
               </div>
             </div>
 
+            {/* Community Dropdown */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Community
+              </label>
+              <select
+                value={scheduleForm.community}
+                onChange={(e) => handleFormChange("community", e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg"
+              >
+                <option value="">Select community</option>
+                {COMMUNITY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c.charAt(0).toUpperCase() + c.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-4">
               {scheduleForm.typeMatch !== PADEL_MATCH_TYPE && (
                 <div>
@@ -1158,7 +1216,7 @@ export default function ScheduleTab({
                   setFormErrors((prev) => ({ ...prev, image: "" }));
                 }}
                 error={formErrors.image}
-                maxSize={5}
+                maxSize={2}
                 acceptedTypes={["image/jpeg", "image/png", "image/gif"]}
               />
             </div>

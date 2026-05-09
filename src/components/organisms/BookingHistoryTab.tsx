@@ -321,6 +321,7 @@ export default function BookingHistoryTab({
       PAID: "bg-green-100 text-green-800 border-green-200",
       PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
       FAILED: "bg-red-100 text-red-800 border-red-200",
+      RESCHEDULE: "bg-orange-100 text-orange-800 border-orange-200",
     };
     return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -331,6 +332,7 @@ export default function BookingHistoryTab({
       PAID: <CheckCircle className="w-3 h-3" />,
       PENDING: <Clock className="w-3 h-3" />,
       FAILED: <XCircle className="w-3 h-3" />,
+      RESCHEDULE: <RefreshCw className="w-3 h-3" />,
     };
     return icons[status] || <AlertCircle className="w-3 h-3" />;
   };
@@ -478,6 +480,7 @@ export default function BookingHistoryTab({
                   <option value="SUCCESS">Success</option>
                   <option value="PENDING">Pending</option>
                   <option value="FAILED">Failed</option>
+                  <option value="RESCHEDULE">Reschedule</option>
                 </select>
 
                 <select

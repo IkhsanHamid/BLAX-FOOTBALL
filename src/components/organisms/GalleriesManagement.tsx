@@ -25,7 +25,14 @@ import { GalleriesRequest, GalleryData } from "@/types/galleries";
 import { adminService } from "@/utils/admin";
 import { ListSchedule } from "@/types/schedule";
 
-export default function GalleriesManagement() {
+interface GalleriesTabProps {
+  userRole: string;
+}
+
+export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
+  const isMagnifico = userRole === "Admin-magnifico";
+  const isRedAlert = userRole === "Admin-red-alert";
+
   const [galleries, setGalleries] = useState<GalleryData[]>([]);
   const [schedules, setSchedules] = useState<ListSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +150,6 @@ export default function GalleriesManagement() {
     try {
       setSubmitting(true);
 
-      // Kirim null jika field video kosong
       const payload = {
         scheduleId: formData.scheduleId,
         linkPhotos: formData.linkPhotos,
@@ -165,8 +171,6 @@ export default function GalleriesManagement() {
       }
 
       handleCloseDialog();
-
-      // Auto refresh setelah berhasil submit
       await fetchGalleries();
     } catch (error) {
       console.error("Error saving gallery:", error);
@@ -201,8 +205,6 @@ export default function GalleriesManagement() {
       await adminService.deleteGallery(deleteConfirmation.gallery.id);
       showSuccess("Success", "Gallery deleted successfully");
       setDeleteConfirmation({ isOpen: false, gallery: null });
-
-      // Auto refresh setelah delete
       await fetchGalleries();
     } catch (error) {
       console.error("Error deleting gallery:", error);
@@ -232,9 +234,19 @@ export default function GalleriesManagement() {
     }
   };
 
-  const filteredGalleries = galleries.filter((gallery) =>
-    gallery.scheduleName.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredGalleries = galleries.filter((gallery) => {
+    const matchesSearch = gallery.scheduleName
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const matchesCommunity =
+      isMagnifico || isRedAlert
+        ? (gallery.community || "").toLowerCase() === "magnifico" ||
+          (gallery.community || "").toLowerCase() === "red-alert"
+        : true;
+
+    return matchesSearch && matchesCommunity;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("id-ID", {

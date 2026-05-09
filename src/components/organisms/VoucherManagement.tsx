@@ -826,13 +826,15 @@ function VoucherListItem({
               <Eye className="w-3.5 h-3.5" />
               Detail
             </button>
-            <button
-              onClick={() => onAssign(voucher)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              Assign
-            </button>
+            {!voucher.isFromDeposit && (
+              <button
+                onClick={() => onAssign(voucher)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Assign
+              </button>
+            )}
             <button
               onClick={() => onEdit(voucher)}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
@@ -840,13 +842,15 @@ function VoucherListItem({
               <Edit className="w-3.5 h-3.5" />
               Edit
             </button>
-            <button
-              onClick={() => onDelete(voucher)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Hapus
-            </button>
+            {!voucher.isFromDeposit && (
+              <button
+                onClick={() => onDelete(voucher)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Hapus
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -881,6 +885,8 @@ function VoucherFormDialog({
 }: VoucherFormDialogProps): JSX.Element | null {
   if (!open) return null;
 
+  const isFromDeposit = editingVoucher?.isFromDeposit ?? false;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -902,6 +908,7 @@ function VoucherFormDialog({
                   onInputChange("code", e.target.value.toUpperCase())
                 }
                 placeholder="SAVE20 (opsional)"
+                disabled={isFromDeposit}
                 className={formErrors.code ? "border-red-500" : ""}
               />
               {formErrors.code && (
@@ -921,6 +928,7 @@ function VoucherFormDialog({
                 value={formData.name}
                 onChange={(e) => onInputChange("name", e.target.value)}
                 placeholder="Masukkan nama voucher"
+                disabled={isFromDeposit}
                 className={formErrors.name ? "border-red-500" : ""}
               />
               {formErrors.name && (
@@ -937,7 +945,8 @@ function VoucherFormDialog({
                 onChange={(e) => onInputChange("description", e.target.value)}
                 placeholder="Masukkan deskripsi voucher"
                 rows={3}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                disabled={isFromDeposit}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
                   formErrors.description ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -961,7 +970,8 @@ function VoucherFormDialog({
                       e.target.value as "PERCENTAGE" | "FIXED"
                     )
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={isFromDeposit}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="PERCENTAGE">Persentase (%)</option>
                   <option value="FIXED">Nominal Tetap (Rp)</option>
@@ -981,6 +991,7 @@ function VoucherFormDialog({
                   placeholder={formData.type === "PERCENTAGE" ? "20" : "50000"}
                   min="0"
                   max={formData.type === "PERCENTAGE" ? "100" : undefined}
+                  disabled={isFromDeposit}
                   className={formErrors.nominal ? "border-red-500" : ""}
                 />
                 {formErrors.nominal && (
@@ -997,11 +1008,12 @@ function VoucherFormDialog({
                 id="isActive"
                 checked={formData.isActive}
                 onChange={(e) => onInputChange("isActive", e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={isFromDeposit}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
               />
               <label
                 htmlFor="isActive"
-                className="text-sm font-medium text-gray-700"
+                className={`text-sm font-medium ${isFromDeposit ? "text-gray-400" : "text-gray-700"}`}
               >
                 Voucher aktif
               </label>
@@ -1013,11 +1025,12 @@ function VoucherFormDialog({
                 id="isActive"
                 checked={formData.isBooking}
                 onChange={(e) => onInputChange("isBooking", e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={isFromDeposit}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
               />
               <label
                 htmlFor="isActive"
-                className="text-sm font-medium text-gray-700"
+                className={`text-sm font-medium ${isFromDeposit ? "text-gray-400" : "text-gray-700"}`}
               >
                 Bisa digunakan untuk booking
               </label>
@@ -1032,11 +1045,12 @@ function VoucherFormDialog({
                   onChange={(e) =>
                     onInputChange("isRedeemable", e.target.checked)
                   }
-                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                  disabled={isFromDeposit}
+                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 disabled:cursor-not-allowed"
                 />
                 <label
                   htmlFor="isRedeemable"
-                  className="text-sm font-medium text-gray-700"
+                  className={`text-sm font-medium ${isFromDeposit ? "text-gray-400" : "text-gray-700"}`}
                 >
                   Dapat ditukar dengan poin
                 </label>
@@ -1055,6 +1069,7 @@ function VoucherFormDialog({
                     }
                     placeholder="100"
                     min="1"
+                    disabled={isFromDeposit}
                     className={formErrors.pointCost ? "border-red-500" : ""}
                   />
                   {formErrors.pointCost && (
@@ -1152,6 +1167,11 @@ function VoucherDetailDialog({
                   {voucher.name}
                 </h3>
                 <Badge className={status.color}>{status.status}</Badge>
+                {voucher.isFromDeposit && (
+                  <Badge className="bg-amber-100 text-amber-800">
+                    Deposit
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-gray-600 font-mono bg-white px-3 py-1.5 rounded inline-block">
                 {voucher.code}

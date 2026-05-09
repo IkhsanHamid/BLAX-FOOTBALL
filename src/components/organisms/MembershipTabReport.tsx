@@ -161,168 +161,302 @@ export default function MembershipReportTab({
   }, [currentPage, itemsPerPage, startDate, endDate, searchQuery]);
 
   // Generate PDF Report
-  const generatePDF = (): void => {
-    if (!membershipPayments.length) {
+  const generatePDF = async (): Promise<void> => {
+    if (!totalData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
     }
 
     try {
-      const doc = new jsPDF();
+      const exportStartDate = "2026-01-01";
+      const exportEndDate = new Date().toISOString().split("T")[0];
 
-      // Header
-      doc.setFontSize(20);
-      doc.setTextColor(40, 40, 40);
-      doc.text("Blax Football - History Pembayaran Membership", 20, 30);
-
-      // Date range
-      doc.setFontSize(12);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Periode: ${startDate} - ${endDate}`, 20, 45);
-
-      // Summary
-      const totalAmount = membershipPayments.reduce(
-        (sum, p) => p.amount * totalData,
+      const allData = await adminService.membershipReport(
+        exportStartDate,
+        exportEndDate,
+        "",
         0,
+        totalData,
       );
 
-      doc.setFontSize(14);
-      doc.text("Ringkasan", 20, 65);
+      const payments: MembershipPayment[] = allData.data || [];
+      if (!payments.length) {
+        showError("Error", "Tidak ada data untuk di-export");
+        return;
+      }
 
-      const summaryData: (string | number)[][] = [
-        ["Total Transaksi", totalData],
-        ["Total Pendapatan", `Rp ${totalAmount.toLocaleString("id-ID")}`],
-        ["Member Aktif", totalActive],
-      ];
+      const doc = new jsPDF();
+      const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
+      const activeCount = payments.filter((p) => p.isActive).length;
+
+      doc.setFontSize(16);
+      doc.setTextColor(40, 40, 40);
+      doc.text("Blax Football - Laporan Membership", 20, 25);
+
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Periode: ${exportStartDate} s/d ${exportEndDate}`, 20, 35);
+      doc.text(`Dicetak: ${new Date().toLocaleDateString("id-ID")}`, 20, 42);
 
       autoTable(doc, {
-        startY: 75,
+        startY: 52,
         head: [["Metrik", "Nilai"]],
-        body: summaryData,
+        body: [
+          ["Total Transaksi", payments.length],
+          ["Total Pendapatan", `Rp ${totalRevenue.toLocaleString("id-ID")}`],
+          ["Member Aktif", activeCount],
+          ["Member Expired", payments.length - activeCount],
+        ],
         theme: "grid",
         headStyles: { fillColor: [16, 185, 129] },
         margin: { left: 20, right: 20 },
       });
 
-      // Payment details
-      const lastY: number = (doc as any).lastAutoTable?.finalY || 75;
-
-      doc.setFontSize(14);
-      doc.text("Detail Pembayaran", 20, lastY + 20);
-
-      const paymentData: (string | number)[][] = membershipPayments.map(
-        (payment) => [
-          payment.name,
-          payment.phone,
-          `Rp ${payment.amount.toLocaleString("id-ID")}`,
-          new Date(payment.payAt).toLocaleDateString("id-ID"),
-          new Date(payment.validUntil).toLocaleDateString("id-ID"),
-          payment.isActive ? "Active" : "Expired",
-        ],
-      );
+      const lastY: number = (doc as any).lastAutoTable?.finalY || 80;
 
       autoTable(doc, {
-        startY: lastY + 30,
+        startY: lastY + 15,
         head: [
-          [
-            "Nama",
-            "No. HP",
-            "Nominal",
-            "Tanggal Bayar",
-            "Valid Sampai",
-            "Status Membership",
-          ],
+          ["No", "Nama", "No. HP", "Nominal", "Tgl Bayar", "Valid", "Status"],
         ],
-        body: paymentData,
-        theme: "grid",
+        body: payments.map((p, i) => [
+          i + 1,
+          p.name,
+          p.phone,
+          `Rp ${p.amount.toLocaleString("id-ID")}`,
+          new Date(p.payAt).toLocaleDateString("id-ID"),
+          new Date(p.validUntil).toLocaleDateString("id-ID"),
+          p.isActive ? "Aktif" : "Expired",
+        ]),
+        theme: "striped",
         headStyles: { fillColor: [16, 185, 129] },
         margin: { left: 20, right: 20 },
+        styles: { fontSize: 8 },
       });
 
-      // Footer
-      const pageCount: number = (doc as any).getNumberOfPages();
+      const pageCount = (doc as any).getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        doc.setFontSize(10);
-        doc.setTextColor(150, 150, 150);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
         doc.text(
-          `Generated on ${new Date().toLocaleDateString(
-            "id-ID",
-          )} - Page ${i} of ${pageCount}`,
+          `Halaman ${i} dari ${pageCount} — Generated ${new Date().toLocaleDateString("id-ID")}`,
           20,
           (doc as any).internal.pageSize.height - 10,
         );
       }
 
-      doc.save(`membership-payments-${startDate}-to-${endDate}.pdf`);
-      showSuccess("PDF Report Generated", "Report berhasil diunduh");
+      doc.save(`Membership_Blax_${exportStartDate}_${exportEndDate}.pdf`);
+      showSuccess("PDF Berhasil", `${payments.length} data berhasil diunduh`);
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error(error);
       showError("Export Error", "Gagal membuat PDF report");
     }
   };
 
   // Generate Excel Report
-  const generateExcel = (): void => {
-    if (!membershipPayments.length) {
+  const generateExcel = async (): Promise<void> => {
+    if (!totalData) {
       showError("Error", "Tidak ada data untuk di-export");
       return;
     }
 
     try {
+      showSuccess("Menyiapkan data...", "Sedang mengambil semua data");
+
+      // Ambil semua data dari 1 Januari 2026 sampai hari ini
+      const exportStartDate = "2026-01-01";
+      const exportEndDate = new Date().toISOString().split("T")[0];
+
+      const allData = await adminService.membershipReport(
+        exportStartDate,
+        exportEndDate,
+        "", // tanpa filter nama
+        0, // skip 0
+        totalData, // limit = semua data
+      );
+
+      const payments: MembershipPayment[] = allData.data || [];
+
+      if (!payments.length) {
+        showError("Error", "Tidak ada data untuk di-export");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
 
-      // Summary sheet
-      const totalAmount = membershipPayments.reduce(
-        (sum, p) => sum + p.amount,
-        0,
-      );
-      const activeCount = membershipPayments.filter((p) => p.isActive).length;
+      // ── Sheet 1: Ringkasan ──────────────────────────────────────────────────
+      const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
+      const activeCount = payments.filter((p) => p.isActive).length;
+      const expiredCount = payments.filter((p) => !p.isActive).length;
 
-      const summaryData: (string | number)[][] = [
-        ["Metrik", "Nilai"],
-        ["Total Transaksi", totalData],
-        ["Total Pendapatan", totalAmount],
-        ["Member Aktif", totalActive],
+      const summaryRows: any[][] = [
+        [`LAPORAN MEMBERSHIP - BLAX FOOTBALL`],
+        [],
+        ["Periode Export", `${exportStartDate} s/d ${exportEndDate}`],
+        [
+          "Tanggal Cetak",
+          new Date().toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+        ],
+        [],
+        ["RINGKASAN"],
+        ["Total Transaksi", payments.length],
+        ["Total Pendapatan", totalRevenue],
+        ["Member Aktif", activeCount],
+        ["Member Expired", expiredCount],
       ];
 
-      const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, summaryWS, "Ringkasan");
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
 
-      // Payment sheet
-      const paymentHeaders: string[] = [
-        "ID",
-        "Nama",
-        "No. HP",
-        "Nominal Bayar",
-        "Tanggal Bayar",
-        "Valid Sampai",
-        "Status Membership",
+      // Format kolom summary
+      wsSummary["!cols"] = [{ wch: 22 }, { wch: 35 }];
+      wsSummary["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
+
+      // ── Sheet 2: Detail Pembayaran ──────────────────────────────────────────
+      const headers = [
+        "NO",
+        "NAMA",
+        "EMAIL",
+        "NO. HP",
+        "NOMINAL BAYAR (Rp)",
+        "TANGGAL BAYAR",
+        "JAM BAYAR",
+        "VALID SAMPAI",
+        "STATUS MEMBERSHIP",
       ];
 
-      const paymentData: (string | number)[][] = [
-        paymentHeaders,
-        ...membershipPayments.map((payment) => [
-          payment.id,
-          payment.name,
-          payment.phone,
-          payment.amount,
-          payment.payAt,
-          payment.validUntil,
-          payment.isActive ? "Active" : "Expired",
-        ]),
-      ];
-
-      const paymentWS = XLSX.utils.aoa_to_sheet(paymentData);
-      XLSX.utils.book_append_sheet(wb, paymentWS, "History Pembayaran");
-
-      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const data = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      const dataRows: any[][] = payments.map((p, i) => {
+        const payDate = new Date(p.payAt);
+        const validDate = new Date(p.validUntil);
+        return [
+          i + 1,
+          p.name,
+          p.email,
+          p.phone,
+          p.amount,
+          payDate.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          payDate.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          validDate.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          p.isActive ? "Aktif" : "Expired",
+        ];
       });
 
-      saveAs(data, `membership-payments-${startDate}-to-${endDate}.xlsx`);
-      showSuccess("Excel Report Generated", "Report berhasil diunduh");
+      // Baris total di bawah
+      const totalRow: any[] = [
+        "",
+        "TOTAL",
+        "",
+        "",
+        payments.reduce((sum, p) => sum + p.amount, 0),
+        "",
+        "",
+        "",
+        `${activeCount} Aktif / ${expiredCount} Expired`,
+      ];
+
+      const wsDetail = XLSX.utils.aoa_to_sheet([
+        headers,
+        ...dataRows,
+        [],
+        totalRow,
+      ]);
+
+      // Lebar kolom
+      wsDetail["!cols"] = [
+        { wch: 5 }, // NO
+        { wch: 28 }, // NAMA
+        { wch: 32 }, // EMAIL
+        { wch: 16 }, // NO HP
+        { wch: 20 }, // NOMINAL
+        { wch: 15 }, // TGL BAYAR
+        { wch: 12 }, // JAM
+        { wch: 15 }, // VALID
+        { wch: 18 }, // STATUS
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsDetail, "Detail Pembayaran");
+
+      // ── Sheet 3: Rekap Aktif vs Expired ────────────────────────────────────
+      const activeRows: any[][] = [
+        ["NO", "NAMA", "EMAIL", "NO. HP", "NOMINAL (Rp)", "VALID SAMPAI"],
+        ...payments
+          .filter((p) => p.isActive)
+          .map((p, i) => [
+            i + 1,
+            p.name,
+            p.email,
+            p.phone,
+            p.amount,
+            new Date(p.validUntil).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+          ]),
+      ];
+
+      const expiredRows: any[][] = [
+        [],
+        ["--- MEMBER EXPIRED ---"],
+        ["NO", "NAMA", "EMAIL", "NO. HP", "NOMINAL (Rp)", "VALID SAMPAI"],
+        ...payments
+          .filter((p) => !p.isActive)
+          .map((p, i) => [
+            i + 1,
+            p.name,
+            p.email,
+            p.phone,
+            p.amount,
+            new Date(p.validUntil).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+          ]),
+      ];
+
+      const wsRekap = XLSX.utils.aoa_to_sheet([
+        ["--- MEMBER AKTIF ---"],
+        ...activeRows,
+        ...expiredRows,
+      ]);
+
+      wsRekap["!cols"] = [
+        { wch: 5 },
+        { wch: 28 },
+        { wch: 32 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 15 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsRekap, "Aktif vs Expired");
+
+      // ── Download ────────────────────────────────────────────────────────────
+      const fileName = `Membership_Blax_${exportStartDate}_${exportEndDate}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      showSuccess(
+        "Export Berhasil",
+        `${payments.length} data berhasil diunduh`,
+      );
     } catch (error) {
       console.error("Error generating Excel:", error);
       showError("Export Error", "Gagal membuat Excel report");

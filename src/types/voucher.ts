@@ -9,6 +9,7 @@ export interface Voucher {
   isRedeemable: boolean;
   isBooking: boolean;
   pointCost: number;
+  isFromDeposit?: boolean;
 }
 
 export interface VoucherPayload {

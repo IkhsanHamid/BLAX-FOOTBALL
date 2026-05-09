@@ -36,6 +36,7 @@ import { formatDate } from "@/lib/helper";
 import Pagination from "@/components/atoms/Pagination";
 import { adminService } from "@/utils/admin";
 import { RescheduleManagement } from "@/types/admin";
+import { ListSchedule } from "@/types/schedule";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -79,6 +80,11 @@ export default function RescheduleManagementComponent() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+
+  // Same Venue Schedule States
+  const [venueSchedules, setVenueSchedules] = useState<ListSchedule[]>([]);
+  const [venueSchedulesLoading, setVenueSchedulesLoading] = useState(false);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
 
   // History States
   const [rescheduleHistory, setRescheduleHistory] = useState<
@@ -275,12 +281,41 @@ export default function RescheduleManagementComponent() {
   // Pagination for history - now handled by API
   const paginatedHistory = useMemo(() => filteredHistory, [filteredHistory]);
 
+  const fetchVenueSchedules = async (
+    venueId: string,
+    scheduleId?: string,
+  ) => {
+    try {
+      setVenueSchedulesLoading(true);
+      const schedules = await adminService.listScheduleActiveByVenue(
+        venueId,
+        scheduleId,
+      );
+      setVenueSchedules(Array.isArray(schedules) ? schedules : []);
+    } catch (error) {
+      setVenueSchedules([]);
+    } finally {
+      setVenueSchedulesLoading(false);
+    }
+  };
+
   // Handlers
   const handleSelectBooking = (booking: RescheduleManagement) => {
     setSelectedBooking(booking);
     setRescheduleForm({ reason: "" });
     setFormErrors({});
+    setSelectedScheduleId("");
     setShowRescheduleModal(true);
+
+    if (booking.venueId) {
+      const currentScheduleId = booking.scheduleId;
+      fetchVenueSchedules(
+        booking.venueId,
+        currentScheduleId || undefined,
+      );
+    } else {
+      setVenueSchedules([]);
+    }
   };
 
   const handleFormChange = (field: string, value: string) => {
@@ -306,11 +341,13 @@ export default function RescheduleManagementComponent() {
       setActionLoading("submit");
       const bookId = selectedBooking.bookId;
       const reason = rescheduleForm.reason;
-      await adminService.createRescheduleRecord(bookId, reason);
+      const scheduleId = selectedScheduleId || undefined;
+      await adminService.createRescheduleRecord(bookId, reason, scheduleId);
 
       showSuccess("Reschedule record created successfully!");
       setSelectedBooking(null);
       setRescheduleForm({ reason: "" });
+      setSelectedScheduleId("");
       setShowRescheduleModal(false);
       setActiveTab("history");
       fetchRescheduleHistory();
@@ -325,6 +362,7 @@ export default function RescheduleManagementComponent() {
     setShowRescheduleModal(false);
     setSelectedBooking(null);
     setRescheduleForm({ reason: "" });
+    setSelectedScheduleId("");
     setFormErrors({});
   };
 
@@ -656,6 +694,38 @@ export default function RescheduleManagementComponent() {
                     <p className="mt-1 text-sm">{selectedBooking.venueName}</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Same Venue Schedule Selection */}
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="text-sm font-semibold text-blue-700 mb-3">
+                  Pindah ke Jadwal yang Sama
+                </h4>
+                {venueSchedulesLoading ? (
+                  <div className="flex items-center space-x-2 text-sm text-blue-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading available schedules...</span>
+                  </div>
+                ) : venueSchedules.length === 0 ? (
+                  <p className="text-sm text-blue-600">
+                    Tidak ada schedule dengan venue yang sama yang bisa di
+                    reschedule
+                  </p>
+                ) : (
+                  <select
+                    value={selectedScheduleId}
+                    onChange={(e) => setSelectedScheduleId(e.target.value)}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">Pilih jadwal pengganti (optional)</option>
+                    {venueSchedules.map((schedule) => (
+                      <option key={schedule.id} value={schedule.id}>
+                        {schedule.name} - {formatDate(schedule.date)} -{" "}
+                        {schedule.time}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Reason Input */}

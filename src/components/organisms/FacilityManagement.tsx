@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus,
   Edit,
@@ -58,12 +58,9 @@ const GRADIENT_COLORS = [
   "from-yellow-500 to-orange-500",
 ];
 
-const ITEMS_PER_PAGE = 12;
-
 export default function FacilityManagement() {
   // State Management
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -87,11 +84,7 @@ export default function FacilityManagement() {
   const fetchFacilities = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await masterDataService.getFacilities(
-        searchTerm,
-        currentPage,
-        ITEMS_PER_PAGE
-      );
+      const response = await masterDataService.getFacilities(searchTerm);
       setFacilities(response.data);
     } catch (error) {
       console.error("Error fetching facilities:", error);
@@ -101,28 +94,17 @@ export default function FacilityManagement() {
     }
   }, [searchTerm, currentPage, showError]);
 
-  // Filter facilities
-  const filterFacilities = useCallback(() => {
-    let filtered = facilities;
-
-    if (searchTerm) {
-      filtered = filtered.filter((facility) =>
-        facility.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredFacilities(filtered);
-    setCurrentPage(1);
-  }, [facilities, searchTerm]);
-
   // Effects
   useEffect(() => {
     fetchFacilities();
   }, [fetchFacilities]);
 
-  useEffect(() => {
-    filterFacilities();
-  }, [filterFacilities]);
+  const filteredFacilities = useMemo(() => {
+    if (!searchTerm) return facilities;
+    return facilities.filter((f) =>
+      f.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [facilities, searchTerm]);
 
   // Form validation
   const validateForm = (): boolean => {
@@ -162,7 +144,7 @@ export default function FacilityManagement() {
       showError(
         editingFacility
           ? "Gagal memperbarui fasilitas"
-          : "Gagal menambahkan fasilitas"
+          : "Gagal menambahkan fasilitas",
       );
     } finally {
       setSubmitting(false);
@@ -232,14 +214,6 @@ export default function FacilityManagement() {
     const index = name.length % GRADIENT_COLORS.length;
     return GRADIENT_COLORS[index];
   };
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredFacilities.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedFacilities = filteredFacilities.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
 
   // Loading state
   if (loading) {
@@ -347,15 +321,6 @@ export default function FacilityManagement() {
         </CardContent>
       </Card>
 
-      {/* Results Info */}
-      <div className="flex justify-between items-center px-1">
-        <p className="text-xs sm:text-sm text-gray-600">
-          Menampilkan {startIndex + 1}-
-          {Math.min(startIndex + ITEMS_PER_PAGE, filteredFacilities.length)}{" "}
-          dari {filteredFacilities.length} fasilitas
-        </p>
-      </div>
-
       {/* Empty State */}
       {filteredFacilities.length === 0 ? (
         <Card>
@@ -385,7 +350,7 @@ export default function FacilityManagement() {
       ) : viewMode === "grid" ? (
         /* Grid View - Responsif */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {paginatedFacilities.map((facility) => {
+          {facilities.map((facility) => {
             const IconComponent = getFacilityIcon(facility.name);
             const colorClass = getFacilityColor(facility.name);
 
@@ -413,7 +378,7 @@ export default function FacilityManagement() {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
-                              }
+                              },
                             )
                           : "Baru ditambahkan"}
                       </p>
@@ -461,7 +426,7 @@ export default function FacilityManagement() {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-gray-200">
-              {paginatedFacilities.map((facility) => {
+              {filteredFacilities.map((facility) => {
                 const IconComponent = getFacilityIcon(facility.name);
                 const colorClass = getFacilityColor(facility.name);
 
@@ -489,7 +454,7 @@ export default function FacilityManagement() {
                                     day: "numeric",
                                     month: "short",
                                     year: "numeric",
-                                  }
+                                  },
                                 )
                               : "Baru ditambahkan"}
                           </p>
@@ -534,15 +499,6 @@ export default function FacilityManagement() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
       )}
 
       {/* Add/Edit Dialog - Responsif */}

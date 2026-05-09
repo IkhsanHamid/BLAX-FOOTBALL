@@ -19,6 +19,9 @@ import GalleriesManagement from "@/components/organisms/GalleriesManagement";
 import RescheduleManagementComponent from "@/components/organisms/RescheduleManagement";
 import { getFirebaseMessaging, getToken, onMessage } from "@/lib/firebase";
 import { firebaseService } from "@/utils/firebase";
+import EventTab from "@/components/organisms/EventTabComponent";
+import TeamManagementTab from "@/components/organisms/EventTeamManagement";
+import DepositManagementComponent from "@/components/organisms/DepositManagement";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -31,6 +34,7 @@ export default function AdminPage() {
   const [selectedTab, setSelectedTab] = useState("booking-history");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [initialBookSearch, setInitialBookSearch] = useState("");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -136,6 +140,8 @@ export default function AdminPage() {
       if (
         user?.role !== "Admin" &&
         user?.role !== "Owner" &&
+        user?.role !== "Admin-magnifico" &&
+        user?.role !== "Admin-red-alert" &&
         !adminStatus?.isAdmin
       ) {
         showError("Access Denied", "You don't have admin privileges");
@@ -190,18 +196,7 @@ export default function AdminPage() {
   const renderTabContent = () => {
     switch (selectedTab) {
       case "reports":
-        // Only Owner can access Reports
-        if (user?.role === "Owner") {
-          return <ReportsTab />;
-        }
-        // Redirect non-Owner users to booking-history
-        setSelectedTab("booking-history");
-        return (
-          <BookingHistoryTab
-            initialSearch={initialBookSearch}
-            onSearchConsumed={() => setInitialBookSearch("")}
-          />
-        );
+        return <ReportsTab userRole={user?.role} />;
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
       case "lineup":
@@ -220,9 +215,20 @@ export default function AdminPage() {
           />
         );
       case "gallery":
-        return <GalleriesManagement />;
+        return <GalleriesManagement userRole={user?.role} />;
       case "reschedule":
         return <RescheduleManagementComponent />;
+      case "deposit":
+        return <DepositManagementComponent />;
+
+      // ── Event children ──────────────────────────────────────────────────────
+      case "event-kelola":
+        return <EventTab showError={showError} showSuccess={showSuccess} />;
+      // Tambah child lain di sini jika diperlukan:
+      case "event-team":
+        return <TeamManagementTab />;
+      // ────────────────────────────────────────────────────────────────────────
+
       default:
         return <BookingHistoryTab />;
     }
@@ -289,16 +295,22 @@ export default function AdminPage() {
       </header>
 
       {/* Main content area with top padding for fixed header */}
-      <div className="flex flex-1 pt-24 md:pt-16 overflow-hidden">
+      <div className="flex flex-1 pt-16 overflow-hidden">
         <AdminSidebar
           selectedTab={selectedTab}
           onTabChange={setSelectedTab}
           isMobileOpen={isMobileSidebarOpen}
           onMobileToggle={toggleMobileSidebar}
           userRole={user?.role}
+          onCollapsedChange={setIsSidebarCollapsed}
         />
 
-        <main className="flex-1 overflow-y-auto">
+        {/* Spacer untuk offset sidebar fixed di desktop */}
+        <div
+          className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isSidebarCollapsed ? "w-16" : "w-64"}`}
+        />
+
+        <main className="flex-1 overflow-y-auto min-w-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
             <div className="animate-fadeIn">{renderTabContent()}</div>
           </div>
