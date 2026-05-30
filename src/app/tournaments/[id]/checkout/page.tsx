@@ -943,6 +943,8 @@ export default function EventCheckoutPage() {
   const [successPayment, setSuccessPayment] = useState(false);
   const [amount, setAmount] = useState(0);
   const [isMember, setIsMember] = useState(false);
+  const [hasExistingBooking, setHasExistingBooking] = useState(false);
+  const [isCheckingExistingBooking, setIsCheckingExistingBooking] = useState(false);
 
   const activePhase = getActivePhase(event?.phases);
   const pricingMode: PricingMode = event?.pricingMode ?? "single";
@@ -1021,7 +1023,7 @@ export default function EventCheckoutPage() {
     fetchEvent();
   }, [eventId]);
 
-  useEffect(() => {
+useEffect(() => {
     if (user) {
       setName(user.name || "");
       setPicName(user.name || "");
@@ -1036,18 +1038,8 @@ export default function EventCheckoutPage() {
   }, [user]);
 
   useEffect(() => {
-    setSlots([
-      {
-        role: null,
-        name: user?.name || "",
-        jerseySize: "",
-        jerseyName: "",
-        jerseyNumber: "",
-        phone: "",
-        email: "",
-      },
-    ]);
-  }, [selectedTeamId]);
+    checkExistingBooking();
+  }, [user, eventId]);
 
   useEffect(() => {
     const pid = searchParams.get("paymentId");
@@ -1056,6 +1048,24 @@ export default function EventCheckoutPage() {
       setShowPayment(true);
     }
   }, [searchParams]);
+
+  const checkExistingBooking = async () => {
+    if (!user || !eventId) {
+      setHasExistingBooking(false);
+      return;
+    }
+
+    setIsCheckingExistingBooking(true);
+    try {
+      const response = await bookingService.checkExistingEvent(eventId);
+      setHasExistingBooking(response);
+    } catch (error) {
+      console.error("Error checking existing booking:", error);
+      setHasExistingBooking(false);
+    } finally {
+      setIsCheckingExistingBooking(false);
+    }
+  };
 
   const handleTogglePicGk = () => {
     const next = !picIsGk;
@@ -1281,7 +1291,8 @@ export default function EventCheckoutPage() {
 
     const adminFee = isMember ? 0 : 1000;
     let memberDiscount = 0;
-    if (isMember && bookingType === "individual" && bookingQuantity > 0) {
+    const canGetDiscount = isMember && !hasExistingBooking;
+    if (canGetDiscount && bookingType === "individual" && bookingQuantity > 0) {
       memberDiscount = Math.round(
         (gkCount > 0 ? effectiveFeeGk : effectiveFeePlayer) * 0.1,
       );
@@ -3078,6 +3089,7 @@ export default function EventCheckoutPage() {
                     )}
 
                     {isMember &&
+                      !hasExistingBooking &&
                       bookingType !== "team" &&
                       pricing.memberDiscount > 0 && (
                         <div className="flex items-center justify-between">

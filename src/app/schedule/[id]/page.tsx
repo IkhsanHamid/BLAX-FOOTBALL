@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -16,7 +16,6 @@ import {
 import Navbar from "@/components/organisms/Navbar";
 import Button from "@/components/atoms/Button";
 import Badge from "@/components/atoms/Badge";
-import { scheduleService } from "@/utils/schedule";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
 import { Rules, Schedule, ScheduleDetail } from "@/types/schedule";
@@ -25,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import LineupBlur from "@/components/molecules/LineupBlur";
 import MembershipModal from "@/components/molecules/MembershipModal";
 import AuthModal from "@/components/molecules/AuthModal";
+import { scheduleService } from "@/utils/schedule";
 
 // Skeleton Loading Component
 const SkeletonLoading = () => (
@@ -300,7 +300,12 @@ export default function ScheduleDetailPage() {
   const isLineupVisible = useMemo(() => {
     if (!schedule) return false;
     if (user?.isMember) return true;
-    return !isBookingAllowed(schedule.date, schedule.time, user?.email, schedule.isOpen);
+    return !isBookingAllowed(
+      schedule.date,
+      schedule.time,
+      user?.email,
+      schedule.isOpen,
+    );
   }, [schedule, user?.isMember, isBookingAllowed]);
 
   useEffect(() => {
@@ -529,32 +534,17 @@ export default function ScheduleDetailPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-3">
-                      {!schedule.isOpen ? (
-                        <div className="w-full px-4 py-3 bg-amber-100 text-amber-700 rounded-lg text-center font-medium">
-                          Booking Belum Dibuka
-                        </div>
-                      ) : isBookingAllowed(
-                          schedule.date,
-                          schedule.time,
-                          user?.email,
-                          schedule.isOpen,
-                        ) ? (
-                        <Button
-                          className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
-                          variant="primary"
-                          size="lg"
-                          onClick={() => handleBooking(schedule)}
-                          disabled={Number(schedule.openSlots) === 0}
-                        >
-                          {Number(schedule.openSlots) === 0
-                            ? "Penuh"
-                            : "Book Sekarang"}
-                        </Button>
-                      ) : (
-                        <div className="w-full px-4 py-3 bg-gray-100 text-gray-500 rounded-lg text-center font-medium">
-                          Booking Ditutup
-                        </div>
-                      )}
+                      <Button
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 shadow-md hover:shadow-lg"
+                        variant="primary"
+                        size="lg"
+                        onClick={() => handleBooking(schedule)}
+                        disabled={Number(schedule.openSlots) === 0}
+                      >
+                        {Number(schedule.openSlots) === 0
+                          ? "Penuh"
+                          : "Book Sekarang"}
+                      </Button>
                     </div>
                   </div>
 
