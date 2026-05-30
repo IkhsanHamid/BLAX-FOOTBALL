@@ -105,7 +105,14 @@ class BookingService {
 
   async checkExistingBooking(scheduleId: string) {
     const response = await apiClient.get(
-      `/api/v1/booking/check-existing/${scheduleId}`,
+      `/api/v1/booking/check-existing?scheduleId=${scheduleId}`,
+    );
+    return response.data;
+  }
+
+  async checkExistingEvent(eventId: string) {
+    const response = await apiClient.get(
+      `/api/v1/booking/check-existing?eventId=${eventId}`,
     );
     return response.data;
   }
