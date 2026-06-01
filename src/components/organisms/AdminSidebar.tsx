@@ -88,6 +88,7 @@ export default function AdminSidebar({
 }: AdminSidebarProps) {
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
+  const isNewsOnly = userRole === "Admin-news";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
@@ -145,6 +146,7 @@ export default function AdminSidebar({
   };
 
   const filteredNavItems = navItems.filter((item) => {
+    if (isNewsOnly) return item.id === "news";
     if (item.id === "reports")
       return (
         userRole === "Owner" ||

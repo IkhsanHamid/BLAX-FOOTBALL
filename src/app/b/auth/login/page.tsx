@@ -35,7 +35,7 @@ export default function AdminLogin() {
   const { user, setUser } = useAuth();
 
   useEffect(() => {
-    if (user && user.role === "Admin") {
+    if (user && (user.role === "Admin" || user.role === "Admin-news")) {
       router.push("/admin");
     }
   }, [user, router]);

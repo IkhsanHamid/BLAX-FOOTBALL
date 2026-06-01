@@ -42,6 +42,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAdmin || !user) return;
+    if (user.role === "Admin-news") return;
 
     const setupFCM = async () => {
       try {
@@ -142,6 +143,7 @@ export default function AdminPage() {
         user?.role !== "Owner" &&
         user?.role !== "Admin-magnifico" &&
         user?.role !== "Admin-red-alert" &&
+        user?.role !== "Admin-news" &&
         !adminStatus?.isAdmin
       ) {
         showError("Access Denied", "You don't have admin privileges");
@@ -150,6 +152,9 @@ export default function AdminPage() {
       }
 
       setIsAdmin(true);
+      if (user?.role === "Admin-news") {
+        setSelectedTab("news");
+      }
     } catch (error) {
       console.error("Error checking admin access:", error);
       showError("Error", "Failed to verify admin access");
@@ -194,6 +199,10 @@ export default function AdminPage() {
 
   console.log("initialBookSearch", initialBookSearch);
   const renderTabContent = () => {
+    if (user?.role === "Admin-news") {
+      return <NewsTab />;
+    }
+
     switch (selectedTab) {
       case "reports":
         return <ReportsTab userRole={user?.role} />;
