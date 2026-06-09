@@ -104,6 +104,8 @@ interface Event {
   phases?: PhaseInput[];
   pricingMode?: PricingMode;
   pots?: PotInput[];
+  isOnlyTeam: boolean;
+  isOnlyIndividual: boolean;
 }
 
 interface EventForm {
@@ -127,6 +129,8 @@ interface EventForm {
   isOpen: boolean;
   /** Mode harga: 'single' = satu harga global, 'multi' = per pot */
   pricingMode: PricingMode;
+  isOnlyTeam: boolean;
+  isOnlyIndividual: boolean;
   /** Daftar pot (hanya relevan jika pricingMode === 'multi') */
   pots: PotInput[];
 }
@@ -251,6 +255,8 @@ const buildFormData = (form: EventForm): FormData => {
   fd.append("totalTeam", form.totalTeams);
   fd.append("typeMatch", form.typeMatch);
   fd.append("isOpen", String(form.isOpen));
+  fd.append("isOnlyTeam", String(form.isOnlyTeam));
+  fd.append("isOnlyIndividual", String(form.isOnlyIndividual));
   fd.append("pricingMode", form.pricingMode);
 
   if (form.pricingMode === "single") {
@@ -330,6 +336,8 @@ const INITIAL_FORM: EventForm = {
   addOns: [],
   phases: [],
   isOpen: false,
+  isOnlyTeam: true,
+  isOnlyIndividual: true,
   pricingMode: "single",
   pots: [],
 };
@@ -1013,6 +1021,8 @@ function EventFormView({
             isActive: p.isActive ?? true,
           })),
           isOpen: data.isOpen ?? false,
+          isOnlyTeam: data.isOnlyTeam ?? true,
+          isOnlyIndividual: data.isOnlyIndividual ?? true,
           pricingMode,
           pots: serverPots,
         });
@@ -1328,6 +1338,38 @@ function EventFormView({
                 />
                 <span className="text-sm text-gray-600">
                   {form.isOpen ? "Event dibuka" : "Event belum dibuka"}
+                </span>
+              </label>
+            </FormField>
+
+            <FormField label="Booking Hanya Individu">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <ToggleSwitch
+                  checked={form.isOnlyIndividual}
+                  onChange={(v) =>
+                    setForm((prev) => ({ ...prev, isOnlyIndividual: v }))
+                  }
+                />
+                <span className="text-sm text-gray-600">
+                  {form.isOnlyIndividual
+                    ? "Booking individu diizinkan"
+                    : "Booking individu tidak diizinkan"}
+                </span>
+              </label>
+            </FormField>
+
+            <FormField label="Booking Hanya Team">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <ToggleSwitch
+                  checked={form.isOnlyTeam}
+                  onChange={(v) =>
+                    setForm((prev) => ({ ...prev, isOnlyTeam: v }))
+                  }
+                />
+                <span className="text-sm text-gray-600">
+                  {form.isOnlyTeam
+                    ? "Booking team diizinkan"
+                    : "Booking team tidak diizinkan"}
                 </span>
               </label>
             </FormField>

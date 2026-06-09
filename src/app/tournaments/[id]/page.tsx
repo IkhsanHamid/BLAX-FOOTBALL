@@ -113,6 +113,8 @@ interface EventDetail {
   addOn?: AddOn[];
   phases?: Phase[];
   canRegistTeam?: boolean;
+  isOnlyTeam?: boolean;
+  isOnlyIndividual?: boolean;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -547,6 +549,31 @@ export default function EventDetailPage() {
 
   const now = new Date();
   const isExpired = event ? new Date(event.endDate) < now : false;
+  const canRegistTeam = event?.canRegistTeam;
+  const isOnlyTeam = event?.isOnlyTeam;
+  const isOnlyIndividual = event?.isOnlyIndividual;
+  const teams = event?.teams ?? [];
+  console.log(
+    "canRegistTeam",
+    canRegistTeam,
+    "isOnlyTeam",
+    isOnlyTeam,
+    "isOnlyIndividual",
+    isOnlyIndividual,
+  );
+
+  const isOnlyTeamMode = isOnlyTeam && !isOnlyIndividual;
+  const isOnlyIndividuMode = isOnlyIndividual && !isOnlyTeam;
+
+  const isTeamFullBlocked = isOnlyTeamMode && !canRegistTeam;
+  const isIndividuFullBlocked =
+    isOnlyIndividuMode &&
+    teams.length > 0 &&
+    teams.every(
+      (team) => team.availableGkSlots === 0 && team.availablePlayerSlots === 0,
+    );
+
+  const isFullBlocked = isTeamFullBlocked || isIndividuFullBlocked;
   const typeLabel =
     TYPE_MATCH_LABEL[event?.typeMatch ?? ""] ?? event?.typeMatch;
   const typeColor =
@@ -965,15 +992,17 @@ export default function EventDetailPage() {
               <Button
                 variant="primary"
                 onClick={handleBooking}
-                disabled={!event.isOpen || isExpired}
+                disabled={!event.isOpen || isExpired || isFullBlocked}
                 className="flex-shrink-0 shadow-md hover:shadow-lg px-6"
               >
-                {isExpired
-                  ? "Event Selesai"
-                  : !event.isOpen
-                    ? "Belum Dibuka"
-                    : "Booking Sekarang"}
-                {event.isOpen && !isExpired && (
+                {isFullBlocked
+                  ? "FULL"
+                  : isExpired
+                    ? "Event Selesai"
+                    : !event.isOpen
+                      ? "Belum Dibuka"
+                      : "Booking Sekarang"}
+                {!isFullBlocked && event.isOpen && !isExpired && (
                   <ChevronRight className="w-4 h-4 ml-1" />
                 )}
               </Button>

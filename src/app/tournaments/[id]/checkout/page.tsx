@@ -153,6 +153,8 @@ interface EventDetail {
   addOn?: AddOn[];
   phases?: Phase[];
   canRegistTeam?: boolean;
+  isOnlyTeam?: boolean;
+  isOnlyIndividual?: boolean;
 }
 
 interface RosterPlayer {
@@ -944,13 +946,16 @@ export default function EventCheckoutPage() {
   const [amount, setAmount] = useState(0);
   const [isMember, setIsMember] = useState(false);
   const [hasExistingBooking, setHasExistingBooking] = useState(false);
-  const [isCheckingExistingBooking, setIsCheckingExistingBooking] = useState(false);
+  const [isCheckingExistingBooking, setIsCheckingExistingBooking] =
+    useState(false);
 
   const activePhase = getActivePhase(event?.phases);
   const pricingMode: PricingMode = event?.pricingMode ?? "single";
   const pots = event?.pots ?? [];
   const isMulti = pricingMode === "multi" && pots.length > 0;
   const canRegistTeam = event?.canRegistTeam ?? false;
+  const isOnlyTeam = event?.isOnlyTeam ?? true;
+  const isOnlyIndividual = event?.isOnlyIndividual ?? true;
   const typeMatch = event?.typeMatch;
   const ROSTER_SIZE =
     typeMatch === "MINI-SOCCER" ? 6 : typeMatch === "MINI-FOOTBALL" ? 7 : 10;
@@ -1007,6 +1012,8 @@ export default function EventCheckoutPage() {
         const res = await adminService.getEventDetail(eventId);
         setEvent(res);
         if (res.typeMatch === "PADEL") setBookingType("individual");
+        else if (res.isOnlyTeam && !res.isOnlyIndividual)
+          setBookingType("team");
         const rosterSize =
           res.typeMatch === "MINI-SOCCER"
             ? 6
@@ -1023,7 +1030,7 @@ export default function EventCheckoutPage() {
     fetchEvent();
   }, [eventId]);
 
-useEffect(() => {
+  useEffect(() => {
     if (user) {
       setName(user.name || "");
       setPicName(user.name || "");
@@ -1705,36 +1712,40 @@ useEffect(() => {
                     transition={{ duration: 0.5, delay: 0.1 }}
                     className="p-2 bg-white border border-blue-200 rounded-3xl flex gap-2 shadow-lg"
                   >
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setBookingType("individual");
-                        setSelectedTeamId(null);
-                      }}
-                      className={`flex-1 px-6 py-4 rounded-2xl transition-all ${bookingType === "individual" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
-                    >
-                      Individual
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: !canRegistTeam ? 1 : 1.02 }}
-                      whileTap={{ scale: !canRegistTeam ? 1 : 0.98 }}
-                      onClick={() => {
-                        if (canRegistTeam) {
-                          setBookingType("team");
+                    {isOnlyIndividual && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setBookingType("individual");
                           setSelectedTeamId(null);
-                        }
-                      }}
-                      disabled={!canRegistTeam}
-                      className={`flex-1 px-6 py-4 rounded-2xl transition-all relative ${!canRegistTeam ? "bg-gray-200 text-gray-400 cursor-not-allowed" : bookingType === "team" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
-                    >
-                      Team
-                      {!canRegistTeam && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                          FULL
-                        </span>
-                      )}
-                    </motion.button>
+                        }}
+                        className={`flex-1 px-6 py-4 rounded-2xl transition-all ${bookingType === "individual" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
+                      >
+                        Individual
+                      </motion.button>
+                    )}
+                    {isOnlyTeam && (
+                      <motion.button
+                        whileHover={{ scale: !canRegistTeam ? 1 : 1.02 }}
+                        whileTap={{ scale: !canRegistTeam ? 1 : 0.98 }}
+                        onClick={() => {
+                          if (canRegistTeam) {
+                            setBookingType("team");
+                            setSelectedTeamId(null);
+                          }
+                        }}
+                        disabled={!canRegistTeam}
+                        className={`flex-1 px-6 py-4 rounded-2xl transition-all relative ${!canRegistTeam ? "bg-gray-200 text-gray-400 cursor-not-allowed" : bookingType === "team" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
+                      >
+                        Team
+                        {!canRegistTeam && (
+                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                            FULL
+                          </span>
+                        )}
+                      </motion.button>
+                    )}
                   </motion.div>
                 )}
 
