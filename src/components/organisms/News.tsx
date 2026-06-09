@@ -34,8 +34,13 @@ export default function NewsSection() {
     }
   };
 
-  // Display only first 3 news items
-  const displayedNews = news.slice(0, 3);
+  // Display 3 most recent news by publishAt
+  const displayedNews = [...news]
+    .sort(
+      (a, b) =>
+        new Date(b.publishAt).getTime() - new Date(a.publishAt).getTime()
+    )
+    .slice(0, 3);
 
   return (
     <section className="py-16 bg-gradient-to-br from-green-50 to-emerald-50 border-b border-green-100">
