@@ -5,6 +5,7 @@ import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
 import ScheduleFeaturedGrid from "@/components/organisms/ScheduleFeaturedGrid";
 import NewsSection from "@/components/organisms/News";
+import MerchandiseSection from "@/components/organisms/MerchandiseSection";
 import PaymentChecker from "@/components/molecules/PaymentChecker";
 import PopupBanner from "@/components/molecules/PopupBanner";
 import banner from "@/assets/FWC.jpeg";
@@ -29,6 +30,7 @@ export default function HomePage() {
         }}
       />
       <Hero />
+      <MerchandiseSection />
       <EventFeaturedGrid />
       <ScheduleFeaturedGrid />
 
@@ -50,6 +52,8 @@ export default function HomePage() {
           <PaymentChecker />
         </div>
       </section>
+
+      <MerchandiseSection />
 
       <NewsSection />
       {/* <Testimonials /> */}
