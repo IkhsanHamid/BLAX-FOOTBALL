@@ -1157,8 +1157,8 @@ function EventFormView({
     if (!form.description.trim()) errs.description = "Deskripsi wajib diisi";
     if (!form.dateStart) errs.dateStart = "Tanggal mulai wajib diisi";
     if (!form.dateEnd) errs.dateEnd = "Tanggal selesai wajib diisi";
-    if (form.dateStart && form.dateEnd && form.dateEnd <= form.dateStart)
-      errs.dateEnd = "Tanggal selesai harus setelah tanggal mulai";
+    if (form.dateStart && form.dateEnd && form.dateEnd < form.dateStart)
+      errs.dateEnd = "Tanggal selesai tidak boleh sebelum tanggal mulai";
     if (!form.venueId) errs.venueId = "Venue wajib dipilih";
     if (!form.typeMatch) errs.typeMatch = "Tipe pertandingan wajib dipilih";
     if (form.teams.length === 0) errs.totalTeams = "Minimal 1 tim";
