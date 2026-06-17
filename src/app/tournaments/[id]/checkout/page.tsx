@@ -155,6 +155,7 @@ interface EventDetail {
   canRegistTeam?: boolean;
   isOnlyTeam?: boolean;
   isOnlyIndividual?: boolean;
+  isJersey?: boolean;
 }
 
 interface RosterPlayer {
@@ -1384,8 +1385,8 @@ export default function EventCheckoutPage() {
         validateName(name) &&
         validateEmail(email) &&
         validatePhone(whatsapp) &&
-        jerseyName.trim().length > 0 &&
-        jerseyNumber.trim().length > 0 &&
+        (!!event?.isJersey || jerseyName.trim().length > 0) &&
+        (!!event?.isJersey || jerseyNumber.trim().length > 0) &&
         slots.length > 0 &&
         slots.every((s) => s.role !== null) &&
         slots.every((s) => s.jerseySize !== "") &&
@@ -1395,8 +1396,8 @@ export default function EventCheckoutPage() {
             : validateName(s.name) &&
               validatePhone(s.phone) &&
               validateEmail(s.email ?? "") &&
-              s.jerseyName.trim().length > 0 &&
-              s.jerseyNumber.trim().length > 0,
+              (!!event?.isJersey || s.jerseyName.trim().length > 0) &&
+              (!!event?.isJersey || s.jerseyNumber.trim().length > 0),
         )
       );
     }
@@ -1406,8 +1407,8 @@ export default function EventCheckoutPage() {
       validateEmail(picEmail) &&
       validatePhone(whatsapp) &&
       picJerseySize !== "" &&
-      picJerseyName.trim().length > 0 &&
-      picJerseyNumber.trim().length > 0;
+      (!!event?.isJersey || picJerseyName.trim().length > 0) &&
+      (!!event?.isJersey || picJerseyNumber.trim().length > 0);
 
     if (!includeRoster) return isPicValid;
 
@@ -1423,8 +1424,8 @@ export default function EventCheckoutPage() {
           validatePhone(p.phone) &&
           validateEmail(p.email) &&
           p.jerseySize !== "" &&
-          p.jerseyName.trim().length > 0 &&
-          p.jerseyNumber.trim().length > 0,
+          (!!event?.isJersey || p.jerseyName.trim().length > 0) &&
+          (!!event?.isJersey || p.jerseyNumber.trim().length > 0),
       )
     );
   };
@@ -1438,9 +1439,9 @@ export default function EventCheckoutPage() {
       if (!validateName(name)) return showError("Nama wajib diisi");
       if (!validateEmail(email)) return showError("Email tidak valid");
       if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
-      if (!jerseyName.trim())
+      if (!event?.isJersey && !jerseyName.trim())
         return showError("Nama jersey Slot 1 wajib diisi");
-      if (!jerseyNumber.trim())
+      if (!event?.isJersey && !jerseyNumber.trim())
         return showError("Nomor jersey Slot 1 wajib diisi");
       for (let i = 0; i < slots.length; i++) {
         const s = slots[i];
@@ -1453,9 +1454,9 @@ export default function EventCheckoutPage() {
           return showError(`No HP teman ${i} tidak valid`);
         if (i > 0 && !validateEmail(s.email ?? ""))
           return showError(`Email teman ${i} wajib diisi dan valid`);
-        if (i > 0 && !s.jerseyName.trim())
+        if (i > 0 && !event?.isJersey && !s.jerseyName.trim())
           return showError(`Nama jersey teman ${i} wajib diisi`);
-        if (i > 0 && !s.jerseyNumber.trim())
+        if (i > 0 && !event?.isJersey && !s.jerseyNumber.trim())
           return showError(`Nomor jersey teman ${i} wajib diisi`);
       }
     } else {
@@ -1464,9 +1465,9 @@ export default function EventCheckoutPage() {
       if (!validatePhone(whatsapp))
         return showError("WhatsApp PIC tidak valid");
       if (!picJerseySize) return showError("Ukuran jersey PIC wajib dipilih");
-      if (!picJerseyName.trim())
+      if (!event?.isJersey && !picJerseyName.trim())
         return showError("Nama jersey PIC wajib diisi");
-      if (!picJerseyNumber.trim())
+      if (!event?.isJersey && !picJerseyNumber.trim())
         return showError("Nomor jersey PIC wajib diisi");
       if (includeRoster) {
         if (Object.keys(emailErrors).length > 0)
@@ -1483,9 +1484,9 @@ export default function EventCheckoutPage() {
             return showError(`Email Player ${i + 1} wajib diisi dan valid`);
           if (!p.jerseySize)
             return showError(`Jersey size Player ${i + 1} wajib dipilih`);
-          if (!p.jerseyName.trim())
+          if (!event?.isJersey && !p.jerseyName.trim())
             return showError(`Nama jersey Player ${i + 1} wajib diisi`);
-          if (!p.jerseyNumber.trim())
+          if (!event?.isJersey && !p.jerseyNumber.trim())
             return showError(`Nomor jersey Player ${i + 1} wajib diisi`);
         }
       }
@@ -1601,7 +1602,7 @@ export default function EventCheckoutPage() {
         return "Pilih role untuk semua slot";
       if (slots.some((s) => !s.jerseySize))
         return "Pilih ukuran jersey untuk semua slot";
-      if (!jerseyName.trim() || !jerseyNumber.trim())
+      if (!event?.isJersey && (!jerseyName.trim() || !jerseyNumber.trim()))
         return "Isi nama dan nomor jersey Anda";
       if (slots.some((s, i) => i > 0 && !validateName(s.name)))
         return "Isi nama teman dengan benar";
@@ -1610,18 +1611,19 @@ export default function EventCheckoutPage() {
       if (slots.some((s, i) => i > 0 && !validateEmail(s.email ?? "")))
         return "Isi email teman dengan benar";
       if (
+        !event?.isJersey &&
         slots.some(
           (s, i) => i > 0 && (!s.jerseyName.trim() || !s.jerseyNumber.trim()),
         )
       )
         return "Isi nama dan nomor jersey teman";
     } else {
-      if (!picJerseyName.trim() || !picJerseyNumber.trim())
+      if (!event?.isJersey && (!picJerseyName.trim() || !picJerseyNumber.trim()))
         return "Isi nama dan nomor jersey PIC";
       if (includeRoster) {
         if (players.some((p) => !validateEmail(p.email)))
           return "Isi email semua player dengan benar";
-        if (players.some((p) => !p.jerseyName.trim() || !p.jerseyNumber.trim()))
+        if (!event?.isJersey && players.some((p) => !p.jerseyName.trim() || !p.jerseyNumber.trim()))
           return "Isi nama dan nomor jersey semua player";
       }
     }
@@ -2133,73 +2135,75 @@ export default function EventCheckoutPage() {
                                   <JerseySurchargeNote size={slot.jerseySize} />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">
-                                      Nama Jersey{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input
-                                        type="text"
-                                        value={
-                                          index === 0
-                                            ? jerseyName
-                                            : slot.jerseyName
-                                        }
-                                        onChange={(e) => {
-                                          if (index === 0) {
-                                            setJerseyName(
-                                              noSpace(e.target.value),
-                                            );
-                                          } else {
-                                            const u = [...slots];
-                                            u[index].jerseyName = noSpace(
-                                              e.target.value,
-                                            );
-                                            setSlots(u);
+                                {!event?.isJersey && (
+                                  <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <div>
+                                      <label className="block text-xs text-gray-500 mb-1">
+                                        Nama Jersey{" "}
+                                        <span className="text-red-500">*</span>
+                                      </label>
+                                      <div className="relative">
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          value={
+                                            index === 0
+                                              ? jerseyName
+                                              : slot.jerseyName
                                           }
-                                        }}
-                                        placeholder="e.g. RONALDO"
-                                        className="w-full pl-9 pr-3 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 text-sm uppercase"
-                                      />
+                                          onChange={(e) => {
+                                            if (index === 0) {
+                                              setJerseyName(
+                                                noSpace(e.target.value),
+                                              );
+                                            } else {
+                                              const u = [...slots];
+                                              u[index].jerseyName = noSpace(
+                                                e.target.value,
+                                              );
+                                              setSlots(u);
+                                            }
+                                          }}
+                                          placeholder="e.g. RONALDO"
+                                          className="w-full pl-9 pr-3 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 text-sm uppercase"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs text-gray-500 mb-1">
+                                        Nomor Jersey{" "}
+                                        <span className="text-red-500">*</span>
+                                      </label>
+                                      <div className="relative">
+                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          value={
+                                            index === 0
+                                              ? jerseyNumber
+                                              : slot.jerseyNumber
+                                          }
+                                          onChange={(e) => {
+                                            if (index === 0) {
+                                              setJerseyNumber(
+                                                onlyNumbers(e.target.value),
+                                              );
+                                            } else {
+                                              const u = [...slots];
+                                              u[index].jerseyNumber = onlyNumbers(
+                                                e.target.value,
+                                              );
+                                              setSlots(u);
+                                            }
+                                          }}
+                                          placeholder="e.g. 7"
+                                          maxLength={3}
+                                          className="w-full pl-9 pr-3 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 text-sm"
+                                        />
+                                      </div>
                                     </div>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">
-                                      Nomor Jersey{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input
-                                        type="text"
-                                        value={
-                                          index === 0
-                                            ? jerseyNumber
-                                            : slot.jerseyNumber
-                                        }
-                                        onChange={(e) => {
-                                          if (index === 0) {
-                                            setJerseyNumber(
-                                              onlyNumbers(e.target.value),
-                                            );
-                                          } else {
-                                            const u = [...slots];
-                                            u[index].jerseyNumber = onlyNumbers(
-                                              e.target.value,
-                                            );
-                                            setSlots(u);
-                                          }
-                                        }}
-                                        placeholder="e.g. 7"
-                                        maxLength={3}
-                                        className="w-full pl-9 pr-3 py-2 bg-white border border-blue-200 rounded-xl focus:outline-none focus:border-blue-400 text-gray-900 text-sm"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
+                                )}
 
                                 <div>
                                   <label className="block text-xs text-gray-500 mb-2">
@@ -2524,6 +2528,7 @@ export default function EventCheckoutPage() {
                       <JerseySurchargeNote size={picJerseySize} />
                     </div>
 
+                    {!event?.isJersey && (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-600 mb-2">
@@ -2563,6 +2568,7 @@ export default function EventCheckoutPage() {
                         </div>
                       </div>
                     </div>
+                    )}
 
                     {/* PIC sebagai GK toggle */}
                     <div
@@ -2831,6 +2837,8 @@ export default function EventCheckoutPage() {
                                       />
                                     </div>
 
+                                    {!event?.isJersey && (
+                                      <>
                                     <input
                                       type="text"
                                       value={player.jerseyName}
@@ -2867,6 +2875,8 @@ export default function EventCheckoutPage() {
                                           : "border-blue-200 focus:border-blue-400"
                                       }`}
                                     />
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </motion.div>

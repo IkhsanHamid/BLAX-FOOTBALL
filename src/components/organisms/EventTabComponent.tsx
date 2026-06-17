@@ -131,6 +131,7 @@ interface EventForm {
   pricingMode: PricingMode;
   isOnlyTeam: boolean;
   isOnlyIndividual: boolean;
+  isJersey: boolean;
   /** Daftar pot (hanya relevan jika pricingMode === 'multi') */
   pots: PotInput[];
 }
@@ -257,6 +258,7 @@ const buildFormData = (form: EventForm): FormData => {
   fd.append("isOpen", String(form.isOpen));
   fd.append("isOnlyTeam", String(form.isOnlyTeam));
   fd.append("isOnlyIndividual", String(form.isOnlyIndividual));
+  fd.append("isJersey", String(form.isJersey));
   fd.append("pricingMode", form.pricingMode);
 
   if (form.pricingMode === "single") {
@@ -338,6 +340,7 @@ const INITIAL_FORM: EventForm = {
   isOpen: false,
   isOnlyTeam: true,
   isOnlyIndividual: true,
+  isJersey: false,
   pricingMode: "single",
   pots: [],
 };
@@ -1023,6 +1026,7 @@ function EventFormView({
           isOpen: data.isOpen ?? false,
           isOnlyTeam: data.isOnlyTeam ?? true,
           isOnlyIndividual: data.isOnlyIndividual ?? true,
+          isJersey: data.isJersey ?? false,
           pricingMode,
           pots: serverPots,
         });
@@ -1370,6 +1374,22 @@ function EventFormView({
                   {form.isOnlyTeam
                     ? "Booking team diizinkan"
                     : "Booking team tidak diizinkan"}
+                </span>
+              </label>
+            </FormField>
+
+            <FormField label="Tampilkan Kolom Jersey">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <ToggleSwitch
+                  checked={form.isJersey}
+                  onChange={(v) =>
+                    setForm((prev) => ({ ...prev, isJersey: v }))
+                  }
+                />
+                <span className="text-sm text-gray-600">
+                  {form.isJersey
+                    ? "Kolom jersey ditampilkan"
+                    : "Kolom jersey disembunyikan"}
                 </span>
               </label>
             </FormField>

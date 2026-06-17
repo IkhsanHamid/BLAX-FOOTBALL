@@ -115,6 +115,7 @@ interface EventDetail {
   canRegistTeam?: boolean;
   isOnlyTeam?: boolean;
   isOnlyIndividual?: boolean;
+  isJersey?: boolean;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
