@@ -62,6 +62,8 @@ interface EventSummary {
   feePlayer: number;
   feeGk: number;
   teams?: TeamSummary[];
+  category?: "INTERNAL" | "EXTERNAL";
+  maxSquadSize?: number | null;
 }
 
 interface TeamSummary {
@@ -90,6 +92,7 @@ interface Player {
   jerseyNumber?: string;
   isGk: boolean;
   isPlayer: boolean;
+  isSubstitute?: boolean;
   bookingId?: string;
   paymentStatus?: string;
 }
@@ -127,6 +130,18 @@ const MATCH_SLOTS: Record<
   "MINI-SOCCER": { gk: 1, player: 5, total: 6 },
   "MINI-FOOTBALL": { gk: 1, player: 6, total: 7 },
   PADEL: { gk: 0, player: 4, total: 4 },
+};
+
+const getEffectiveSlotConfig = (
+  typeMatch?: TypeMatch,
+  category?: "INTERNAL" | "EXTERNAL",
+  maxSquadSize?: number | null,
+): { gk: number; player: number; total: number } => {
+  if (category === "EXTERNAL" && maxSquadSize != null && maxSquadSize > 0) {
+    const total = maxSquadSize;
+    return { gk: 1, player: total - 1, total };
+  }
+  return MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
 };
 
 const TYPE_MATCH_LABEL: Record<TypeMatch, string> = {
@@ -236,10 +251,16 @@ const exportAllTeamsExcel = (
   eventName: string,
   pots?: Pot[],
   typeMatch?: TypeMatch,
+  category?: "INTERNAL" | "EXTERNAL",
+  maxSquadSize?: number | null,
 ) => {
   import("xlsx").then((XLSX) => {
     const wb = XLSX.utils.book_new();
-    const slotConfig = MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
+    const slotConfig = getEffectiveSlotConfig(
+      typeMatch,
+      category,
+      maxSquadSize,
+    );
     const summaryRows: any[][] = [
       [`RINGKASAN EVENT: ${eventName.toUpperCase()}`],
       [],
@@ -350,7 +371,7 @@ const exportAllTeamsExcel = (
             (p.paymentStatus || "-");
           rows.push([
             i + 1,
-            p.isGk ? "GK" : "Player",
+            p.isSubstitute ? "Cadangan" : p.isGk ? "GK" : "Player",
             p.name || "-",
             p.jerseyName || "-",
             p.jerseyNumber || "-",
@@ -489,11 +510,6 @@ function PlayerSlot({
   isGk: boolean;
   isEmpty: boolean;
 }) {
-  const payStyle = player?.paymentStatus
-    ? (PAYMENT_STATUS_STYLE[player.paymentStatus] ??
-      PAYMENT_STATUS_STYLE.PENDING)
-    : null;
-
   return (
     <div
       className={`relative rounded-xl border-2 p-3 transition-all ${
@@ -515,13 +531,6 @@ function PlayerSlot({
         >
           {isGk ? "GK" : `P${slotIndex}`}
         </span>
-        {!isEmpty && payStyle && (
-          <span
-            className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${payStyle.bg} ${payStyle.text}`}
-          >
-            {payStyle.label}
-          </span>
-        )}
       </div>
 
       {isEmpty ? (
@@ -817,6 +826,8 @@ function TeamDetailCard({
   typeMatch,
   pots,
   pricingMode,
+  category,
+  maxSquadSize,
   showError,
   onLockSuccess,
 }: {
@@ -824,6 +835,8 @@ function TeamDetailCard({
   typeMatch?: TypeMatch;
   pots?: Pot[];
   pricingMode?: "single" | "multi";
+  category?: "INTERNAL" | "EXTERNAL";
+  maxSquadSize?: number | null;
   showError?: (title: string, message: string) => void;
   onLockSuccess?: (teamId: string) => void;
 }) {
@@ -832,7 +845,7 @@ function TeamDetailCard({
   const [isLocking, setIsLocking] = useState(false);
   const [lockSuccess, setLockSuccess] = useState(false);
 
-  const slotConfig = MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
+  const slotConfig = getEffectiveSlotConfig(typeMatch, category, maxSquadSize);
   const isMulti = pricingMode === "multi" && pots && pots.length > 0;
 
   const assignedPot =
@@ -844,15 +857,19 @@ function TeamDetailCard({
     potIndex >= 0 ? POT_COLORS[potIndex % POT_COLORS.length] : null;
 
   const players = team.players ?? [];
-  const gkPlayers = players.filter((p) => p.isGk);
-  const fieldPlayers = players.filter((p) => !p.isGk);
+  const mainPlayers = players.filter((p) => !p.isSubstitute);
+  const gkPlayers = mainPlayers.filter((p) => p.isGk);
+  const fieldPlayers = mainPlayers.filter((p) => !p.isGk);
 
-  const filledGk =
-    team.availableGkSlots !== undefined
+  const useActualCounts = category === "EXTERNAL";
+  const filledGk = useActualCounts
+    ? gkPlayers.length
+    : team.availableGkSlots !== undefined
       ? slotConfig.gk - team.availableGkSlots
       : gkPlayers.length;
-  const filledPlayer =
-    team.availablePlayerSlots !== undefined
+  const filledPlayer = useActualCounts
+    ? fieldPlayers.length
+    : team.availablePlayerSlots !== undefined
       ? slotConfig.player - team.availablePlayerSlots
       : fieldPlayers.length;
   const totalFilled = filledGk + filledPlayer;
@@ -1143,17 +1160,10 @@ function TeamDetailCard({
                       <th className="text-left px-3 py-2.5 font-semibold text-slate-500">
                         Kontak
                       </th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-slate-500">
-                        Status
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {players.map((p, i) => {
-                      const payStyle = p.paymentStatus
-                        ? (PAYMENT_STATUS_STYLE[p.paymentStatus] ??
-                          PAYMENT_STATUS_STYLE.PENDING)
-                        : null;
                       return (
                         <tr
                           key={p.id ?? i}
@@ -1168,7 +1178,11 @@ function TeamDetailCard({
                             </span>
                           </td>
                           <td className="px-3 py-2.5">
-                            {p.isGk ? (
+                            {p.isSubstitute ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">
+                                <User className="w-2.5 h-2.5" /> Cadangan
+                              </span>
+                            ) : p.isGk ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">
                                 <Shield className="w-2.5 h-2.5" /> GK
                               </span>
@@ -1207,17 +1221,6 @@ function TeamDetailCard({
                                 <Mail className="w-2.5 h-2.5" />
                                 {p.email}
                               </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {payStyle ? (
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${payStyle.bg} ${payStyle.text}`}
-                              >
-                                {payStyle.label}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
                             )}
                           </td>
                         </tr>
@@ -1502,7 +1505,11 @@ function EventDetailView({
 
   const isMulti =
     event.pricingMode === "multi" && (event.pots?.length ?? 0) > 0;
-  const slotConfig = MATCH_SLOTS[event.typeMatch ?? "FOOTBALL"];
+  const slotConfig = getEffectiveSlotConfig(
+    event.typeMatch,
+    event.category,
+    event.maxSquadSize,
+  );
   const typeConf = TYPE_MATCH_STYLE[event.typeMatch ?? "FOOTBALL"];
   const typeLabel = event.typeMatch ? TYPE_MATCH_LABEL[event.typeMatch] : "-";
 
@@ -1528,6 +1535,7 @@ function EventDetailView({
           jerseyNumber: b.jerseyNumber ?? "",
           isGk: b.isGk ?? false,
           isPlayer: b.isPlayer ?? !b.isGk,
+          isSubstitute: b.isSubstitute ?? false,
           bookingId: b.bookingId ?? b.id,
           paymentStatus: b.paymentStatus ?? b.status ?? "",
         })),
@@ -1746,7 +1754,14 @@ function EventDetailView({
         )}
         <button
           onClick={() =>
-            exportAllTeamsExcel(teams, event.name, event.pots, event.typeMatch)
+            exportAllTeamsExcel(
+              teams,
+              event.name,
+              event.pots,
+              event.typeMatch,
+              event.category,
+              event.maxSquadSize,
+            )
           }
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-700 transition-colors"
         >
@@ -1773,6 +1788,8 @@ function EventDetailView({
               typeMatch={event.typeMatch}
               pots={event.pots}
               pricingMode={event.pricingMode}
+              category={event.category}
+              maxSquadSize={event.maxSquadSize}
               showError={showError}
               onLockSuccess={handleLockSuccess}
             />

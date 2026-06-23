@@ -39,10 +39,12 @@ interface Event {
   endDate: string;
   feePlayer: number;
   feeGk: number;
+  feeTeam?: number | null;
   venue: string;
   isOpen: boolean;
   typeMatch?: TypeMatch;
   totalTeams?: number;
+  category?: string;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -126,7 +128,10 @@ const EventCard = ({
 }) => {
   const startInfo = formatDateShort(event.startDate);
   const endInfo = formatDateShort(event.endDate);
-  const minFee = Math.min(event.feePlayer ?? 0, event.feeGk ?? 0);
+  const isExternal = event.category === "EXTERNAL";
+  const minFee = isExternal
+    ? (event.feeTeam ?? 0)
+    : Math.min(event.feePlayer ?? 0, event.feeGk ?? 0);
   const typeLabel = TYPE_MATCH_LABEL[event.typeMatch ?? ""] ?? event.typeMatch;
   const typeColor =
     TYPE_MATCH_COLOR[event.typeMatch ?? ""] ??
@@ -263,7 +268,9 @@ const EventCard = ({
                 <span className="text-xl font-bold text-blue-600">
                   {formatCurrency(minFee)}
                 </span>
-                <span className="text-xs text-slate-400">/orang</span>
+                <span className="text-xs text-slate-400">
+                  {isExternal ? "/team" : "/orang"}
+                </span>
               </div>
             </div>
 

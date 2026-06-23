@@ -29,6 +29,21 @@ interface TeamMember {
   position: string;
 }
 
+const translatePosition = (position: string): string => {
+  const map: Record<string, string> = {
+    GOALKEEPER: "Kiper",
+    GOalkeeper: "Kiper",
+    Goalkeeper: "Kiper",
+    PLAYER: "Pemain",
+    Player: "Pemain",
+    SUBSTITUTE: "Cadangan",
+    Substitute: "Cadangan",
+    RESERVE: "Cadangan",
+    Reserve: "Cadangan",
+  };
+  return map[position] ?? position;
+};
+
 interface PaymentPreviewData {
   bookingId: string;
   amount: number;
@@ -569,7 +584,7 @@ export default function PaymentPreviewModal({
                                 </div>
                                 <div className="flex flex-col items-end">
                                   <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
-                                    {member.position}
+                                    {translatePosition(member.position)}
                                   </Badge>
                                   {member.jerseySize && (
                                     <div className="flex items-center text-xs text-gray-600 mt-1">
