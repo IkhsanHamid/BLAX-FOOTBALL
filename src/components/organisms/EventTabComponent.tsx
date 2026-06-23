@@ -39,6 +39,7 @@ import { masterDataService } from "@/utils/masterData";
 type TypeMatch = "FOOTBALL" | "MINI-SOCCER" | "MINI-FOOTBALL" | "PADEL";
 type SubView = "list" | "add" | "edit";
 type PricingMode = "single" | "multi";
+type Category = "INTERNAL" | "EXTERNAL";
 
 /**
  * Pot harga — setiap pot punya fee sendiri.
@@ -106,6 +107,9 @@ interface Event {
   pots?: PotInput[];
   isOnlyTeam: boolean;
   isOnlyIndividual: boolean;
+  category?: Category;
+  feeTeam?: number | null;
+  maxSquadSize?: number | null;
 }
 
 interface EventForm {
@@ -132,6 +136,9 @@ interface EventForm {
   isOnlyTeam: boolean;
   isOnlyIndividual: boolean;
   isJersey: boolean;
+  category: Category;
+  feeTeam: string;
+  maxSquadSize: string;
   /** Daftar pot (hanya relevan jika pricingMode === 'multi') */
   pots: PotInput[];
 }
@@ -156,6 +163,7 @@ interface PhaseInput {
   order: string;
   feePlayer: string;
   feeGk: string;
+  feeTeam: string;
   startDate: string;
   endDate: string;
   quotaPlayer: string;
@@ -256,7 +264,15 @@ const buildFormData = (form: EventForm): FormData => {
   fd.append("totalTeam", form.totalTeams);
   fd.append("typeMatch", form.typeMatch);
   fd.append("isOpen", String(form.isOpen));
-  fd.append("isOnlyTeam", String(form.isOnlyTeam));
+  fd.append("category", form.category);
+  fd.append("maxSquadSize", form.maxSquadSize || "0");
+
+  if (form.category === "EXTERNAL") {
+    fd.append("feeTeam", form.feeTeam || "0");
+    fd.append("isOnlyTeam", "true");
+  } else {
+    fd.append("isOnlyTeam", String(form.isOnlyTeam));
+  }
   fd.append("isOnlyIndividual", String(form.isOnlyIndividual));
   fd.append("isJersey", String(form.isJersey));
   fd.append("pricingMode", form.pricingMode);
@@ -298,6 +314,7 @@ const buildFormData = (form: EventForm): FormData => {
     fd.append(`phases[${i}][order]`, p.order);
     fd.append(`phases[${i}][feePlayer]`, p.feePlayer);
     fd.append(`phases[${i}][feeGk]`, p.feeGk);
+    fd.append(`phases[${i}][feeTeam]`, p.feeTeam || "0");
     fd.append(`phases[${i}][startDate]`, p.startDate);
     fd.append(`phases[${i}][endDate]`, p.endDate);
     if (p.quotaPlayer) fd.append(`phases[${i}][quotaPlayer]`, p.quotaPlayer);
@@ -341,6 +358,9 @@ const INITIAL_FORM: EventForm = {
   isOnlyTeam: true,
   isOnlyIndividual: true,
   isJersey: false,
+  category: "INTERNAL",
+  feeTeam: "",
+  maxSquadSize: "",
   pricingMode: "single",
   pots: [],
 };
@@ -1017,6 +1037,7 @@ function EventFormView({
             order: String(p.order ?? 1),
             feePlayer: String(p.feePlayer ?? 0),
             feeGk: String(p.feeGk ?? 0),
+            feeTeam: String(p.feeTeam ?? 0),
             startDate: p.startDate ? p.startDate.split("T")[0] : "",
             endDate: p.endDate ? p.endDate.split("T")[0] : "",
             quotaPlayer: String(p.quotaPlayer ?? 0),
@@ -1027,7 +1048,10 @@ function EventFormView({
           isOnlyTeam: data.isOnlyTeam ?? true,
           isOnlyIndividual: data.isOnlyIndividual ?? true,
           isJersey: data.isJersey ?? false,
-          pricingMode,
+          category: data.category ?? "INTERNAL",
+          feeTeam: String(data.feeTeam ?? 0),
+          maxSquadSize: String(data.maxSquadSize ?? 0),
+          pricingMode: data.category === "EXTERNAL" ? "single" : pricingMode,
           pots: serverPots,
         });
       } catch (err: any) {
@@ -1170,9 +1194,16 @@ function EventFormView({
       errs.facilityIds = "Pilih minimal 1 fasilitas";
     if (form.ruleIds.length === 0) errs.ruleIds = "Pilih minimal 1 peraturan";
 
+    if (form.category === "EXTERNAL") {
+      if (!form.maxSquadSize || parseInt(form.maxSquadSize) < 1)
+        errs.maxSquadSize = "Maksimal anggota tim wajib diisi (min 1)";
+    }
+
     // Pricing validation
     if (form.pricingMode === "single") {
-      // fee global tidak wajib ada — bisa 0, tapi validasi jika perlu
+      if (form.category === "EXTERNAL") {
+        if (!form.feeTeam) errs.feeTeam = "Fee team wajib diisi";
+      }
     } else {
       // Multi pot
       if (form.pots.length < 1) {
@@ -1322,6 +1353,61 @@ function EventFormView({
               />
             </FormField>
 
+            <FormField label="Kategori" required error={errors.category}>
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    {
+                      value: "INTERNAL" as Category,
+                      title: "Internal",
+                      desc: "Event internal untuk player individu",
+                    },
+                    {
+                      value: "EXTERNAL" as Category,
+                      title: "External",
+                      desc: "Event untuk tim/perusahaan eksternal",
+                    },
+                  ] as const
+                ).map(({ value, title, desc }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setField("category", value);
+                      if (value === "EXTERNAL") {
+                        setForm((prev) => ({
+                          ...prev,
+                          isOnlyTeam: true,
+                          isOnlyIndividual: false,
+                          isJersey: false,
+                          pricingMode: "single",
+                        }));
+                      }
+                    }}
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                      form.category === value
+                        ? "border-sky-500 bg-sky-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p
+                        className={`text-sm font-semibold ${form.category === value ? "text-sky-700" : "text-gray-700"}`}
+                      >
+                        {title}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    </div>
+                    {form.category === value && (
+                      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-sky-500 flex items-center justify-center">
+                        <span className="text-white text-[10px] font-bold">✓</span>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </FormField>
+
             <FormField label="Deskripsi" required error={errors.description}>
               <textarea
                 value={form.description}
@@ -1346,53 +1432,78 @@ function EventFormView({
               </label>
             </FormField>
 
-            <FormField label="Booking Hanya Individu">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <ToggleSwitch
-                  checked={form.isOnlyIndividual}
-                  onChange={(v) =>
-                    setForm((prev) => ({ ...prev, isOnlyIndividual: v }))
+            {form.category === "EXTERNAL" && (
+              <FormField
+                label="Maksimal Anggota per Team"
+                hint="Jumlah maksimal pemain dalam satu tim"
+                error={errors.maxSquadSize}
+              >
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.maxSquadSize}
+                  onChange={(e) =>
+                    setField("maxSquadSize", e.target.value)
                   }
+                  placeholder="Contoh: 15"
+                  className={errors.maxSquadSize ? "border-red-400" : ""}
                 />
-                <span className="text-sm text-gray-600">
-                  {form.isOnlyIndividual
-                    ? "Booking individu diizinkan"
-                    : "Booking individu tidak diizinkan"}
-                </span>
-              </label>
-            </FormField>
+              </FormField>
+            )}
 
-            <FormField label="Booking Hanya Team">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <ToggleSwitch
-                  checked={form.isOnlyTeam}
-                  onChange={(v) =>
-                    setForm((prev) => ({ ...prev, isOnlyTeam: v }))
-                  }
-                />
-                <span className="text-sm text-gray-600">
-                  {form.isOnlyTeam
-                    ? "Booking team diizinkan"
-                    : "Booking team tidak diizinkan"}
-                </span>
-              </label>
-            </FormField>
+            {form.category === "INTERNAL" && (
+              <FormField label="Booking Hanya Individu">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <ToggleSwitch
+                    checked={form.isOnlyIndividual}
+                    onChange={(v) =>
+                      setForm((prev) => ({ ...prev, isOnlyIndividual: v }))
+                    }
+                  />
+                  <span className="text-sm text-gray-600">
+                    {form.isOnlyIndividual
+                      ? "Booking individu diizinkan"
+                      : "Booking individu tidak diizinkan"}
+                  </span>
+                </label>
+              </FormField>
+            )}
 
-            <FormField label="Tampilkan Kolom Jersey">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <ToggleSwitch
-                  checked={form.isJersey}
-                  onChange={(v) =>
-                    setForm((prev) => ({ ...prev, isJersey: v }))
-                  }
-                />
-                <span className="text-sm text-gray-600">
-                  {form.isJersey
-                    ? "Kolom jersey ditampilkan"
-                    : "Kolom jersey disembunyikan"}
-                </span>
-              </label>
-            </FormField>
+            {form.category === "INTERNAL" && (
+              <FormField label="Booking Hanya Team">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <ToggleSwitch
+                    checked={form.isOnlyTeam}
+                    onChange={(v) =>
+                      setForm((prev) => ({ ...prev, isOnlyTeam: v }))
+                    }
+                  />
+                  <span className="text-sm text-gray-600">
+                    {form.isOnlyTeam
+                      ? "Booking team diizinkan"
+                      : "Booking team tidak diizinkan"}
+                  </span>
+                </label>
+              </FormField>
+            )}
+
+            {form.category === "INTERNAL" && (
+              <FormField label="Tampilkan Kolom Jersey">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <ToggleSwitch
+                    checked={form.isJersey}
+                    onChange={(v) =>
+                      setForm((prev) => ({ ...prev, isJersey: v }))
+                    }
+                  />
+                  <span className="text-sm text-gray-600">
+                    {form.isJersey
+                      ? "Kolom jersey ditampilkan"
+                      : "Kolom jersey disembunyikan"}
+                  </span>
+                </label>
+              </FormField>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1402,20 +1513,22 @@ function EventFormView({
         <CardContent className="p-6 mt-4">
           <SectionHeader title="Pengaturan Harga" />
 
-          {/* Mode selector */}
-          <div className="mb-5">
-            <p className="text-xs text-gray-500 mb-3">
-              Pilih apakah semua tim bayar harga yang sama, atau tiap kelompok
-              tim (pot) punya harga berbeda.
-            </p>
-            <PricingModeSelector
-              value={form.pricingMode}
-              onChange={(v) => setField("pricingMode", v)}
-            />
-          </div>
+          {/* Mode selector — only show for INTERNAL */}
+          {form.category === "INTERNAL" && (
+            <div className="mb-5">
+              <p className="text-xs text-gray-500 mb-3">
+                Pilih apakah semua tim bayar harga yang sama, atau tiap kelompok
+                tim (pot) punya harga berbeda.
+              </p>
+              <PricingModeSelector
+                value={form.pricingMode}
+                onChange={(v) => setField("pricingMode", v)}
+              />
+            </div>
+          )}
 
           {/* Single price */}
-          {form.pricingMode === "single" && (
+          {form.pricingMode === "single" && form.category === "INTERNAL" && (
             <div className="grid sm:grid-cols-2 gap-4 mt-4">
               <FormField
                 label="Fee Pemain (Rp)"
@@ -1441,6 +1554,27 @@ function EventFormView({
                   }
                   placeholder="0"
                   className={errors.feeGk ? "border-red-400" : ""}
+                />
+              </FormField>
+            </div>
+          )}
+
+          {/* Single price — EXTERNAL */}
+          {form.pricingMode === "single" && form.category === "EXTERNAL" && (
+            <div className="mt-4">
+              <FormField
+                label="Fee Team (Rp)"
+                required
+                error={errors.feeTeam}
+              >
+                <Input
+                  type="text"
+                  value={formatCurrencyDisplay(form.feeTeam ?? "")}
+                  onChange={(e) =>
+                    setField("feeTeam", e.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder="0"
+                  className={errors.feeTeam ? "border-red-400" : ""}
                 />
               </FormField>
             </div>
@@ -1484,6 +1618,7 @@ function EventFormView({
                         order: String(prev.phases.length + 1),
                         feePlayer: "",
                         feeGk: "",
+                        feeTeam: "",
                         startDate: "",
                         endDate: "",
                         quotaPlayer: "",
@@ -1547,7 +1682,7 @@ function EventFormView({
                     }}
                   />
                 </FormField>
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-3 gap-4">
                   <FormField label="Fee Player" required>
                     <Input
                       type="number"
@@ -1573,6 +1708,21 @@ function EventFormView({
                         setForm((prev) => {
                           const phases = [...prev.phases];
                           phases[i] = { ...phases[i], feeGk: val };
+                          return { ...prev, phases };
+                        });
+                      }}
+                    />
+                  </FormField>
+                  <FormField label="Fee Team" required>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={p.feeTeam}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/-/g, "");
+                        setForm((prev) => {
+                          const phases = [...prev.phases];
+                          phases[i] = { ...phases[i], feeTeam: val };
                           return { ...prev, phases };
                         });
                       }}
@@ -2128,7 +2278,7 @@ function EventListView({
                         </div>
                       </TableCell>
 
-                      {/* Harga — single atau multi pot */}
+                      {/* Harga — multi pot / internal single / external */}
                       <TableCell>
                         {isMulti && event.pots && event.pots.length > 0 ? (
                           <div className="space-y-1">
@@ -2146,6 +2296,15 @@ function EventListView({
                                 </span>
                               </div>
                             ))}
+                          </div>
+                        ) : event.category === "EXTERNAL" ? (
+                          <div className="space-y-0.5">
+                            <p className="text-sm text-gray-700">
+                              {event.feeTeam != null
+                                ? `Rp ${Number(event.feeTeam).toLocaleString("id-ID")}`
+                                : "-"}
+                            </p>
+                            <p className="text-xs text-gray-400">Fee Team</p>
                           </div>
                         ) : (
                           <div className="space-y-0.5">

@@ -35,6 +35,7 @@ interface Phase {
   order: number;
   feePlayer: number;
   feeGk: number;
+  feeTeam: number;
   startDate: string;
   endDate: string;
   isActive: boolean;
@@ -49,6 +50,7 @@ interface EventItem {
   endDate: string;
   feePlayer: number;
   feeGk: number;
+  feeTeam?: number | null;
   isOpen: boolean;
   typeMatch?: string;
   pricingMode?: PricingMode;
@@ -56,6 +58,7 @@ interface EventItem {
   phases?: Phase[];
   venue: { id: string; name: string } | string;
   totalTeam?: number;
+  category?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -109,13 +112,21 @@ const getActivePhase = (phases?: Phase[]): Phase | null => {
 
 const getLowestFee = (
   event: EventItem,
-): { player: number; gk: number; base: { player: number; gk: number } } => {
+): {
+  player: number;
+  gk: number;
+  base: { player: number; gk: number };
+  team: number | null;
+  baseTeam: number | null;
+} => {
+  const isExternal = event.category === "EXTERNAL";
   const isMulti =
     event.pricingMode === "multi" && (event.pots?.length ?? 0) > 0;
   const activePhase = getActivePhase(event.phases);
 
   let basePlayer = event.feePlayer;
   let baseGk = event.feeGk;
+  let baseTeam = event.feeTeam ?? null;
 
   if (isMulti && event.pots) {
     const cheapest = event.pots.reduce((min, p) =>
@@ -129,11 +140,16 @@ const getLowestFee = (
     ? Math.max(0, basePlayer - activePhase.feePlayer)
     : basePlayer;
   const feeGk = activePhase ? Math.max(0, baseGk - activePhase.feeGk) : baseGk;
+  const team = isExternal && activePhase
+    ? Math.max(0, (baseTeam ?? 0) - activePhase.feeTeam)
+    : baseTeam;
 
   return {
     player: feePlayer,
     gk: feeGk,
     base: { player: basePlayer, gk: baseGk },
+    team,
+    baseTeam,
   };
 };
 
@@ -175,9 +191,12 @@ function EventCardLarge({ event, index }: { event: EventItem; index: number }) {
   const router = useRouter();
   const isMulti =
     event.pricingMode === "multi" && (event.pots?.length ?? 0) > 0;
+  const isExternal = event.category === "EXTERNAL";
   const activePhase = getActivePhase(event.phases);
   const fees = getLowestFee(event);
-  const hasDiscount = activePhase && fees.player !== fees.base.player;
+  const hasDiscount = activePhase && (
+    isExternal ? fees.team !== fees.baseTeam : fees.player !== fees.base.player
+  );
   const typeConf = TYPE_MATCH_CONFIG[event.typeMatch ?? ""] ?? null;
   const isExpired = new Date(event.endDate) < new Date();
 
@@ -279,24 +298,47 @@ function EventCardLarge({ event, index }: { event: EventItem; index: number }) {
         {/* Fee strip */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-white/60 text-xs font-medium">
-              {isMulti ? "Mulai dari" : "Fee"}
-            </span>
-            {hasDiscount ? (
+            {isExternal && fees.team != null ? (
               <>
-                <span className="text-white/40 text-sm line-through">
-                  {formatCurrency(fees.base.player)}
-                </span>
-                <span className="text-2xl font-black text-white">
-                  {formatCurrency(fees.player)}
-                </span>
+                <span className="text-white/60 text-xs font-medium">Mulai dari</span>
+                {hasDiscount ? (
+                  <>
+                    <span className="text-white/40 text-sm line-through">
+                      {formatCurrency(fees.baseTeam ?? 0)}
+                    </span>
+                    <span className="text-2xl font-black text-white">
+                      {formatCurrency(fees.team)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-2xl font-black text-white">
+                    {formatCurrency(fees.team)}
+                  </span>
+                )}
+                <span className="text-white/60 text-xs">/team</span>
               </>
             ) : (
-              <span className="text-2xl font-black text-white">
-                {formatCurrency(fees.player)}
-              </span>
+              <>
+                <span className="text-white/60 text-xs font-medium">
+                  {isMulti ? "Mulai dari" : "Fee"}
+                </span>
+                {hasDiscount ? (
+                  <>
+                    <span className="text-white/40 text-sm line-through">
+                      {formatCurrency(fees.base.player)}
+                    </span>
+                    <span className="text-2xl font-black text-white">
+                      {formatCurrency(fees.player)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-2xl font-black text-white">
+                    {formatCurrency(fees.player)}
+                  </span>
+                )}
+                <span className="text-white/60 text-xs">/orang</span>
+              </>
             )}
-            <span className="text-white/60 text-xs">/orang</span>
           </div>
 
           <motion.div
@@ -318,9 +360,12 @@ function EventCardSmall({ event, index }: { event: EventItem; index: number }) {
   const router = useRouter();
   const isMulti =
     event.pricingMode === "multi" && (event.pots?.length ?? 0) > 0;
+  const isExternal = event.category === "EXTERNAL";
   const activePhase = getActivePhase(event.phases);
   const fees = getLowestFee(event);
-  const hasDiscount = activePhase && fees.player !== fees.base.player;
+  const hasDiscount = activePhase && (
+    isExternal ? fees.team !== fees.baseTeam : fees.player !== fees.base.player
+  );
   const typeConf = TYPE_MATCH_CONFIG[event.typeMatch ?? ""] ?? null;
   const isExpired = new Date(event.endDate) < new Date();
 
@@ -405,15 +450,31 @@ function EventCardSmall({ event, index }: { event: EventItem; index: number }) {
         {/* Fee */}
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
-            {hasDiscount && (
-              <span className="text-[10px] text-slate-400 line-through">
-                {formatCurrency(fees.base.player)}
-              </span>
+            {isExternal && fees.team != null ? (
+              <>
+                {hasDiscount && (
+                  <span className="text-[10px] text-slate-400 line-through">
+                    {formatCurrency(fees.baseTeam ?? 0)}
+                  </span>
+                )}
+                <span className="text-sm font-black text-blue-600">
+                  {formatCurrency(fees.team)}
+                </span>
+                <span className="text-[10px] text-slate-400">/team</span>
+              </>
+            ) : (
+              <>
+                {hasDiscount && (
+                  <span className="text-[10px] text-slate-400 line-through">
+                    {formatCurrency(fees.base.player)}
+                  </span>
+                )}
+                <span className="text-sm font-black text-blue-600">
+                  {formatCurrency(fees.player)}
+                </span>
+                <span className="text-[10px] text-slate-400">/org</span>
+              </>
             )}
-            <span className="text-sm font-black text-blue-600">
-              {formatCurrency(fees.player)}
-            </span>
-            <span className="text-[10px] text-slate-400">/org</span>
           </div>
           <motion.span
             whileHover={{ x: 2 }}

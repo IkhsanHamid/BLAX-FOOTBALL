@@ -128,6 +128,7 @@ interface Phase {
   order: number;
   feePlayer: number;
   feeGk: number;
+  feeTeam: number;
   startDate: string;
   endDate: string;
   quotaPlayer?: number;
@@ -144,6 +145,7 @@ interface EventDetail {
   endDate: string;
   feePlayer: number;
   feeGk: number;
+  feeTeam: number;
   venue: { id: string; name: string } | string;
   isOpen: boolean;
   typeMatch?: string;
@@ -156,6 +158,8 @@ interface EventDetail {
   isOnlyTeam?: boolean;
   isOnlyIndividual?: boolean;
   isJersey?: boolean;
+  maxSquadSize?: number | null;
+  category?: "INTERNAL" | "EXTERNAL";
 }
 
 interface RosterPlayer {
@@ -207,15 +211,19 @@ const resolveTeamFee = (
   eventFeePlayer: number,
   eventFeeGk: number,
   activePhase: Phase | null,
+  eventFeeTeam?: number,
 ): {
   feePlayer: number;
   feeGk: number;
   baseFeePlayer: number;
   baseFeeGk: number;
   pot: Pot | null;
+  feeTeam: number;
+  baseFeeTeam: number;
 } => {
   let baseFeePlayer = eventFeePlayer;
   let baseFeeGk = eventFeeGk;
+  let baseFeeTeam = eventFeeTeam ?? 0;
   let pot: Pot | null = null;
 
   if (pricingMode === "multi" && team?.potId) {
@@ -233,8 +241,11 @@ const resolveTeamFee = (
   const feeGk = activePhase
     ? Math.max(0, baseFeeGk - activePhase.feeGk)
     : baseFeeGk;
+  const feeTeam = activePhase
+    ? Math.max(0, baseFeeTeam - (activePhase.feeTeam ?? 0))
+    : baseFeeTeam;
 
-  return { feePlayer, feeGk, baseFeePlayer, baseFeeGk, pot };
+  return { feePlayer, feeGk, baseFeePlayer, baseFeeGk, pot, feeTeam, baseFeeTeam };
 };
 
 const calcPartialDiscount = (
@@ -666,6 +677,7 @@ function TeamSelector({
   onSelect,
   required = false,
   bookingType = "individual",
+  isExternal = false,
 }: {
   teams: Team[];
   pots: Pot[];
@@ -674,6 +686,7 @@ function TeamSelector({
   onSelect: (id: string | null) => void;
   required?: boolean;
   bookingType?: "individual" | "team";
+  isExternal?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const selected = teams.find((t) => t.id === selectedTeamId);
@@ -831,7 +844,7 @@ function TeamSelector({
                         </p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {pot && <PotBadge pot={pot} index={potIdx} />}
-                          {team.slot && (
+                          {team.slot && !isExternal && (
                             <p className="text-[11px] text-gray-400">
                               {bookingType === "team"
                                 ? `Booked: ${team.slot.bookedSlots} · GK: ${team.slot.gkSlots} · Player: ${team.slot.playerSlots}`
@@ -958,8 +971,18 @@ export default function EventCheckoutPage() {
   const isOnlyTeam = event?.isOnlyTeam ?? true;
   const isOnlyIndividual = event?.isOnlyIndividual ?? true;
   const typeMatch = event?.typeMatch;
-  const ROSTER_SIZE =
+  const BASE_ROSTER_SIZE =
     typeMatch === "MINI-SOCCER" ? 6 : typeMatch === "MINI-FOOTBALL" ? 7 : 10;
+  const maxSquadSize = event?.maxSquadSize ?? null;
+  const isExternal = event?.category === "EXTERNAL";
+  const ROSTER_SIZE =
+    isExternal && maxSquadSize !== null
+      ? maxSquadSize - 1
+      : BASE_ROSTER_SIZE;
+  const reserveCount =
+    isExternal && maxSquadSize !== null
+      ? Math.max(0, ROSTER_SIZE - BASE_ROSTER_SIZE)
+      : 0;
   const teams = event?.teams ?? [];
   const addOns = event?.addOn ?? [];
 
@@ -973,6 +996,8 @@ export default function EventCheckoutPage() {
     baseFeePlayer,
     baseFeeGk,
     pot: selectedPot,
+    feeTeam: effectiveFeeTeam,
+    baseFeeTeam,
   } = resolveTeamFee(
     selectedTeam,
     pots,
@@ -980,14 +1005,16 @@ export default function EventCheckoutPage() {
     event?.feePlayer ?? 0,
     event?.feeGk ?? 0,
     activePhase,
+    event?.feeTeam ?? 0,
   );
 
   const selectedPotIndex = selectedPot
     ? pots.findIndex((p) => p.id === selectedPot.id)
     : -1;
-  const hasPhaseDiscount =
-    !!activePhase &&
-    (baseFeePlayer !== effectiveFeePlayer || baseFeeGk !== effectiveFeeGk);
+  const hasPhaseDiscount = isExternal
+    ? !!activePhase && baseFeeTeam !== effectiveFeeTeam
+    : !!activePhase &&
+      (baseFeePlayer !== effectiveFeePlayer || baseFeeGk !== effectiveFeeGk);
   const countGk = () => slots.filter((s) => s.role === "goalkeeper").length;
   const countPlayer = () => slots.filter((s) => s.role === "player").length;
   const gkCount = countGk();
@@ -1015,13 +1042,18 @@ export default function EventCheckoutPage() {
         if (res.typeMatch === "PADEL") setBookingType("individual");
         else if (res.isOnlyTeam && !res.isOnlyIndividual)
           setBookingType("team");
-        const rosterSize =
+        const isExternalRes = res.category === "EXTERNAL";
+        const baseRoster =
           res.typeMatch === "MINI-SOCCER"
             ? 6
             : res.typeMatch === "MINI-FOOTBALL"
               ? 7
               : 10;
-        setPlayers(Array.from({ length: rosterSize }, makeEmptyPlayer));
+        const maxSq = res.maxSquadSize ?? null;
+        const rosterForInit = isExternalRes && maxSq !== null ? maxSq - 1 : baseRoster;
+        setPlayers(
+          Array.from({ length: rosterForInit }, makeEmptyPlayer),
+        );
       } catch (err: any) {
         showError(err.message ?? "Gagal memuat detail event");
       } finally {
@@ -1056,6 +1088,12 @@ export default function EventCheckoutPage() {
       setShowPayment(true);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (isExternal && bookingType === "team") {
+      setIncludeRoster(true);
+    }
+  }, [isExternal, bookingType]);
 
   const checkExistingBooking = async () => {
     if (!user || !eventId) {
@@ -1280,7 +1318,10 @@ export default function EventCheckoutPage() {
     let basePrice = 0;
     let phaseDiscount = 0;
 
-    if (bookingType === "individual") {
+    if (isExternal && bookingType === "team") {
+      basePrice = baseFeeTeam;
+      phaseDiscount = baseFeeTeam - effectiveFeeTeam;
+    } else if (bookingType === "individual") {
       const partial = calcPartialDiscount(activePhase, gkCount, playerCount);
       basePrice = gkCount * baseFeeGk + playerCount * baseFeePlayer;
       phaseDiscount =
@@ -1300,14 +1341,18 @@ export default function EventCheckoutPage() {
     const adminFee = isMember ? 0 : 1000;
     let memberDiscount = 0;
     const canGetDiscount = isMember && !hasExistingBooking;
-    if (canGetDiscount && bookingType === "individual" && bookingQuantity > 0) {
-      memberDiscount = Math.round(
-        (gkCount > 0 ? effectiveFeeGk : effectiveFeePlayer) * 0.1,
-      );
+    if (canGetDiscount && bookingQuantity > 0) {
+      if (isExternal && bookingType === "team") {
+        memberDiscount = Math.round(effectiveFeeTeam * 0.1);
+      } else if (bookingType === "individual") {
+        memberDiscount = Math.round(
+          (gkCount > 0 ? effectiveFeeGk : effectiveFeePlayer) * 0.1,
+        );
+      }
     }
 
     const teamDiscount =
-      bookingType === "team"
+      bookingType === "team" && !isExternal
         ? Math.round((basePrice - phaseDiscount) * 0.05)
         : 0;
 
@@ -1385,19 +1430,19 @@ export default function EventCheckoutPage() {
         validateName(name) &&
         validateEmail(email) &&
         validatePhone(whatsapp) &&
-        (!!event?.isJersey || jerseyName.trim().length > 0) &&
-        (!!event?.isJersey || jerseyNumber.trim().length > 0) &&
+        (!event?.isJersey || jerseyName.trim().length > 0) &&
+        (!event?.isJersey || jerseyNumber.trim().length > 0) &&
         slots.length > 0 &&
         slots.every((s) => s.role !== null) &&
-        slots.every((s) => s.jerseySize !== "") &&
+        slots.every((s) => !event?.isJersey || s.jerseySize !== "") &&
         slots.every((s, i) =>
           i === 0
             ? true
             : validateName(s.name) &&
               validatePhone(s.phone) &&
               validateEmail(s.email ?? "") &&
-              (!!event?.isJersey || s.jerseyName.trim().length > 0) &&
-              (!!event?.isJersey || s.jerseyNumber.trim().length > 0),
+              (!event?.isJersey || s.jerseyName.trim().length > 0) &&
+              (!event?.isJersey || s.jerseyNumber.trim().length > 0),
         )
       );
     }
@@ -1406,9 +1451,9 @@ export default function EventCheckoutPage() {
       validateName(picName) &&
       validateEmail(picEmail) &&
       validatePhone(whatsapp) &&
-      picJerseySize !== "" &&
-      (!!event?.isJersey || picJerseyName.trim().length > 0) &&
-      (!!event?.isJersey || picJerseyNumber.trim().length > 0);
+      (!event?.isJersey || picJerseySize !== "") &&
+      (!event?.isJersey || picJerseyName.trim().length > 0) &&
+      (!event?.isJersey || picJerseyNumber.trim().length > 0);
 
     if (!includeRoster) return isPicValid;
 
@@ -1419,13 +1464,20 @@ export default function EventCheckoutPage() {
       Object.keys(phoneFormatErrors).length === 0 &&
       Object.keys(emailFormatErrors).length === 0 &&
       players.every(
-        (p) =>
-          validateName(p.name) &&
-          validatePhone(p.phone) &&
-          validateEmail(p.email) &&
-          p.jerseySize !== "" &&
-          (!!event?.isJersey || p.jerseyName.trim().length > 0) &&
-          (!!event?.isJersey || p.jerseyNumber.trim().length > 0),
+        (p, i) => {
+          const isReserve = i >= ROSTER_SIZE - reserveCount;
+          if (isReserve) return true;
+          return (
+            validateName(p.name) &&
+            validatePhone(p.phone) &&
+            validateEmail(p.email) &&
+            (i >= ROSTER_SIZE - reserveCount ||
+              !event?.isJersey ||
+              (p.jerseySize !== "" &&
+                p.jerseyName.trim().length > 0 &&
+                p.jerseyNumber.trim().length > 0))
+          );
+        },
       )
     );
   };
@@ -1439,14 +1491,14 @@ export default function EventCheckoutPage() {
       if (!validateName(name)) return showError("Nama wajib diisi");
       if (!validateEmail(email)) return showError("Email tidak valid");
       if (!validatePhone(whatsapp)) return showError("WhatsApp tidak valid");
-      if (!event?.isJersey && !jerseyName.trim())
+      if (event?.isJersey && !jerseyName.trim())
         return showError("Nama jersey Slot 1 wajib diisi");
-      if (!event?.isJersey && !jerseyNumber.trim())
+      if (event?.isJersey && !jerseyNumber.trim())
         return showError("Nomor jersey Slot 1 wajib diisi");
       for (let i = 0; i < slots.length; i++) {
         const s = slots[i];
         if (!s.role) return showError(`Pilih role untuk Slot ${i + 1}`);
-        if (!s.jerseySize)
+        if (event?.isJersey && !s.jerseySize)
           return showError(`Ukuran jersey Slot ${i + 1} wajib dipilih`);
         if (i > 0 && !validateName(s.name))
           return showError(`Nama teman ${i} wajib diisi`);
@@ -1454,9 +1506,9 @@ export default function EventCheckoutPage() {
           return showError(`No HP teman ${i} tidak valid`);
         if (i > 0 && !validateEmail(s.email ?? ""))
           return showError(`Email teman ${i} wajib diisi dan valid`);
-        if (i > 0 && !event?.isJersey && !s.jerseyName.trim())
+        if (i > 0 && event?.isJersey && !s.jerseyName.trim())
           return showError(`Nama jersey teman ${i} wajib diisi`);
-        if (i > 0 && !event?.isJersey && !s.jerseyNumber.trim())
+        if (i > 0 && event?.isJersey && !s.jerseyNumber.trim())
           return showError(`Nomor jersey teman ${i} wajib diisi`);
       }
     } else {
@@ -1464,10 +1516,11 @@ export default function EventCheckoutPage() {
       if (!validateEmail(picEmail)) return showError("PIC email tidak valid");
       if (!validatePhone(whatsapp))
         return showError("WhatsApp PIC tidak valid");
-      if (!picJerseySize) return showError("Ukuran jersey PIC wajib dipilih");
-      if (!event?.isJersey && !picJerseyName.trim())
+      if (event?.isJersey && !picJerseySize)
+        return showError("Ukuran jersey PIC wajib dipilih");
+      if (event?.isJersey && !picJerseyName.trim())
         return showError("Nama jersey PIC wajib diisi");
-      if (!event?.isJersey && !picJerseyNumber.trim())
+      if (event?.isJersey && !picJerseyNumber.trim())
         return showError("Nomor jersey PIC wajib diisi");
       if (includeRoster) {
         if (Object.keys(emailErrors).length > 0)
@@ -1476,17 +1529,19 @@ export default function EventCheckoutPage() {
           return showError("Terdapat nomor phone yang sama di team roster");
         for (let i = 0; i < players.length; i++) {
           const p = players[i];
+          const isReserve = i >= ROSTER_SIZE - reserveCount;
+          if (isReserve) continue;
           if (!validateName(p.name))
             return showError(`Nama Player ${i + 1} wajib diisi`);
           if (!validatePhone(p.phone))
             return showError(`Phone Player ${i + 1} tidak valid`);
           if (!validateEmail(p.email))
             return showError(`Email Player ${i + 1} wajib diisi dan valid`);
-          if (!p.jerseySize)
+          if (event?.isJersey && i < ROSTER_SIZE - reserveCount && !p.jerseySize)
             return showError(`Jersey size Player ${i + 1} wajib dipilih`);
-          if (!event?.isJersey && !p.jerseyName.trim())
+          if (event?.isJersey && i < ROSTER_SIZE - reserveCount && !p.jerseyName.trim())
             return showError(`Nama jersey Player ${i + 1} wajib diisi`);
-          if (!event?.isJersey && !p.jerseyNumber.trim())
+          if (event?.isJersey && i < ROSTER_SIZE - reserveCount && !p.jerseyNumber.trim())
             return showError(`Nomor jersey Player ${i + 1} wajib diisi`);
         }
       }
@@ -1511,7 +1566,12 @@ export default function EventCheckoutPage() {
         bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,
       gkQuantity: bookingType === "individual" ? countGk() : 0,
       playerQuantity: bookingType === "individual" ? countPlayer() : 0,
-      quantity: bookingType === "individual" ? bookingQuantity : 1,
+      quantity:
+        bookingType === "individual"
+          ? bookingQuantity
+          : isExternal
+            ? maxSquadSize ?? ROSTER_SIZE
+            : 1,
       slotDetails:
         bookingType === "individual"
           ? slots.map((s, i) => ({
@@ -1527,7 +1587,11 @@ export default function EventCheckoutPage() {
     };
 
     if (payload.isTeam) {
-      payload.teamRoster = players.map((p) => ({
+      const mainRosterEnd = isExternal
+        ? ROSTER_SIZE - reserveCount
+        : players.length;
+
+      payload.teamRoster = players.slice(0, mainRosterEnd).map((p) => ({
         name: p.name,
         phone: p.phone,
         email: p.email,
@@ -1537,6 +1601,16 @@ export default function EventCheckoutPage() {
         isGk: p.isGk,
         isPlayer: !p.isGk,
       }));
+
+      if (isExternal) {
+        payload.substitutePlayers = players
+          .slice(mainRosterEnd)
+          .filter((p) => p.name.trim() || p.phone.trim())
+          .map((p) => ({
+            name: p.name,
+            phone: p.phone,
+          }));
+      }
     }
 
     try {
@@ -1602,7 +1676,7 @@ export default function EventCheckoutPage() {
         return "Pilih role untuk semua slot";
       if (slots.some((s) => !s.jerseySize))
         return "Pilih ukuran jersey untuk semua slot";
-      if (!event?.isJersey && (!jerseyName.trim() || !jerseyNumber.trim()))
+      if (event?.isJersey && (!jerseyName.trim() || !jerseyNumber.trim()))
         return "Isi nama dan nomor jersey Anda";
       if (slots.some((s, i) => i > 0 && !validateName(s.name)))
         return "Isi nama teman dengan benar";
@@ -1611,19 +1685,28 @@ export default function EventCheckoutPage() {
       if (slots.some((s, i) => i > 0 && !validateEmail(s.email ?? "")))
         return "Isi email teman dengan benar";
       if (
-        !event?.isJersey &&
+        event?.isJersey &&
         slots.some(
           (s, i) => i > 0 && (!s.jerseyName.trim() || !s.jerseyNumber.trim()),
         )
       )
         return "Isi nama dan nomor jersey teman";
     } else {
-      if (!event?.isJersey && (!picJerseyName.trim() || !picJerseyNumber.trim()))
+      if (event?.isJersey && (!picJerseyName.trim() || !picJerseyNumber.trim()))
         return "Isi nama dan nomor jersey PIC";
       if (includeRoster) {
-        if (players.some((p) => !validateEmail(p.email)))
+        if (
+          players.slice(0, ROSTER_SIZE - reserveCount).some(
+            (p) => !validateEmail(p.email),
+          )
+        )
           return "Isi email semua player dengan benar";
-        if (!event?.isJersey && players.some((p) => !p.jerseyName.trim() || !p.jerseyNumber.trim()))
+        if (
+          event?.isJersey &&
+          players.slice(0, ROSTER_SIZE - reserveCount).some(
+            (p) => !p.jerseyName.trim() || !p.jerseyNumber.trim(),
+          )
+        )
           return "Isi nama dan nomor jersey semua player";
       }
     }
@@ -1676,7 +1759,7 @@ export default function EventCheckoutPage() {
               className="max-w-xl mx-auto mb-8 space-y-3"
             >
               <PhaseBadge phase={activePhase} />
-              {selectedTeamId && (
+              {!isExternal && selectedTeamId && (
                 <PhaseQuotaInfo
                   phase={activePhase}
                   discountedGk={partialDiscount.discountedGk}
@@ -1767,6 +1850,7 @@ export default function EventCheckoutPage() {
                       onSelect={setSelectedTeamId}
                       required
                       bookingType={bookingType}
+                      isExternal={isExternal}
                     />
 
                     {selectedTeam && (
@@ -1833,44 +1917,68 @@ export default function EventCheckoutPage() {
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-white/70 rounded-xl px-3 py-2 text-center">
-                              <div className="text-[10px] text-slate-400 mb-0.5">
-                                Fee Pemain
-                              </div>
-                              {hasPhaseDiscount ? (
-                                <>
-                                  <div className="text-sm font-bold text-blue-700">
-                                    {formatCurrency(effectiveFeePlayer)}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 line-through">
-                                    {formatCurrency(baseFeePlayer)}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="text-sm font-bold text-slate-800">
-                                  {formatCurrency(effectiveFeePlayer)}
+                            {isExternal ? (
+                              <div className="bg-white/70 rounded-xl px-3 py-2 text-center col-span-2">
+                                <div className="text-[10px] text-slate-400 mb-0.5">
+                                  Fee Team
                                 </div>
-                              )}
-                            </div>
-                            <div className="bg-white/70 rounded-xl px-3 py-2 text-center">
-                              <div className="text-[10px] text-slate-400 mb-0.5">
-                                Fee GK
+                                {hasPhaseDiscount ? (
+                                  <>
+                                    <div className="text-sm font-bold text-blue-700">
+                                      {formatCurrency(effectiveFeeTeam)}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 line-through">
+                                      {formatCurrency(baseFeeTeam)}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-sm font-bold text-slate-800">
+                                    {formatCurrency(effectiveFeeTeam)}
+                                  </div>
+                                )}
                               </div>
-                              {hasPhaseDiscount ? (
-                                <>
-                                  <div className="text-sm font-bold text-blue-700">
-                                    {formatCurrency(effectiveFeeGk)}
+                            ) : (
+                              <>
+                                <div className="bg-white/70 rounded-xl px-3 py-2 text-center">
+                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                    Fee Pemain
                                   </div>
-                                  <div className="text-[10px] text-slate-400 line-through">
-                                    {formatCurrency(baseFeeGk)}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="text-sm font-bold text-slate-800">
-                                  {formatCurrency(effectiveFeeGk)}
+                                  {hasPhaseDiscount ? (
+                                    <>
+                                      <div className="text-sm font-bold text-blue-700">
+                                        {formatCurrency(effectiveFeePlayer)}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 line-through">
+                                        {formatCurrency(baseFeePlayer)}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-sm font-bold text-slate-800">
+                                      {formatCurrency(effectiveFeePlayer)}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
+                                <div className="bg-white/70 rounded-xl px-3 py-2 text-center">
+                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                    Fee GK
+                                  </div>
+                                  {hasPhaseDiscount ? (
+                                    <>
+                                      <div className="text-sm font-bold text-blue-700">
+                                        {formatCurrency(effectiveFeeGk)}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 line-through">
+                                        {formatCurrency(baseFeeGk)}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-sm font-bold text-slate-800">
+                                      {formatCurrency(effectiveFeeGk)}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -1982,6 +2090,7 @@ export default function EventCheckoutPage() {
                           </p>
 
                           {/* Jersey surcharge info */}
+                          {event?.isJersey && (
                           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                             <p className="text-xs text-amber-700 font-medium flex items-center gap-1.5">
                               <Shirt className="w-3.5 h-3.5" />
@@ -1993,6 +2102,7 @@ export default function EventCheckoutPage() {
                               <strong>IDR 40.000</strong>
                             </p>
                           </div>
+                          )}
 
                           <div className="space-y-3">
                             {slots.map((slot, index) => (
@@ -2102,6 +2212,7 @@ export default function EventCheckoutPage() {
                                 )}
 
                                 {/* Jersey size */}
+                                {event?.isJersey && (
                                 <div className="mb-3">
                                   <label className="block text-xs text-gray-500 mb-1">
                                     Ukuran Jersey{" "}
@@ -2134,8 +2245,9 @@ export default function EventCheckoutPage() {
                                   </div>
                                   <JerseySurchargeNote size={slot.jerseySize} />
                                 </div>
+                                )}
 
-                                {!event?.isJersey && (
+                                {event?.isJersey && (
                                   <div className="grid grid-cols-2 gap-3 mb-3">
                                     <div>
                                       <label className="block text-xs text-gray-500 mb-1">
@@ -2429,6 +2541,7 @@ export default function EventCheckoutPage() {
                     <h3 className="text-blue-600">Person in Charge (PIC)</h3>
 
                     {/* Jersey surcharge info banner */}
+                    {event?.isJersey && (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                       <p className="text-xs text-amber-700 font-medium flex items-center gap-1.5">
                         <Shirt className="w-3.5 h-3.5" />
@@ -2439,6 +2552,7 @@ export default function EventCheckoutPage() {
                         4XL: tambahan biaya <strong>IDR 40.000</strong>
                       </p>
                     </div>
+                    )}
 
                     {[
                       {
@@ -2494,11 +2608,17 @@ export default function EventCheckoutPage() {
                               placeholder={placeholder}
                               className={`w-full pl-12 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl focus:outline-none focus:border-blue-400 text-gray-900 ${isLocked ? "bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed" : ""}`}
                             />
+                            {isLocked && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Data diambil dari profil akun Anda
+                              </p>
+                            )}
                           </div>
                         </div>
                       ),
                     )}
 
+                    {event?.isJersey && (
                     <div>
                       <label className="block text-gray-600 mb-2">
                         Ukuran Jersey PIC{" "}
@@ -2527,8 +2647,9 @@ export default function EventCheckoutPage() {
                       </div>
                       <JerseySurchargeNote size={picJerseySize} />
                     </div>
+                    )}
 
-                    {!event?.isJersey && (
+                    {event?.isJersey && (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-600 mb-2">
@@ -2610,29 +2731,41 @@ export default function EventCheckoutPage() {
                     </div>
 
                     {/* Include Roster toggle */}
+                    {bookingType === "team" && (
                     <div className="pt-4 border-t border-blue-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <Users className="w-5 h-5 text-blue-600" />
                           <div>
                             <h4 className="text-blue-600 font-medium">
-                              Include Team Roster
+                              {isExternal ? "Team Roster" : "Include Team Roster"}
                             </h4>
                             <p className="text-sm text-gray-500">
-                              Add {ROSTER_SIZE} player details (optional)
+                              {isExternal
+                                ? reserveCount > 0
+                                  ? `Tambahkan ${BASE_ROSTER_SIZE} data pemain + ${reserveCount} cadangan (wajib)`
+                                  : `Tambahkan ${ROSTER_SIZE} data pemain (wajib)`
+                                : `Add ${ROSTER_SIZE} player details (optional)`}
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => setIncludeRoster(!includeRoster)}
-                          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${includeRoster ? "bg-blue-600" : "bg-gray-300"}`}
-                        >
-                          <span
-                            className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${includeRoster ? "translate-x-7" : "translate-x-1"}`}
-                          />
-                        </button>
+                        {isExternal ? (
+                          <span className="text-xs font-medium px-3 py-1.5 bg-red-100 text-red-600 rounded-full">
+                            Wajib
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setIncludeRoster(!includeRoster)}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${includeRoster ? "bg-blue-600" : "bg-gray-300"}`}
+                          >
+                            <span
+                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${includeRoster ? "translate-x-7" : "translate-x-1"}`}
+                            />
+                          </button>
+                        )}
                       </div>
                     </div>
+                    )}
 
                     <AnimatePresence>
                       {includeRoster && (
@@ -2645,7 +2778,9 @@ export default function EventCheckoutPage() {
                         >
                           <div className="flex items-center justify-between">
                             <h3 className="text-blue-600">
-                              Team Roster ({ROSTER_SIZE} Players)
+                              {isExternal && reserveCount > 0
+                                ? `Team Roster (${BASE_ROSTER_SIZE} Pemain + ${reserveCount} Cadangan)`
+                                : `Team Roster (${ROSTER_SIZE} Players)`}
                             </h3>
                           </div>
 
@@ -2671,9 +2806,11 @@ export default function EventCheckoutPage() {
                                 key={index}
                                 layout
                                 className={`p-4 rounded-2xl border-2 transition-all ${
-                                  player.isGk
-                                    ? "bg-amber-50 border-amber-300"
-                                    : "bg-blue-50 border-transparent"
+                                  index >= BASE_ROSTER_SIZE
+                                    ? "bg-gray-50 border-gray-200"
+                                    : player.isGk
+                                      ? "bg-amber-50 border-amber-300"
+                                      : "bg-blue-50 border-transparent"
                                 }`}
                               >
                                 {/* Player header */}
@@ -2681,36 +2818,47 @@ export default function EventCheckoutPage() {
                                   <div className="flex items-center gap-2">
                                     <div
                                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                        player.isGk
-                                          ? "bg-amber-400 text-white"
-                                          : "bg-blue-200 text-blue-700"
+                                        index >= BASE_ROSTER_SIZE
+                                          ? "bg-gray-300 text-gray-600"
+                                          : player.isGk
+                                            ? "bg-amber-400 text-white"
+                                            : "bg-blue-200 text-blue-700"
                                       }`}
                                     >
                                       {index + 1}
                                     </div>
                                     <span className="text-sm font-medium text-gray-700">
-                                      {player.isGk
-                                        ? "Goalkeeper"
-                                        : `Player ${index + 1}`}
+                                      {index >= BASE_ROSTER_SIZE
+                                        ? "Cadangan"
+                                        : player.isGk
+                                          ? "Goalkeeper"
+                                          : `Player ${index + 1}`}
                                     </span>
                                     {player.isGk && (
                                       <span className="text-xs px-2 py-0.5 bg-amber-400 text-white rounded-full font-semibold">
                                         GK
                                       </span>
                                     )}
+                                    {index >= BASE_ROSTER_SIZE && (
+                                      <span className="text-xs px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">
+                                        Opsional
+                                      </span>
+                                    )}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTogglePlayerGk(index)}
-                                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-medium transition-all border flex-shrink-0 ${
-                                      player.isGk
-                                        ? "bg-amber-400 text-white border-amber-400 hover:bg-amber-500"
-                                        : "bg-white text-gray-500 border-gray-200 hover:border-amber-400 hover:text-amber-600"
-                                    }`}
-                                  >
-                                    <Shield className="w-3.5 h-3.5" />
-                                    {player.isGk ? "Batal GK" : "Set GK"}
-                                  </button>
+                                  {index < ROSTER_SIZE && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePlayerGk(index)}
+                                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-medium transition-all border flex-shrink-0 ${
+                                        player.isGk
+                                          ? "bg-amber-400 text-white border-amber-400 hover:bg-amber-500"
+                                          : "bg-white text-gray-500 border-gray-200 hover:border-amber-400 hover:text-amber-600"
+                                      }`}
+                                    >
+                                      <Shield className="w-3.5 h-3.5" />
+                                      {player.isGk ? "Batal GK" : "Set GK"}
+                                    </button>
+                                  )}
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2766,7 +2914,7 @@ export default function EventCheckoutPage() {
                                     )}
                                   </div>
 
-                                  {/* Email — wajib */}
+                                  {/* Email */}
                                   <div className="flex flex-col gap-1 sm:col-span-2">
                                     <input
                                       type="text"
@@ -2778,7 +2926,7 @@ export default function EventCheckoutPage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Email * (wajib diisi)"
+                                      placeholder={index >= BASE_ROSTER_SIZE ? "Email (opsional)" : "Email * (wajib diisi)"}
                                       className={`px-4 py-2 bg-white border rounded-xl focus:outline-none text-gray-900 text-sm ${
                                         emailErrors[index] ||
                                         emailFormatErrors[index]
@@ -2801,8 +2949,9 @@ export default function EventCheckoutPage() {
                                     )}
                                   </div>
 
-                                  {/* Jersey size, name, number — semua wajib */}
+                                  {/* Jersey size, name, number — untuk main roster saja */}
                                   <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {event?.isJersey && index < ROSTER_SIZE && (
                                     <div className="sm:col-span-1">
                                       <select
                                         value={player.jerseySize}
@@ -2836,8 +2985,9 @@ export default function EventCheckoutPage() {
                                         size={player.jerseySize}
                                       />
                                     </div>
+                                    )}
 
-                                    {!event?.isJersey && (
+                                    {event?.isJersey && index < ROSTER_SIZE && (
                                       <>
                                     <input
                                       type="text"
@@ -3073,7 +3223,7 @@ export default function EventCheckoutPage() {
                       )}
 
                     <div className="flex justify-between">
-                      <span>Harga Booking</span>
+                      <span>{isExternal ? "Fee Team" : "Harga Booking"}</span>
                       <span>
                         {gkCount > 0 ||
                         playerCount > 0 ||
@@ -3111,7 +3261,7 @@ export default function EventCheckoutPage() {
 
                     {isMember &&
                       !hasExistingBooking &&
-                      bookingType !== "team" &&
+                      (bookingType !== "team" || isExternal) &&
                       pricing.memberDiscount > 0 && (
                         <div className="flex items-center justify-between">
                           <span className="text-green-600 font-medium">
@@ -3165,7 +3315,10 @@ export default function EventCheckoutPage() {
 
                     <div className="flex justify-between pt-4 border-t border-blue-200 font-bold text-lg">
                       <span>Total</span>
-                      <span>IDR {pricing.total.toLocaleString("id-ID")}</span>
+                      <span>
+                        IDR {pricing.total.toLocaleString("id-ID")}
+                        {isExternal && " /team"}
+                      </span>
                     </div>
                   </div>
 

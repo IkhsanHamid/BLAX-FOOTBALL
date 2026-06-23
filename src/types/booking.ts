@@ -40,6 +40,10 @@ export interface bookingEventReq {
     jerseyName: string;
     jerseyNumber: string;
   }[];
+  substitutePlayers?: {
+    name: string;
+    phone: string;
+  }[];
   slotDetails?: {
     name: string;
     email: string | undefined;

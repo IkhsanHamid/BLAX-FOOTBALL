@@ -82,6 +82,7 @@ interface Phase {
   order: number;
   feePlayer: number;
   feeGk: number;
+  feeTeam: number;
   startDate: string;
   endDate: string;
   quotaPlayer?: number;
@@ -100,6 +101,7 @@ interface EventDetail {
   endDate: string;
   feePlayer: number;
   feeGk: number;
+  feeTeam?: number | null;
   venue: { id: string; name: string } | string;
   venueId?: string;
   isOpen: boolean;
@@ -116,6 +118,7 @@ interface EventDetail {
   isOnlyTeam?: boolean;
   isOnlyIndividual?: boolean;
   isJersey?: boolean;
+  category?: string;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -468,17 +471,23 @@ function PhaseCard({ phase, index }: { phase: Phase; index: number }) {
       </div>
 
       {/* Phase fee = potongan harga */}
-      <div className="flex gap-2">
-        <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-center">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-center">
           <div className="text-[10px] text-slate-400 mb-0.5">Diskon Pemain</div>
           <div className="text-sm font-bold text-green-600">
             - {formatCurrency(phase.feePlayer)}
           </div>
         </div>
-        <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-center">
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-center">
           <div className="text-[10px] text-slate-400 mb-0.5">Diskon GK</div>
           <div className="text-sm font-bold text-green-600">
             - {formatCurrency(phase.feeGk)}
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-center">
+          <div className="text-[10px] text-slate-400 mb-0.5">Diskon Team</div>
+          <div className="text-sm font-bold text-green-600">
+            - {formatCurrency(phase.feeTeam)}
           </div>
         </div>
       </div>
@@ -524,8 +533,18 @@ export default function EventDetailPage() {
 
   // ── Harga terendah untuk footer ──────────────────────────────────────────────
   // Multi: ambil pot dengan feePlayer terendah
+  // EXTERNAL: pakai feeTeam
   // Single: pakai event.feePlayer
-  const { lowestFeePlayer, lowestFeeGk } = (() => {
+  const isExternal = event?.category === "EXTERNAL";
+
+  const { lowestFeePlayer, lowestFeeGk, lowestFeeTeam } = (() => {
+    if (isExternal) {
+      return {
+        lowestFeePlayer: 0,
+        lowestFeeGk: 0,
+        lowestFeeTeam: event?.feeTeam ?? 0,
+      };
+    }
     if (isMulti) {
       const cheapest = pots.reduce((min, pot) =>
         pot.feePlayer < min.feePlayer ? pot : min,
@@ -533,19 +552,28 @@ export default function EventDetailPage() {
       return {
         lowestFeePlayer: cheapest.feePlayer,
         lowestFeeGk: cheapest.feeGk,
+        lowestFeeTeam: null,
       };
     }
     return {
       lowestFeePlayer: event?.feePlayer ?? 0,
       lowestFeeGk: event?.feeGk ?? 0,
+      lowestFeeTeam: null,
     };
   })();
 
-  const minFee = Math.min(lowestFeePlayer, lowestFeeGk);
+  const minFee: number = isExternal
+    ? (lowestFeeTeam ?? 0)
+    : Math.min(lowestFeePlayer, lowestFeeGk);
 
   // Harga terendah setelah phase diskon
   const minFeeAfterPhase = activePhase
-    ? Math.max(0, minFee - Math.min(activePhase.feePlayer, activePhase.feeGk))
+    ? Math.max(
+        0,
+        isExternal
+          ? (lowestFeeTeam ?? 0) - activePhase.feeTeam
+          : minFee - Math.min(activePhase.feePlayer, activePhase.feeGk),
+      )
     : null;
 
   const now = new Date();
@@ -691,7 +719,7 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              {/* Fee — single: tampil 2 card, multi: tampil 1 card "mulai dari" */}
+              {/* Fee — multi / external / internal single */}
               {isMulti ? (
                 <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-4">
                   <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
@@ -708,6 +736,19 @@ export default function EventDetailPage() {
                   <p className="text-xs text-slate-400 mt-1">
                     Harga berbeda per tim — lihat detail pot di bawah
                   </p>
+                </div>
+              ) : event.category === "EXTERNAL" ? (
+                <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
+                    <Tag className="w-3.5 h-3.5" />
+                    Fee Team
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-base font-bold text-blue-600">
+                      {formatCurrency(event.feeTeam ?? 0)}
+                    </span>
+                    <span className="text-xs text-slate-400">/team</span>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -854,24 +895,35 @@ export default function EventDetailPage() {
                           {isMulti && pot && (
                             <PotBadge pot={pot} index={potIndex} />
                           )}
-                          <div className="flex items-center gap-3 ml-auto">
-                            <div className="text-right">
+                          {isExternal ? (
+                            <div className="ml-auto text-right">
                               <div className="text-[10px] text-slate-400">
-                                Pemain
+                                Fee Team
                               </div>
                               <div className="text-xs font-bold text-slate-700">
-                                {formatCurrency(feePlayer)}
+                                {formatCurrency(event.feeTeam ?? 0)}
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-[10px] text-slate-400">
-                                GK
+                          ) : (
+                            <div className="flex items-center gap-3 ml-auto">
+                              <div className="text-right">
+                                <div className="text-[10px] text-slate-400">
+                                  Pemain
+                                </div>
+                                <div className="text-xs font-bold text-slate-700">
+                                  {formatCurrency(feePlayer)}
+                                </div>
                               </div>
-                              <div className="text-xs font-bold text-slate-700">
-                                {formatCurrency(feeGk)}
+                              <div className="text-right">
+                                <div className="text-[10px] text-slate-400">
+                                  GK
+                                </div>
+                                <div className="text-xs font-bold text-slate-700">
+                                  {formatCurrency(feeGk)}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -962,6 +1014,9 @@ export default function EventDetailPage() {
                       <span className="text-sm text-slate-400 line-through">
                         {formatCurrency(minFee)}
                       </span>
+                      <span className="text-xs text-slate-400">
+                        {isExternal ? "/team" : "/orang"}
+                      </span>
                     </div>
                     <p className="text-[10px] text-slate-400 mt-0.5">
                       {isMulti
@@ -969,6 +1024,18 @@ export default function EventDetailPage() {
                         : "Harga setelah promo"}{" "}
                       · s/d {formatDateShort(activePhase.endDate)}
                     </p>
+                  </>
+                ) : isExternal ? (
+                  <>
+                    <p className="text-[11px] text-slate-400 mb-0.5">
+                      Mulai dari
+                    </p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-blue-600">
+                        {formatCurrency(minFee)}
+                      </span>
+                      <span className="text-xs text-slate-400">/team</span>
+                    </div>
                   </>
                 ) : (
                   <>
