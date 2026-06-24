@@ -54,6 +54,7 @@ interface EventSummary {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  time?: string;
   venue: { id: string; name: string } | string;
   isOpen: boolean;
   typeMatch?: TypeMatch;
@@ -1642,6 +1643,12 @@ function EventDetailView({
                 {event.endDate !== event.startDate
                   ? ` – ${formatDateShort(event.endDate)}`
                   : ""}
+                {event.time && (
+                  <>
+                    <span className="text-white/50 mx-1">·</span>
+                    {event.time}
+                  </>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-1.5">

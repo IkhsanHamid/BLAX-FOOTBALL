@@ -99,6 +99,7 @@ interface EventDetail {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  time?: string;
   feePlayer: number;
   feeGk: number;
   feeTeam?: number | null;
@@ -705,6 +706,12 @@ export default function EventDetailPage() {
                 {event.endDate !== event.startDate && (
                   <div className="text-xs text-slate-400 mt-0.5">
                     s/d {formatDate(event.endDate)}
+                  </div>
+                )}
+                {event.time && (
+                  <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {event.time} WIB
                   </div>
                 )}
               </div>

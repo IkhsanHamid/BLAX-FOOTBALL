@@ -7,6 +7,7 @@ import {
   Trash2,
   Search,
   Calendar,
+  Clock,
   MapPin,
   Users,
   ArrowLeft,
@@ -90,6 +91,7 @@ interface Event {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  time?: string;
   feePlayer: number;
   feeGk: number;
   venue: string;
@@ -116,6 +118,7 @@ interface EventForm {
   name: string;
   dateStart: string;
   dateEnd: string;
+  time: string;
   venueId: string;
   /** Harga global (single price mode) */
   feePlayer: string;
@@ -260,6 +263,7 @@ const buildFormData = (form: EventForm): FormData => {
   fd.append("description", form.description);
   fd.append("startDate", form.dateStart);
   fd.append("endDate", form.dateEnd);
+  fd.append("time", form.time);
   fd.append("venueId", form.venueId);
   fd.append("totalTeam", form.totalTeams);
   fd.append("typeMatch", form.typeMatch);
@@ -341,6 +345,7 @@ const INITIAL_FORM: EventForm = {
   name: "",
   dateStart: "",
   dateEnd: "",
+  time: "",
   venueId: "",
   feePlayer: "",
   feeGk: "",
@@ -1004,6 +1009,7 @@ function EventFormView({
           description: data.description ?? "",
           dateStart: data.startDate ? data.startDate.split("T")[0] : "",
           dateEnd: data.endDate ? data.endDate.split("T")[0] : "",
+          time: data.time ?? "",
           venueId: data.venueId ?? "",
           feePlayer: String(data.feePlayer ?? 0),
           feeGk: String(data.feeGk ?? 0),
@@ -1297,7 +1303,7 @@ function EventFormView({
               />
             </FormField>
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-3 gap-4">
               <FormField
                 label="Tanggal Mulai"
                 required
@@ -1320,6 +1326,13 @@ function EventFormView({
                   value={form.dateEnd}
                   onChange={(e) => setField("dateEnd", e.target.value)}
                   className={errors.dateEnd ? "border-red-400" : ""}
+                />
+              </FormField>
+              <FormField label="Jam Mulai">
+                <Input
+                  type="time"
+                  value={form.time}
+                  onChange={(e) => setField("time", e.target.value)}
                 />
               </FormField>
             </div>
@@ -1400,7 +1413,9 @@ function EventFormView({
                     </div>
                     {form.category === value && (
                       <span className="flex-shrink-0 w-4 h-4 rounded-full bg-sky-500 flex items-center justify-center">
-                        <span className="text-white text-[10px] font-bold">✓</span>
+                        <span className="text-white text-[10px] font-bold">
+                          ✓
+                        </span>
                       </span>
                     )}
                   </button>
@@ -1442,9 +1457,7 @@ function EventFormView({
                   type="number"
                   min="1"
                   value={form.maxSquadSize}
-                  onChange={(e) =>
-                    setField("maxSquadSize", e.target.value)
-                  }
+                  onChange={(e) => setField("maxSquadSize", e.target.value)}
                   placeholder="Contoh: 15"
                   className={errors.maxSquadSize ? "border-red-400" : ""}
                 />
@@ -1562,11 +1575,7 @@ function EventFormView({
           {/* Single price — EXTERNAL */}
           {form.pricingMode === "single" && form.category === "EXTERNAL" && (
             <div className="mt-4">
-              <FormField
-                label="Fee Team (Rp)"
-                required
-                error={errors.feeTeam}
-              >
+              <FormField label="Fee Team (Rp)" required error={errors.feeTeam}>
                 <Input
                   type="text"
                   value={formatCurrencyDisplay(form.feeTeam ?? "")}
@@ -2266,6 +2275,13 @@ function EventListView({
                           <span>{formatDate(event.startDate)}</span>
                           <span className="text-gray-300">–</span>
                           <span>{formatDate(event.endDate)}</span>
+                          {event.time && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                              <span>{event.time}</span>
+                            </>
+                          )}
                         </div>
                       </TableCell>
 

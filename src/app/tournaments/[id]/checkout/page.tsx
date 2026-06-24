@@ -143,6 +143,7 @@ interface EventDetail {
   name: string;
   startDate: string;
   endDate: string;
+  time?: string;
   feePlayer: number;
   feeGk: number;
   feeTeam: number;
@@ -3073,6 +3074,9 @@ export default function EventCheckoutPage() {
                         {event?.endDate &&
                           event.endDate !== event.startDate &&
                           ` – ${formatDateShort(event.endDate)}`}
+                        {event?.time && (
+                          <> &middot; {event.time}</>
+                        )}
                       </span>
                     </div>
                     {selectedTeam && (

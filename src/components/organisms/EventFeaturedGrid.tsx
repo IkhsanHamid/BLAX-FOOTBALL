@@ -48,6 +48,7 @@ interface EventItem {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  time?: string;
   feePlayer: number;
   feeGk: number;
   feeTeam?: number | null;
@@ -293,6 +294,12 @@ function EventCardLarge({ event, index }: { event: EventItem; index: number }) {
           <span className="text-sm font-medium">
             {formatDateRange(event.startDate, event.endDate)}
           </span>
+          {event.time && (
+            <>
+              <span className="text-white/40 mx-1">·</span>
+            <span className="text-sm font-medium">{event.time}</span>
+            </>
+          )}
         </div>
 
         {/* Fee strip */}
