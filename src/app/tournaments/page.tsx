@@ -37,6 +37,7 @@ interface Event {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  time?: string;
   feePlayer: number;
   feeGk: number;
   feeTeam?: number | null;
@@ -246,6 +247,12 @@ const EventCard = ({
                   {formatDate(event.startDate)}
                   {event.endDate !== event.startDate && (
                     <> &ndash; {formatDate(event.endDate)}</>
+                  )}
+                  {event.time && (
+                    <>
+                      <span className="text-slate-300 mx-1">·</span>
+                      {event.time}
+                    </>
                   )}
                 </span>
               </div>
