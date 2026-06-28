@@ -143,6 +143,7 @@ export default function AdminPage() {
         user?.role !== "Owner" &&
         user?.role !== "Admin-magnifico" &&
         user?.role !== "Admin-red-alert" &&
+        user?.role !== "Admin-OTS" &&
         user?.role !== "Admin-news" &&
         !adminStatus?.isAdmin
       ) {

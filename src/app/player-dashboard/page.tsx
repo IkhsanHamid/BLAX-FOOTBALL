@@ -382,7 +382,8 @@ export default function PlayerDashboardPage() {
         user.role !== "Admin" &&
         user.role !== "Owner" &&
         user.role !== "Admin-magnifico" &&
-        user.role !== "Admin-red-alert"
+        user.role !== "Admin-red-alert" &&
+        user.role !== "Admin-OTS"
       ) {
         showError("Access Denied", "This dashboard is only for players");
         router.push("/");

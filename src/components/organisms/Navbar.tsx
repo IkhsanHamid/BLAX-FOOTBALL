@@ -247,7 +247,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                   ></span>
                 </Link>
               )}
-              {user?.role === "Admin" && (
+              {(user?.role === "Admin" || user?.role === "Admin-OTS") && (
                 <Link
                   href="/admin"
                   className={`font-medium transition-all duration-300 relative group ${getTextStyles()}`}
@@ -449,7 +449,7 @@ export default function Navbar({ useScrollEffect = false }: NavbarProps) {
                     </Link>
 
                     {/* Admin Button - Only show for Admin role */}
-                    {user.role === "Admin" && (
+                    {(user.role === "Admin" || user.role === "Admin-OTS") && (
                       <Link
                         href="/admin"
                         className={`w-full text-left font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center ${getMobileTextStyles()}`}

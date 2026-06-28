@@ -25,6 +25,7 @@ interface ReportsTabProps {
 export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
+  const isOTS = userRole === "Admin-OTS";
 
   const [activeTab, setActiveTab] = useState<TabType>("schedules");
   const [loading, setLoading] = useState<boolean>(false);
@@ -83,8 +84,8 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (isMagnifico || isRedAlert) setActiveTab("schedules");
-  }, [isMagnifico, isRedAlert]);
+    if (isMagnifico || isRedAlert || isOTS) setActiveTab("schedules");
+  }, [isMagnifico, isRedAlert, isOTS]);
 
   const handleDateRangeChange = (range: string): void => {
     setDateRange(range);
@@ -173,7 +174,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
             </div>
           </button>
 
-          {!isMagnifico && (
+          {!isMagnifico && !isOTS && (
             <>
               <button
                 onClick={() => setActiveTab("membership")}
