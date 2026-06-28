@@ -32,6 +32,7 @@ interface GalleriesTabProps {
 export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
+  const isOTS = userRole === "Admin-OTS";
 
   const [galleries, setGalleries] = useState<GalleryData[]>([]);
   const [schedules, setSchedules] = useState<ListSchedule[]>([]);
@@ -240,10 +241,13 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       .includes(searchTerm.toLowerCase());
 
     const matchesCommunity =
-      isMagnifico || isRedAlert
-        ? (gallery.community || "").toLowerCase() === "magnifico" ||
-          (gallery.community || "").toLowerCase() === "red-alert"
-        : true;
+      isMagnifico
+        ? (gallery.community || "").toLowerCase() === "magnifico"
+        : isRedAlert
+          ? (gallery.community || "").toLowerCase() === "red-alert"
+          : isOTS
+            ? (gallery.community || "").toLowerCase() === "ots"
+            : true;
 
     return matchesSearch && matchesCommunity;
   });

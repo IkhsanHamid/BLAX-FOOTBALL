@@ -76,6 +76,7 @@ const RESTRICTED = [
   "event-kelola",
   "event",
   "event-team",
+  "deposit",
 ];
 
 export default function AdminSidebar({
@@ -88,6 +89,7 @@ export default function AdminSidebar({
 }: AdminSidebarProps) {
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
+  const isOTS = userRole === "Admin-OTS";
   const isNewsOnly = userRole === "Admin-news";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
@@ -151,9 +153,10 @@ export default function AdminSidebar({
       return (
         userRole === "Owner" ||
         userRole === "Admin-magnifico" ||
-        userRole === "Admin-red-alert"
+        userRole === "Admin-red-alert" ||
+        userRole === "Admin-OTS"
       );
-    if ((isMagnifico || isRedAlert) && RESTRICTED.includes(item.id))
+    if ((isMagnifico || isRedAlert || isOTS) && RESTRICTED.includes(item.id))
       return false;
     return true;
   });

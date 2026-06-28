@@ -202,6 +202,15 @@ export default function ScheduleFeaturedGrid() {
         "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
       logo: "/red-alert.png",
     },
+    {
+      label: "OTS",
+      value: "ots",
+      activeClass:
+        "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 scale-105",
+      inactiveClass:
+        "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
+      logo: "/OTS.png",
+    },
   ];
 
   const filterButtons = [
@@ -576,7 +585,7 @@ export default function ScheduleFeaturedGrid() {
         </div>
 
         {/* Community Filter Buttons */}
-        <div className="flex justify-center gap-3 sm:gap-4 mb-5 sm:mb-7">
+        <div className="flex justify-center gap-2 sm:gap-4 mb-5 sm:mb-7">
           {communityButtons.map((btn) => (
             <button
               key={btn.value}
@@ -585,7 +594,7 @@ export default function ScheduleFeaturedGrid() {
                   selectedCommunity === btn.value ? "all" : btn.value,
                 )
               }
-              className={`relative flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 ${
+              className={`relative flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-8 py-2 sm:py-3.5 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-base transition-all duration-300 ${
                 selectedCommunity === btn.value
                   ? btn.activeClass
                   : btn.inactiveClass
@@ -595,19 +604,19 @@ export default function ScheduleFeaturedGrid() {
                 <img
                   src={btn.logo}
                   alt={btn.label}
-                  className="w-10 h-10 object-contain"
+                  className="w-6 h-6 sm:w-10 sm:h-10 object-contain"
                 />
               ) : (
                 <span
-                  className={`w-2.5 h-2.5 rounded-full ${(btn as any).dotColor} ${
+                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${(btn as any).dotColor} ${
                     selectedCommunity === btn.value ? "bg-white/80" : ""
                   }`}
                 />
               )}
               {btn.label}
               {selectedCommunity === btn.value && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
-                  <span className="text-xs font-black text-slate-800">✓</span>
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-[10px] sm:text-xs font-black text-slate-800">✓</span>
                 </span>
               )}
             </button>
