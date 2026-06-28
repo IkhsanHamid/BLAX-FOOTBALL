@@ -44,6 +44,7 @@ import MembershipModal from "@/components/molecules/MembershipModal";
 import { UserVoucher } from "@/types/voucher";
 import PointsBadge from "@/components/atoms/PointsBadge";
 import VoucherCarousel from "@/components/molecules/VoucherCaraousel";
+import BlaxPay from "@/components/organisms/BlaxPay";
 
 // Popover Component
 const Popover: React.FC<{ children: React.ReactNode; content: string }> = ({
@@ -615,6 +616,10 @@ export default function PlayerDashboardPage() {
                 </CardContent>
               </Card>
             )}
+
+            <div className="mb-8">
+              <BlaxPay />
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Vouchers */}

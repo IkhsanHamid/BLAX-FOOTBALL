@@ -32,6 +32,8 @@ import { QRISPaymentPage } from "@/components/organisms/QRISPayment";
 import { voucherService } from "@/utils/voucher";
 import PaymentSuccessModal from "@/components/molecules/SuccessPaymentModal";
 import { bookingService } from "@/utils/booking";
+import { depositService } from "@/utils/deposit";
+import type { UserDepositBalance } from "@/types/deposit";
 import { bookingEventReq } from "@/types/booking";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -964,6 +966,11 @@ export default function EventCheckoutPage() {
   const [isCheckingExistingBooking, setIsCheckingExistingBooking] =
     useState(false);
 
+  const [blaxPayBalance, setBlaxPayBalance] =
+    useState<UserDepositBalance | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [useBlaxPay, setUseBlaxPay] = useState(false);
+
   const activePhase = getActivePhase(event?.phases);
   const pricingMode: PricingMode = event?.pricingMode ?? "single";
   const pots = event?.pots ?? [];
@@ -1081,6 +1088,16 @@ export default function EventCheckoutPage() {
   useEffect(() => {
     checkExistingBooking();
   }, [user, eventId]);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsLoadingBalance(true);
+    depositService
+      .getBalance()
+      .then(setBlaxPayBalance)
+      .catch(() => setBlaxPayBalance(null))
+      .finally(() => setIsLoadingBalance(false));
+  }, [user]);
 
   useEffect(() => {
     const pid = searchParams.get("paymentId");
@@ -1563,6 +1580,7 @@ export default function EventCheckoutPage() {
       isPlayer: bookingType === "team" ? !picIsGk : bookerRole === "player",
       isGk: bookingType === "team" ? picIsGk : bookerRole === "goalkeeper",
       isTeam: bookingType === "team" && includeRoster,
+      useDeposit: useBlaxPay || undefined,
       jerseySize:
         bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,
       gkQuantity: bookingType === "individual" ? countGk() : 0,
@@ -1617,8 +1635,14 @@ export default function EventCheckoutPage() {
     try {
       setIsBookingLoading(true);
       const res = await bookingService.bookEvent(payload);
-      setPaymentId(res);
-      setShowPayment(true);
+      if (res !== "ok") {
+        setPaymentId(res);
+        setShowPayment(true);
+      } else {
+        setAmount(pricing.total);
+        setSuccessPayment(true);
+        showSuccess("Booking event berhasil!");
+      }
     } catch (err) {
       console.error(err);
       showError("Gagal melakukan booking");
@@ -3324,7 +3348,79 @@ export default function EventCheckoutPage() {
                         {isExternal && " /team"}
                       </span>
                     </div>
+
+                    {useBlaxPay && blaxPayBalance && (
+                      <>
+                        <div className="flex justify-between text-green-600">
+                          <span>Potongan Saldo BlaxPay</span>
+                          <span>
+                            - IDR{" "}
+                            {Math.min(
+                              blaxPayBalance.balance,
+                              pricing.total,
+                            ).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-4 border-t border-blue-200 font-bold text-lg">
+                          <span>Sisa yang harus dibayar</span>
+                          <span>
+                            IDR{" "}
+                            {Math.max(
+                              0,
+                              pricing.total - blaxPayBalance.balance,
+                            ).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
+
+                  {/* BLAXPAY BALANCE */}
+                  {user && (
+                    <div className="pt-4 border-t border-blue-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600 font-medium">
+                          Saldo BlaxPay
+                        </span>
+                        <span className="font-semibold text-blue-600">
+                          {isLoadingBalance
+                            ? "..."
+                            : blaxPayBalance
+                              ? `IDR ${blaxPayBalance.balance.toLocaleString("id-ID")}`
+                              : "Gagal muat"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-700">
+                            Bayar dengan Saldo BlaxPay
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setUseBlaxPay(!useBlaxPay)}
+                          disabled={!blaxPayBalance || blaxPayBalance.balance === 0}
+                          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                            useBlaxPay ? "bg-blue-600" : "bg-gray-300"
+                          } ${
+                            !blaxPayBalance || blaxPayBalance.balance === 0
+                              ? "opacity-50 cursor-not-allowed"
+                              : "cursor-pointer"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                              useBlaxPay ? "translate-x-6" : "translate-x-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {blaxPayBalance && blaxPayBalance.balance === 0 && (
+                        <p className="text-xs text-red-500">
+                          Saldo anda kosong, silahkan topup untuk pembayaran lebih mudah
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <motion.button
                     whileHover={{
@@ -3344,7 +3440,11 @@ export default function EventCheckoutPage() {
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
                   >
-                    {isBookingLoading ? "Processing..." : "Proceed to Pay"}
+                    {isBookingLoading
+                      ? "Processing..."
+                      : useBlaxPay
+                        ? "Bayar dengan BlaxPay"
+                        : "Proceed to Pay"}
                   </motion.button>
 
                   {!isFormValid() && !isBookingLoading && (
@@ -3354,7 +3454,9 @@ export default function EventCheckoutPage() {
                   )}
 
                   <p className="text-center text-sm text-gray-500">
-                    Secure payment via QRIS
+                    {useBlaxPay
+                      ? "Secure payment via BlaxPay"
+                      : "Secure payment via QRIS"}
                   </p>
                 </div>
               </motion.div>

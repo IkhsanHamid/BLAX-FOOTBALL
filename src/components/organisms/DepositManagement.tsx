@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Search, Plus, History, Loader2, Ticket, Download } from "lucide-react";
+import {
+  Search,
+  History,
+  Loader2,
+  Ticket,
+  Download,
+  ArrowDownUp,
+} from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
 import {
@@ -13,29 +20,26 @@ import {
   TableRow,
 } from "@/components/atoms/Table";
 import Badge from "@/components/atoms/Badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/atoms/Dialog";
-import Input from "@/components/atoms/Input";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatDate } from "@/lib/helper";
 import Pagination from "@/components/atoms/Pagination";
 import { adminService } from "@/utils/admin";
-import { DepositHistory, VoucherHistoryRecord } from "@/types/admin";
+import {
+  DepositHistory,
+  DepositHistoryRecord,
+  DepositUsage,
+  VoucherHistoryRecord,
+} from "@/types/admin";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function DepositManagementComponent() {
   const { showSuccess, showError } = useNotifications();
 
-  const [activeTab, setActiveTab] = useState<"all-deposit" | "history">(
-    "all-deposit",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "all-deposit" | "history" | "voucher-history" | "usage"
+  >("all-deposit");
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   const [depositSearch, setDepositSearch] = useState("");
@@ -50,9 +54,9 @@ export default function DepositManagementComponent() {
   const [totalRemainingDeposit, setTotalRemainingDeposit] = useState(0);
 
   const [historySearch, setHistorySearch] = useState("");
-  const [voucherHistories, setVoucherHistories] = useState<
-    VoucherHistoryRecord[]
-  >([]);
+  const [historyRecords, setHistoryRecords] = useState<DepositHistoryRecord[]>(
+    [],
+  );
   const [historyPagination, setHistoryPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -60,17 +64,33 @@ export default function DepositManagementComponent() {
     skip: 0,
     limit: ITEMS_PER_PAGE,
   });
+  const [totalActiveBalance, setTotalActiveBalance] = useState(0);
 
-  const [showVoucherModal, setShowVoucherModal] = useState(false);
-  const [selectedDeposit, setSelectedDeposit] = useState<DepositHistory | null>(
-    null,
-  );
-  const [voucherForm, setVoucherForm] = useState({
-    nominal: "",
-    name: "",
-    description: "",
+  const [voucherSearch, setVoucherSearch] = useState("");
+  const [voucherHistories, setVoucherHistories] = useState<
+    VoucherHistoryRecord[]
+  >([]);
+  const [voucherPagination, setVoucherPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+    skip: 0,
+    limit: ITEMS_PER_PAGE,
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [usageSearch, setUsageSearch] = useState("");
+  const [usages, setUsages] = useState<DepositUsage[]>([]);
+  const [usagePagination, setUsagePagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+    skip: 0,
+    limit: ITEMS_PER_PAGE,
+  });
+  const [usageSummary, setUsageSummary] = useState({
+    totalUsage: 0,
+    totalAmount: 0,
+  });
 
   const fetchDeposits = useCallback(async () => {
     try {
@@ -113,19 +133,20 @@ export default function DepositManagementComponent() {
     }
   }, [depositsPagination.currentPage, depositSearch, showError]);
 
-  const fetchVoucherHistories = useCallback(async () => {
+  const fetchAdminDepositHistories = useCallback(async () => {
     try {
       setLoading(true);
       const skip = (historyPagination.currentPage - 1) * ITEMS_PER_PAGE;
 
-      const result = await adminService.getVoucherHistories(
+      const result = await adminService.getAdminDepositHistories(
         skip,
         ITEMS_PER_PAGE,
         historySearch,
       );
 
       if (result?.data) {
-        setVoucherHistories(result.data);
+        setHistoryRecords(result.data);
+        setTotalActiveBalance(result.summary?.totalActiveBalance || 0);
         setHistoryPagination({
           currentPage: historyPagination.currentPage,
           totalPages: Math.ceil((result.totalData || 0) / ITEMS_PER_PAGE),
@@ -134,8 +155,48 @@ export default function DepositManagementComponent() {
           limit: result.limit || ITEMS_PER_PAGE,
         });
       } else {
-        setVoucherHistories([]);
+        setHistoryRecords([]);
         setHistoryPagination({
+          currentPage: 1,
+          totalPages: 1,
+          total: 0,
+          skip: 0,
+          limit: ITEMS_PER_PAGE,
+        });
+        setTotalActiveBalance(0);
+      }
+    } catch (error: any) {
+      console.error("Error fetching deposit histories:", error);
+      showError("Error", error?.message || "Failed to fetch deposit histories");
+      setHistoryRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [historyPagination.currentPage, historySearch, showError]);
+
+  const fetchVoucherHistories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const skip = (voucherPagination.currentPage - 1) * ITEMS_PER_PAGE;
+
+      const result = await adminService.getVoucherHistories(
+        skip,
+        ITEMS_PER_PAGE,
+        voucherSearch,
+      );
+
+      if (result?.data) {
+        setVoucherHistories(result.data);
+        setVoucherPagination({
+          currentPage: voucherPagination.currentPage,
+          totalPages: Math.ceil((result.totalData || 0) / ITEMS_PER_PAGE),
+          total: result.totalData || 0,
+          skip: result.skip || 0,
+          limit: result.limit || ITEMS_PER_PAGE,
+        });
+      } else {
+        setVoucherHistories([]);
+        setVoucherPagination({
           currentPage: 1,
           totalPages: 1,
           total: 0,
@@ -150,7 +211,48 @@ export default function DepositManagementComponent() {
     } finally {
       setLoading(false);
     }
-  }, [historyPagination.currentPage, historySearch, showError]);
+  }, [voucherPagination.currentPage, voucherSearch, showError]);
+
+  const fetchDepositUsages = useCallback(async () => {
+    try {
+      setLoading(true);
+      const skip = (usagePagination.currentPage - 1) * ITEMS_PER_PAGE;
+
+      const result = await adminService.getDepositUsages(
+        skip,
+        ITEMS_PER_PAGE,
+        usageSearch,
+      );
+
+      if (result?.data) {
+        setUsages(result.data);
+        setUsageSummary(result.summary || { totalUsage: 0, totalAmount: 0 });
+        setUsagePagination({
+          currentPage: usagePagination.currentPage,
+          totalPages: Math.ceil((result.totalData || 0) / ITEMS_PER_PAGE),
+          total: result.totalData || 0,
+          skip: result.skip || 0,
+          limit: result.limit || ITEMS_PER_PAGE,
+        });
+      } else {
+        setUsages([]);
+        setUsagePagination({
+          currentPage: 1,
+          totalPages: 1,
+          total: 0,
+          skip: 0,
+          limit: ITEMS_PER_PAGE,
+        });
+        setUsageSummary({ totalUsage: 0, totalAmount: 0 });
+      }
+    } catch (error: any) {
+      console.error("Error fetching deposit usages:", error);
+      showError("Error", error?.message || "Failed to fetch deposit usages");
+      setUsages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [usagePagination.currentPage, usageSearch, showError]);
 
   useEffect(() => {
     if (activeTab === "all-deposit") {
@@ -162,108 +264,52 @@ export default function DepositManagementComponent() {
     const timer = setTimeout(() => {
       const depositSearchTerm = depositSearch.trim();
       const historySearchTerm = historySearch.trim();
+      const voucherSearchTerm = voucherSearch.trim();
+      const usageSearchTerm = usageSearch.trim();
 
       if (activeTab === "all-deposit") {
         if (depositSearchTerm.length >= 3 || depositSearchTerm.length === 0) {
           setDepositsPagination((prev) => ({ ...prev, currentPage: 1 }));
           fetchDeposits();
         }
-      } else {
+      } else if (activeTab === "history") {
         if (historySearchTerm.length >= 3 || historySearchTerm.length === 0) {
           setHistoryPagination((prev) => ({ ...prev, currentPage: 1 }));
+          fetchAdminDepositHistories();
+        }
+      } else if (activeTab === "voucher-history") {
+        if (voucherSearchTerm.length >= 3 || voucherSearchTerm.length === 0) {
+          setVoucherPagination((prev) => ({ ...prev, currentPage: 1 }));
           fetchVoucherHistories();
+        }
+      } else {
+        if (usageSearchTerm.length >= 3 || usageSearchTerm.length === 0) {
+          setUsagePagination((prev) => ({ ...prev, currentPage: 1 }));
+          fetchDepositUsages();
         }
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [depositSearch, historySearch, activeTab]);
+  }, [depositSearch, historySearch, voucherSearch, usageSearch, activeTab]);
 
   useEffect(() => {
     if (activeTab === "history") {
-      fetchVoucherHistories();
+      fetchAdminDepositHistories();
     }
   }, [activeTab, historyPagination.currentPage]);
 
   useEffect(() => {
-    if (activeTab === "history") {
+    if (activeTab === "voucher-history") {
       fetchVoucherHistories();
     }
-  }, [activeTab, historyPagination.currentPage, historySearch]);
+  }, [activeTab, voucherPagination.currentPage]);
 
-  const handleOpenVoucherModal = (deposit: DepositHistory) => {
-    setSelectedDeposit(deposit);
-    setVoucherForm({ nominal: "", name: "", description: "" });
-    setFormErrors({});
-    setShowVoucherModal(true);
-  };
-
-  const handleCloseVoucherModal = () => {
-    setShowVoucherModal(false);
-    setSelectedDeposit(null);
-    setVoucherForm({ nominal: "", name: "", description: "" });
-    setFormErrors({});
-  };
-
-  const handleVoucherFormChange = (field: string, value: string) => {
-    setVoucherForm((prev) => ({ ...prev, [field]: value }));
-
-    if (field === "nominal" && selectedDeposit) {
-      const nominal = parseInt(value);
-      if (value.trim() && !isNaN(nominal) && nominal > selectedDeposit.total) {
-        setFormErrors((prev) => ({
-          ...prev,
-          nominal: `Nominal tidak boleh lebih dari saldo deposit (${formatCurrency(selectedDeposit.total)})`,
-        }));
-      } else {
-        setFormErrors((prev) => ({ ...prev, [field]: "" }));
-      }
-    } else {
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+  useEffect(() => {
+    if (activeTab === "usage") {
+      fetchDepositUsages();
     }
-  };
-
-  const validateVoucherForm = () => {
-    const errors: Record<string, string> = {};
-    const nominal = parseInt(voucherForm.nominal);
-
-    if (!voucherForm.nominal.trim()) {
-      errors.nominal = "Nominal is required";
-    } else if (isNaN(nominal) || nominal <= 0) {
-      errors.nominal = "Nominal harus lebih dari 0";
-    } else if (selectedDeposit && nominal > selectedDeposit.total) {
-      errors.nominal = `Nominal tidak boleh lebih dari saldo deposit (${formatCurrency(selectedDeposit.total)})`;
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleCreateVoucher = async () => {
-    if (!selectedDeposit || !validateVoucherForm()) return;
-
-    try {
-      setActionLoading("create-voucher");
-      const nominal = parseInt(voucherForm.nominal);
-      const name = voucherForm.name.trim() || undefined;
-      const description = voucherForm.description.trim() || undefined;
-
-      await adminService.createVoucher(
-        selectedDeposit.id,
-        nominal,
-        name,
-        description,
-      );
-
-      showSuccess("Voucher created successfully!");
-      handleCloseVoucherModal();
-      fetchDeposits();
-    } catch (error: any) {
-      showError("Error", error?.message || "Failed to create voucher");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  }, [activeTab, usagePagination.currentPage]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -314,10 +360,60 @@ export default function DepositManagementComponent() {
     }
   };
 
-  const handleExportVouchers = async () => {
+  const handleExportHistories = async () => {
     try {
       setExporting(true);
-      const result = await adminService.exportVoucherHistories(historySearch);
+      const result =
+        await adminService.exportAdminDepositHistories(historySearch);
+
+      if (!result.data || result.data.length === 0) {
+        showError("Error", "No data to export");
+        return;
+      }
+
+      const headers = [
+        "No",
+        "Nama User",
+        "No. Telepon",
+        "Tipe",
+        "Amount",
+        "Saldo Sebelum",
+        "Saldo Sesudah",
+        "Booking ID",
+        "Payment ID",
+        "Dibuat",
+      ];
+
+      const rows = result.data.map((record, index) => [
+        index + 1,
+        record.userName,
+        record.userPhone,
+        record.type,
+        record.amount,
+        record.balanceBefore,
+        record.balanceAfter,
+        record.bookingId || "-",
+        record.paymentId,
+        new Date(record.createdAt).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      ]);
+
+      exportToExcel("Deposit_History", headers, rows);
+      showSuccess("Export berhasil!");
+    } catch (error: any) {
+      showError("Error", error?.message || "Failed to export");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportVoucherHistories = async () => {
+    try {
+      setExporting(true);
+      const result = await adminService.exportVoucherHistories(voucherSearch);
 
       if (!result.data || result.data.length === 0) {
         showError("Error", "No data to export");
@@ -420,6 +516,28 @@ export default function DepositManagementComponent() {
           <History className="w-4 h-4" />
           <span>History</span>
         </button>
+        <button
+          onClick={() => setActiveTab("voucher-history")}
+          className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === "voucher-history"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          <Ticket className="w-4 h-4" />
+          <span>Voucher History</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("usage")}
+          className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === "usage"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          <ArrowDownUp className="w-4 h-4" />
+          <span>Usage History</span>
+        </button>
       </div>
 
       {activeTab === "all-deposit" && (
@@ -478,7 +596,6 @@ export default function DepositManagementComponent() {
                         <TableHead>Booking ID</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Created</TableHead>
-                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -497,16 +614,6 @@ export default function DepositManagementComponent() {
                             {formatCurrency(deposit.total)}
                           </TableCell>
                           <TableCell>{formatDate(deposit.createdAt)}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="black"
-                              onClick={() => handleOpenVoucherModal(deposit)}
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Buat Voucher
-                            </Button>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -536,9 +643,18 @@ export default function DepositManagementComponent() {
       {activeTab === "history" && (
         <div className="space-y-6">
           <Card>
+            <CardContent className="p-4">
+              <p className="text-sm text-gray-600 mt-4">Total Saldo Aktif</p>
+              <p className="text-xl font-bold text-green-600">
+                {formatCurrency(totalActiveBalance)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mt-4 mb-4">
-                Riwayat Voucher
+                Riwayat Deposit
               </h3>
 
               <div className="flex items-center gap-4 mb-4">
@@ -546,7 +662,7 @@ export default function DepositManagementComponent() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <input
                     type="text"
-                    placeholder="Search by user name or code..."
+                    placeholder="Search by user name..."
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -555,7 +671,134 @@ export default function DepositManagementComponent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleExportVouchers}
+                  onClick={handleExportHistories}
+                  disabled={historyRecords.length === 0}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+
+              {loading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-spin" />
+                  <p className="text-gray-600">Loading...</p>
+                </div>
+              ) : historyRecords.length === 0 ? (
+                <div className="text-center py-8">
+                  <History className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">No deposit history found</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Saldo Sebelum</TableHead>
+                        <TableHead>Saldo Sesudah</TableHead>
+                        <TableHead>Booking ID</TableHead>
+                        <TableHead>Payment ID</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyRecords.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">
+                            {record.userName}
+                          </TableCell>
+                          <TableCell>{record.userPhone}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                record.type === "TOPUP" ? "success" : "default"
+                              }
+                            >
+                              {record.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell
+                            className={`font-medium ${record.amount >= 0 ? "text-green-600" : "text-red-600"}`}
+                          >
+                            {formatCurrency(record.amount)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(record.balanceBefore)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(record.balanceAfter)}
+                          </TableCell>
+                          <TableCell>
+                            {record.bookingId ? (
+                              <Badge variant="outline" className="text-xs">
+                                {record.bookingId}
+                              </Badge>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-500">
+                            {record.paymentId
+                              ? record.paymentId.slice(0, 8) + "..."
+                              : "-"}
+                          </TableCell>
+                          <TableCell>{formatDate(record.createdAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {historyPagination.totalPages > 1 && (
+                    <div className="mt-4">
+                      <Pagination
+                        currentPage={historyPagination.currentPage}
+                        totalPages={historyPagination.totalPages}
+                        onPageChange={(page) =>
+                          setHistoryPagination((prev) => ({
+                            ...prev,
+                            currentPage: page,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "voucher-history" && (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mt-4 mb-4">
+                Riwayat Voucher{" "}
+                <span className="text-sm font-normal text-red-500">
+                  (data lama yang akan di hapus)
+                </span>
+              </h3>
+
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Search by user name or code..."
+                    value={voucherSearch}
+                    onChange={(e) => setVoucherSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportVoucherHistories}
                   disabled={voucherHistories.length === 0}
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -626,13 +869,13 @@ export default function DepositManagementComponent() {
                     </TableBody>
                   </Table>
 
-                  {historyPagination.totalPages > 1 && (
+                  {voucherPagination.totalPages > 1 && (
                     <div className="mt-4">
                       <Pagination
-                        currentPage={historyPagination.currentPage}
-                        totalPages={historyPagination.totalPages}
+                        currentPage={voucherPagination.currentPage}
+                        totalPages={voucherPagination.totalPages}
                         onPageChange={(page) =>
-                          setHistoryPagination((prev) => ({
+                          setVoucherPagination((prev) => ({
                             ...prev,
                             currentPage: page,
                           }))
@@ -647,107 +890,121 @@ export default function DepositManagementComponent() {
         </div>
       )}
 
-      <Dialog open={showVoucherModal} onOpenChange={handleCloseVoucherModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Buat Voucher</DialogTitle>
-          </DialogHeader>
-          {selectedDeposit && (
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Detail Deposit
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">User:</span>
-                    <span className="font-medium">
-                      {selectedDeposit.userName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phone:</span>
-                    <span>{selectedDeposit.userPhone}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Available:</span>
-                    <span className="font-medium text-green-600">
-                      {formatCurrency(selectedDeposit.total)}
-                    </span>
-                  </div>
+      {activeTab === "usage" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm text-gray-600 mt-4">Total Penggunaan</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {usageSummary.totalUsage}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm text-gray-600 mt-4">Total Jumlah</p>
+                <p className="text-xl font-bold text-red-600">
+                  {formatCurrency(usageSummary.totalAmount)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mt-4 mb-4">
+                History Penggunaan Deposit
+              </h3>
+
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Search by user name..."
+                  value={usageSearch}
+                  onChange={(e) => setUsageSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {loading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-spin" />
+                  <p className="text-gray-600">Loading...</p>
                 </div>
-              </div>
+              ) : usages.length === 0 ? (
+                <div className="text-center py-8">
+                  <ArrowDownUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">No usage history found</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Balance Before</TableHead>
+                        <TableHead>Balance After</TableHead>
+                        <TableHead>Booking ID</TableHead>
+                        <TableHead>Schedule</TableHead>
+                        <TableHead>Venue</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usages.map((usage) => (
+                        <TableRow key={usage.id}>
+                          <TableCell className="font-medium">
+                            {usage.userName}
+                          </TableCell>
+                          <TableCell>{usage.userPhone}</TableCell>
+                          <TableCell className="font-medium text-red-600">
+                            {formatCurrency(usage.amount)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(usage.balanceBefore)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(usage.balanceAfter)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {usage.bookingId}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {usage.scheduleName} ({usage.scheduleTime})
+                          </TableCell>
+                          <TableCell>{usage.venueName}</TableCell>
+                          <TableCell>{formatDate(usage.createdAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Nominal Voucher *
-                </label>
-                <Input
-                  type="number"
-                  value={voucherForm.nominal}
-                  onChange={(e) =>
-                    handleVoucherFormChange("nominal", e.target.value)
-                  }
-                  placeholder="Masukkan nominal voucher..."
-                  error={formErrors.nominal}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Nama Voucher (Opsional)
-                </label>
-                <Input
-                  value={voucherForm.name}
-                  onChange={(e) =>
-                    handleVoucherFormChange("name", e.target.value)
-                  }
-                  placeholder="Contoh: Voucher Ulang Tahun"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Deskripsi (Opsional)
-                </label>
-                <textarea
-                  value={voucherForm.description}
-                  onChange={(e) =>
-                    handleVoucherFormChange("description", e.target.value)
-                  }
-                  placeholder="Masukkan deskripsi voucher..."
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={handleCloseVoucherModal}
-                  disabled={actionLoading === "create-voucher"}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="black"
-                  onClick={handleCreateVoucher}
-                  disabled={actionLoading === "create-voucher"}
-                >
-                  {actionLoading === "create-voucher" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Buat Voucher"
+                  {usagePagination.totalPages > 1 && (
+                    <div className="mt-4">
+                      <Pagination
+                        currentPage={usagePagination.currentPage}
+                        totalPages={usagePagination.totalPages}
+                        onPageChange={(page) =>
+                          setUsagePagination((prev) => ({
+                            ...prev,
+                            currentPage: page,
+                          }))
+                        }
+                      />
+                    </div>
                   )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
