@@ -8,6 +8,7 @@ export interface bookingRequest {
   isPlayer: boolean;
   isGk: boolean;
   isTeam: boolean;
+  useDeposit?: boolean;
   teamRoster?: {
     name: string;
     email: string;
@@ -25,6 +26,7 @@ export interface bookingEventReq {
   isPlayer: boolean;
   isGk: boolean;
   isTeam: boolean;
+  useDeposit?: boolean;
   jerseySize: string;
   jerseyName: string;
   jerseyNumber: string;

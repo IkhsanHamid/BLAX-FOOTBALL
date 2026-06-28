@@ -137,6 +137,36 @@ export interface VoucherHistory {
   createdAt: string;
 }
 
+export interface DepositHistoryRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  type: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  bookingId: string | null;
+  paymentId: string;
+  createdAt: string;
+}
+
+export interface DepositUsage {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  bookingId: string;
+  scheduleName: string;
+  scheduleDate: string;
+  scheduleTime: string;
+  venueName: string;
+  createdAt: string;
+}
+
 export interface VoucherHistoryRecord {
   id: string;
   depositId: string;

@@ -4,6 +4,8 @@ import {
   BookingHistory,
   BookingHistoryResponse,
   DepositHistory,
+  DepositHistoryRecord,
+  DepositUsage,
   ListUserMember,
   ReportBooking,
   RescheduleManagement,
@@ -661,6 +663,96 @@ class AdminService {
       return { data: exportResult.data, totalData };
     } catch (error: any) {
       console.error("Error export voucher histories:", error);
+      throw error;
+    }
+  }
+
+  async getDepositUsages(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: DepositUsage[];
+    totalData: number;
+    skip: number;
+    limit: number;
+    summary: { totalUsage: number; totalAmount: number };
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/admin/usages?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get deposit usages:", error);
+      throw error;
+    }
+  }
+
+  async getAdminDepositHistories(
+    skip?: number,
+    limit?: number,
+    search?: string,
+  ): Promise<{
+    data: DepositHistoryRecord[];
+    totalData: number;
+    skip: number;
+    limit: number;
+    summary: { totalActiveBalance: number };
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (limit) queryParams.append("limit", limit.toString());
+      if (skip) queryParams.append("skip", skip.toString());
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/admin/histories?${queryParams}`,
+      );
+
+      return result;
+    } catch (error: any) {
+      console.error("Error get admin deposit histories:", error);
+      throw error;
+    }
+  }
+
+  async exportAdminDepositHistories(
+    search?: string,
+  ): Promise<{
+    data: DepositHistoryRecord[];
+    totalData: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const result = await apiClient.get(
+        `/api/v1/deposit/admin/histories?${queryParams}&limit=1`,
+      );
+
+      const totalData = result.totalData || 0;
+      if (totalData === 0) {
+        return { data: [], totalData: 0 };
+      }
+
+      const exportParams = new URLSearchParams();
+      if (search) exportParams.append("search", search);
+      exportParams.append("limit", totalData.toString());
+
+      const exportResult = await apiClient.get(
+        `/api/v1/deposit/admin/histories?${exportParams}`,
+      );
+
+      return { data: exportResult.data, totalData };
+    } catch (error: any) {
+      console.error("Error export admin deposit histories:", error);
       throw error;
     }
   }
