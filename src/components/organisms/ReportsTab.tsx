@@ -274,6 +274,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                     <option value="blax">Blax</option>
                     <option value="red-alert">Red Alert</option>
                     <option value="magnifico">Magnifico</option>
+                    <option value="ots">OTS</option>
                   </select>
                 </div>
               )}
