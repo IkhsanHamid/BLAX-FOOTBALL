@@ -57,7 +57,7 @@ const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-FOOTBALL"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
-const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert"];
+const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert", "ots"];
 
 const DATE_FILTER_LABELS = {
   today: "Today",
@@ -866,7 +866,9 @@ export default function ScheduleTab({
                             className={
                               schedule.community.toLowerCase() === "blax"
                                 ? "bg-gray-900 text-white capitalize"
-                                : "bg-orange-100 text-orange-800 capitalize"
+                                : schedule.community.toLowerCase() === "ots"
+                                  ? "bg-blue-600 text-white capitalize"
+                                  : "bg-orange-100 text-orange-800 capitalize"
                             }
                           >
                             {schedule.community}
@@ -1107,7 +1109,9 @@ export default function ScheduleTab({
                 <option value="">Select community</option>
                 {COMMUNITY_OPTIONS.map((c) => (
                   <option key={c} value={c}>
-                    {c.charAt(0).toUpperCase() + c.slice(1)}
+                    {c === "ots"
+                      ? "OTS"
+                      : c.charAt(0).toUpperCase() + c.slice(1)}
                   </option>
                 ))}
               </select>
