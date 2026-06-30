@@ -363,7 +363,6 @@ export default function PlayerDashboardPage() {
   const [redeemableVouchers, setRedeemableVouchers] = useState<
     RedeemableVoucher[]
   >([]);
-  console.log("user", user);
 
   const hasInitialized = useRef(false);
 

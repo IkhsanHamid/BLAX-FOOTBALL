@@ -1,17 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ExternalLink, User, Calendar, Clock, CreditCard } from "lucide-react";
 import PaymentView from "@/components/organisms/PaymentView";
 import { formatCurrency } from "@/lib/helper";
 import { depositService } from "@/utils/deposit";
+import { AuthService } from "@/utils/auth";
 import type { UserDepositPaymentDetail } from "@/types/deposit";
 
 export default function DepositPaymentPage() {
   const params = useParams();
   const router = useRouter();
-  const [paymentData, setPaymentData] = useState<UserDepositPaymentDetail | null>(null);
+
+  const handleRedirect = useCallback(() => {
+    AuthService.getSession().then((session) => {
+      if (session?.access_token) {
+        router.push("/player-dashboard");
+      } else {
+        router.push("/");
+      }
+    });
+  }, [router]);
+  const [paymentData, setPaymentData] =
+    useState<UserDepositPaymentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +33,9 @@ export default function DepositPaymentPage() {
       setLoading(true);
       setError(null);
       const result = await depositService.checkPayment(
-        params.encryptedPaymentId as string
+        params.encryptedPaymentId as string,
       );
+      console.log("object", result);
       setPaymentData(result);
     } catch (err) {
       console.error("Error fetching payment data:", err);
@@ -39,17 +52,29 @@ export default function DepositPaymentPage() {
   }, [params.encryptedPaymentId]);
 
   useEffect(() => {
+    console.log("paymentData", paymentData);
     if (!paymentData || paymentData.status !== "PENDING") return;
 
     const interval = setInterval(async () => {
       try {
         const statusResult = await depositService.checkTopupStatus(
-          params.encryptedPaymentId as string
+          params.encryptedPaymentId as string,
         );
-        if (statusResult.status === "SUCCESS") {
-          setPaymentData((prev) => prev ? { ...prev, status: "SUCCESS" } : null);
-        } else if (statusResult.status === "FAILED") {
-          router.push("/player-dashboard");
+
+        console.log("statusResult", statusResult);
+        const status = String(statusResult.status || "").toUpperCase();
+        if (status === "SUCCESS" || status === "SETTLEMENT") {
+          setPaymentData((prev) =>
+            prev ? { ...prev, status: "SUCCESS" } : null,
+          );
+        } else if (status === "EXPIRED" || status === "EXPIRE") {
+          setPaymentData((prev) =>
+            prev ? { ...prev, status: "EXPIRED" } : null,
+          );
+        } else if (status === "FAILED") {
+          setPaymentData((prev) =>
+            prev ? { ...prev, status: "FAILED" } : null,
+          );
         }
       } catch {
         // ignore polling errors
@@ -64,14 +89,22 @@ export default function DepositPaymentPage() {
     setRefreshing(true);
     try {
       const result = await depositService.checkTopupStatus(
-        params.encryptedPaymentId as string
+        params.encryptedPaymentId as string,
       );
-      if (result.status === "SUCCESS") {
-        setPaymentData((prev) => prev ? { ...prev, status: "SUCCESS" } : null);
-      } else if (result.status === "FAILED") {
-        router.push("/player-dashboard");
-      } else if (result.status === "EXPIRED") {
-        setPaymentData((prev) => prev ? { ...prev, status: "EXPIRED" } : null);
+      console.log("result", result);
+      const status = String(result.status || "").toUpperCase();
+      if (status === "SUCCESS" || status === "SETTLEMENT") {
+        setPaymentData((prev) =>
+          prev ? { ...prev, status: "SUCCESS" } : null,
+        );
+      } else if (status === "EXPIRED" || status === "EXPIRE") {
+        setPaymentData((prev) =>
+          prev ? { ...prev, status: "EXPIRED" } : null,
+        );
+      } else if (status === "FAILED") {
+        setPaymentData((prev) =>
+          prev ? { ...prev, status: "FAILED" } : null,
+        );
       } else {
         await fetchPaymentData();
       }
@@ -147,7 +180,7 @@ export default function DepositPaymentPage() {
       title=""
       subtitle="Hanya beberapa langkah lagi untuk menyelesaikan proses topup Anda."
       onRefresh={handleRefresh}
-      onDashboard={() => router.push("/player-dashboard")}
+      onDashboard={handleRedirect}
       paymentLabel="Topup"
       successTitle="Pembayaran berhasil!"
       successMessage={`Topup sebesar ${paymentData ? formatCurrency(paymentData.totalAmount) : ""} telah berhasil ditambahkan ke saldo Anda.`}
