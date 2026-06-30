@@ -705,8 +705,33 @@ export default function BookingHistoryTab({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-semibold text-gray-900">
-                            {formatCurrency(booking.totalAmount)}
+                          <div className="space-y-1">
+                            {booking.depositUsed > 0 && (
+                              <div className="font-semibold text-green-600">
+                                <span className="text-xs font-normal text-green-700">
+                                  BlaxPay
+                                </span>
+                                <div
+                                  className="font-semibold text-green-600"
+                                  title="BlaxPay"
+                                >
+                                  {formatCurrency(booking.depositUsed)}
+                                </div>
+                              </div>
+                            )}
+                            {booking.totalAmount > 0 && (
+                              <div className="font-semibold text-gray-900">
+                                <span className="text-xs font-normal text-gray-600">
+                                  QRIS
+                                </span>
+                                <div
+                                  className="font-semibold text-gray-900"
+                                  title="QRIS"
+                                >
+                                  {formatCurrency(booking.totalAmount)}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

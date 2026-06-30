@@ -74,6 +74,8 @@ export interface BookingHistory {
   bookingType: "INDIVIDUAL" | "TEAM";
   playerCount: number;
   totalAmount: number;
+  depositUsed: number;
+  depositType?: "FULL" | "PARTIAL" | "NONE";
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
   bookedAt: string;
   paymentAt: string;
