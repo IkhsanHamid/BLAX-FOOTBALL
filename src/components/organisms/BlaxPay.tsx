@@ -437,6 +437,7 @@ export default function BlaxPay() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Saldo Sebelum</TableHead>
                         <TableHead>Saldo Sesudah</TableHead>
@@ -448,7 +449,24 @@ export default function BlaxPay() {
                     <TableBody>
                       {usages.map((u) => (
                         <TableRow key={u.id}>
-                          <TableCell className="font-medium text-red-600">
+                          <TableCell>
+                            <span
+                              className={`text-xs capitalize px-2 py-1 rounded-full ${
+                                u.type === "REFUND"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {u.type ? u.type.toLowerCase() : "usage"}
+                            </span>
+                          </TableCell>
+                          <TableCell
+                            className={`font-medium ${
+                              u.type === "REFUND"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
                             {formatCurrency(u.amount)}
                           </TableCell>
                           <TableCell>

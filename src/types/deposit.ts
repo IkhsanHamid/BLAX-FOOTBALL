@@ -48,6 +48,7 @@ export interface UserDepositHistoryResponse {
 
 export interface UserDepositUsage {
   id: string;
+  type?: "USAGE" | "REFUND";
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
