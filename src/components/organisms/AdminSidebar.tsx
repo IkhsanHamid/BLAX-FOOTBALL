@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Wallet,
+  Undo2,
 } from "lucide-react";
 
 interface NavItem {
@@ -65,6 +66,7 @@ const navItems: NavItem[] = [
     ],
   },
   { id: "deposit", label: "Deposit", icon: Wallet },
+  { id: "refund", label: "Refund", icon: Undo2 },
   { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 

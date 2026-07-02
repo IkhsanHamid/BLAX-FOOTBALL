@@ -22,6 +22,7 @@ import { firebaseService } from "@/utils/firebase";
 import EventTab from "@/components/organisms/EventTabComponent";
 import TeamManagementTab from "@/components/organisms/EventTeamManagement";
 import DepositManagementComponent from "@/components/organisms/DepositManagement";
+import RefundTab from "@/components/organisms/RefundTab";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -230,6 +231,8 @@ export default function AdminPage() {
         return <RescheduleManagementComponent />;
       case "deposit":
         return <DepositManagementComponent />;
+      case "refund":
+        return <RefundTab />;
 
       // ── Event children ──────────────────────────────────────────────────────
       case "event-kelola":

@@ -7,6 +7,8 @@ import {
   DepositHistoryRecord,
   DepositUsage,
   ListUserMember,
+  RefundHistoryResponse,
+  RefundableBookingResponse,
   ReportBooking,
   RescheduleManagement,
   Roles,
@@ -312,6 +314,55 @@ class AdminService {
 
       const response = await apiClient.get(
         "/api/v1/booking/recent-booking?" + queryParams,
+      );
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getRefundableBookings(
+    search?: string,
+    skip?: number,
+    limit?: number,
+  ): Promise<RefundableBookingResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
+      const response = await apiClient.get(
+        `/api/v1/booking/refundable?${queryParams.toString()}`,
+      );
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async refundBooking(data: { bookId: string; reason: string }) {
+    try {
+      const response = await apiClient.post(`/api/v1/booking/refund`, data);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getRefundHistory(
+    search?: string,
+    skip?: number,
+    limit?: number,
+  ): Promise<RefundHistoryResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
+      const response = await apiClient.get(
+        `/api/v1/booking/refund-history?${queryParams.toString()}`,
       );
       return response;
     } catch (error) {
