@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, TdHTMLAttributes } from "react";
 
 interface TableProps {
   children: ReactNode;
@@ -42,8 +42,14 @@ export function TableHead({ children, className = "" }: TableProps) {
   );
 }
 
-export function TableCell({ children, className = "" }: TableProps) {
+export function TableCell({
+  children,
+  className = "",
+  ...rest
+}: TableProps & TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`px-6 py-4 whitespace-nowrap ${className}`}>{children}</td>
+    <td className={`px-6 py-4 whitespace-nowrap ${className}`} {...rest}>
+      {children}
+    </td>
   );
 }

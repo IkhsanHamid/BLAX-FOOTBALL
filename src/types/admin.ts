@@ -91,6 +91,71 @@ export interface BookingHistoryResponse {
   data: BookingHistory[];
 }
 
+export interface RefundableBooking {
+  id: string;
+  bookId: string;
+  customerName: string;
+  customerPhone: string;
+  scheduleName: string;
+  venue: string;
+  date: string;
+  time: string;
+  bookingType: "INDIVIDUAL" | "TEAM";
+  totalAmount: number;
+  depositUsed: number;
+  qrisAmount: number;
+}
+
+export interface RefundableBookingResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: {
+    data: RefundableBooking[];
+    meta: {
+      total: number;
+      skip: number;
+      limit: number;
+    };
+  };
+}
+
+export interface RefundHistoryRecord {
+  id: string;
+  bookId: string;
+  customerName: string;
+  customerPhone: string;
+  scheduleName: string;
+  venue: string;
+  date: string;
+  time: string;
+  bookingType: "INDIVIDUAL" | "TEAM";
+  totalAmount: number;
+  depositUsed: number;
+  depositType?: "FULL" | "PARTIAL" | "NONE";
+  reason: string;
+  refundedAt: string;
+}
+
+export interface RefundHistoryResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: {
+    data: RefundHistoryRecord[];
+    meta: {
+      total: number;
+      skip: number;
+      limit: number;
+    };
+  };
+}
+
+export interface RefundRequest {
+  bookId: string;
+  reason: string;
+}
+
 export interface Users {
   phone: string;
   name: string;
