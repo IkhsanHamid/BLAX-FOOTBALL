@@ -69,6 +69,9 @@ export default function ScheduleFeaturedGrid() {
 
   // Filter schedules by both community and match type
   const filteredSchedules = schedules.filter((schedule) => {
+    // Hide schedules that are not yet verified (still pending admin verification)
+    if (schedule.isVerified === false) return false;
+
     const matchesCommunity =
       selectedCommunity === "all" ||
       (schedule.community || "").toLowerCase() ===
@@ -210,6 +213,15 @@ export default function ScheduleFeaturedGrid() {
       inactiveClass:
         "bg-white text-orange-700 border border-orange-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md",
       logo: "/OTS.png",
+    },
+    {
+      label: "Ayo Bola",
+      value: "ayo-bola",
+      activeClass:
+        "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 scale-105",
+      inactiveClass:
+        "bg-white text-green-700 border border-green-300 hover:border-green-500 hover:bg-green-50 hover:shadow-md",
+      logo: "/ayo-bola.jpeg",
     },
   ];
 

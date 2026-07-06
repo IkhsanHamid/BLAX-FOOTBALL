@@ -57,7 +57,7 @@ const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-FOOTBALL"];
 const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
-const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert", "ots"];
+const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert", "ots", "ayo-bola"];
 
 const DATE_FILTER_LABELS = {
   today: "Today",
@@ -95,6 +95,7 @@ interface ScheduleForm {
   typeEvent: string;
   typeMatch: string;
   image: File | string | null;
+  paymentProof: File | null;
   facilityIds: string[];
   ruleIds: string[];
   community: string;
@@ -112,6 +113,7 @@ const initialFormState: ScheduleForm = {
   typeEvent: "",
   typeMatch: "",
   image: "",
+  paymentProof: null,
   facilityIds: [],
   ruleIds: [],
   community: "",
@@ -475,6 +477,15 @@ export default function ScheduleTab({
       errors.ruleIds = "At least one rule must be selected";
     }
 
+    if (
+      scheduleForm.community &&
+      scheduleForm.community.toLowerCase() !== "blax" &&
+      !scheduleForm.paymentProof
+    ) {
+      errors.paymentProof =
+        "Bukti pembayaran lapangan wajib diupload untuk community selain Blax";
+    }
+
     ["feePlayer", "feeGk"].forEach((field) => {
       const value = scheduleForm[field as keyof ScheduleForm];
       if (value && (isNaN(Number(value)) || Number(value) < 0)) {
@@ -517,6 +528,10 @@ export default function ScheduleTab({
 
       if (scheduleForm.image) {
         formData.append("imageUrl", scheduleForm.image as File);
+      }
+
+      if (scheduleForm.paymentProof) {
+        formData.append("paymentProof", scheduleForm.paymentProof);
       }
 
       scheduleForm.facilityIds.forEach((id) =>
@@ -567,6 +582,7 @@ export default function ScheduleTab({
         typeEvent: schedule.typeEvent,
         typeMatch: schedule.typeMatch,
         image: String(schedule.image),
+        paymentProof: null,
         facilityIds:
           schedule.facilities?.map((f: any) =>
             typeof f === "string" ? f : f.id,
@@ -868,7 +884,10 @@ export default function ScheduleTab({
                                 ? "bg-gray-900 text-white capitalize"
                                 : schedule.community.toLowerCase() === "ots"
                                   ? "bg-blue-600 text-white capitalize"
-                                  : "bg-orange-100 text-orange-800 capitalize"
+                                  : schedule.community.toLowerCase() ===
+                                      "ayo-bola"
+                                    ? "bg-green-600 text-white capitalize"
+                                    : "bg-orange-100 text-orange-800 capitalize"
                             }
                           >
                             {schedule.community}
@@ -885,17 +904,34 @@ export default function ScheduleTab({
                         </TableCell>
                       )}
                       <TableCell>
-                        <Badge
-                          className={
-                            schedule.status === "ACTIVE"
-                              ? "bg-green-100 text-green-800"
-                              : schedule.status === "CANCELLED"
-                                ? "bg-red-400 text-white"
-                                : "bg-gray-100 text-gray-800"
-                          }
-                        >
-                          {schedule.status}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge
+                            className={
+                              schedule.status === "ACTIVE"
+                                ? "bg-green-100 text-green-800"
+                                : schedule.status === "CANCELLED"
+                                  ? "bg-red-400 text-white"
+                                  : "bg-gray-100 text-gray-800"
+                            }
+                          >
+                            {schedule.status}
+                          </Badge>
+                          {schedule.isVerified === false &&
+                            schedule.isRejected === true && (
+                              <Badge
+                                className="bg-red-100 text-red-700"
+                                title={schedule.rejectReason || ""}
+                              >
+                                Ditolak
+                              </Badge>
+                            )}
+                          {schedule.isVerified === false &&
+                            schedule.isRejected !== true && (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                Pending
+                              </Badge>
+                            )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
@@ -1111,7 +1147,9 @@ export default function ScheduleTab({
                   <option key={c} value={c}>
                     {c === "ots"
                       ? "OTS"
-                      : c.charAt(0).toUpperCase() + c.slice(1)}
+                      : c === "ayo-bola"
+                        ? "Ayo Bola"
+                        : c.charAt(0).toUpperCase() + c.slice(1)}
                   </option>
                 ))}
               </select>
@@ -1224,6 +1262,40 @@ export default function ScheduleTab({
                 acceptedTypes={["image/jpeg", "image/png", "image/gif"]}
               />
             </div>
+
+            {scheduleForm.community &&
+              scheduleForm.community.toLowerCase() !== "blax" && (
+                <div>
+                  <label className="block text-sm font-medium mb-3">
+                    Bukti Pembayaran Lapangan{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Wajib diupload untuk community selain Blax. Format:
+                    jpeg/jpg/png, maksimal 5MB.
+                  </p>
+                  <ImageUpload
+                    value={scheduleForm.paymentProof ?? undefined}
+                    onChange={(file) => {
+                      setScheduleForm((prev) => ({
+                        ...prev,
+                        paymentProof: file,
+                      }));
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        paymentProof: "",
+                      }));
+                    }}
+                    error={formErrors.paymentProof}
+                    maxSize={5}
+                    acceptedTypes={[
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/png",
+                    ]}
+                  />
+                </div>
+              )}
 
             <div>
               <label className="block text-sm font-medium mb-3">

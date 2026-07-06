@@ -5,6 +5,7 @@ interface BadgeProps {
   variant?: "default" | "secondary" | "destructive" | "outline" | "success";
   size?: "sm" | "md" | "lg";
   className?: string;
+  title?: string;
 }
 
 export default function Badge({
@@ -12,6 +13,7 @@ export default function Badge({
   variant = "default",
   size = "md",
   className = "",
+  title,
 }: BadgeProps) {
   const baseClasses =
     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
@@ -36,6 +38,7 @@ export default function Badge({
 
   return (
     <span
+      title={title}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >
       {children}
