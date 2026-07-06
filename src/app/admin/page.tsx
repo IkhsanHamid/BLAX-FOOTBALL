@@ -23,6 +23,7 @@ import EventTab from "@/components/organisms/EventTabComponent";
 import TeamManagementTab from "@/components/organisms/EventTeamManagement";
 import DepositManagementComponent from "@/components/organisms/DepositManagement";
 import RefundTab from "@/components/organisms/RefundTab";
+import ScheduleVerificationTab from "@/components/organisms/ScheduleVerificationTab";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -145,6 +146,7 @@ export default function AdminPage() {
         user?.role !== "Admin-magnifico" &&
         user?.role !== "Admin-red-alert" &&
         user?.role !== "Admin-OTS" &&
+        user?.role !== "Admin-Ayo" &&
         user?.role !== "Admin-news" &&
         !adminStatus?.isAdmin
       ) {
@@ -210,6 +212,17 @@ export default function AdminPage() {
         return <ReportsTab userRole={user?.role} />;
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
+      case "schedule-verification":
+        if (user?.role !== "Admin" && user?.role !== "Owner") {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-600">
+                Anda tidak memiliki akses ke menu ini.
+              </p>
+            </div>
+          );
+        }
+        return <ScheduleVerificationTab />;
       case "lineup":
         return <LineupManagement />;
       case "users":
@@ -232,6 +245,15 @@ export default function AdminPage() {
       case "deposit":
         return <DepositManagementComponent />;
       case "refund":
+        if (user?.role !== "Admin" && user?.role !== "Owner") {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-600">
+                Anda tidak memiliki akses ke menu ini.
+              </p>
+            </div>
+          );
+        }
         return <RefundTab />;
 
       // ── Event children ──────────────────────────────────────────────────────

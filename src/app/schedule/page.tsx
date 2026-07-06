@@ -104,26 +104,28 @@ export default function SchedulePage() {
 
   const matchesData = useMemo(
     () =>
-      schedules.map((schedule) => ({
-        id: schedule.id.toString(),
-        name: schedule.name,
-        date: schedule.date,
-        time: schedule.time,
-        venue: schedule.venue,
-        openSlots: schedule.openSlots,
-        bookedSlots: schedule.bookedSlots,
-        totalSlots: schedule.totalSlots,
-        feePlayer: Number(schedule.feePlayer),
-        feeGk: Number(schedule.feeGk),
-        typeEvent: schedule.typeEvent,
-        typeMatch: schedule.typeMatch,
-        facilities: schedule.facilities,
-        image: schedule.imageUrl,
-        canRegistTeam: schedule.canRegistTeam,
-        availableGkSlots: schedule.availableGkSlots,
-        availablePlayerSlots: schedule.availablePlayerSlots,
-        isOpen: schedule.isOpen,
-      })),
+      schedules
+        .filter((schedule) => schedule.isVerified !== false)
+        .map((schedule) => ({
+          id: schedule.id.toString(),
+          name: schedule.name,
+          date: schedule.date,
+          time: schedule.time,
+          venue: schedule.venue,
+          openSlots: schedule.openSlots,
+          bookedSlots: schedule.bookedSlots,
+          totalSlots: schedule.totalSlots,
+          feePlayer: Number(schedule.feePlayer),
+          feeGk: Number(schedule.feeGk),
+          typeEvent: schedule.typeEvent,
+          typeMatch: schedule.typeMatch,
+          facilities: schedule.facilities,
+          image: schedule.imageUrl,
+          canRegistTeam: schedule.canRegistTeam,
+          availableGkSlots: schedule.availableGkSlots,
+          availablePlayerSlots: schedule.availablePlayerSlots,
+          isOpen: schedule.isOpen,
+        })),
     [schedules],
   );
 

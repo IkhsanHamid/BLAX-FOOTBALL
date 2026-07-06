@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Wallet,
   Undo2,
+  CheckSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
     shortLabel: "History",
   },
   { id: "schedules", label: "Jadwal", icon: Calendar },
+  { id: "schedule-verification", label: "Verifikasi Jadwal", icon: CheckSquare },
   { id: "lineup", label: "Lineup", icon: Shield },
   { id: "users", label: "Member", icon: Users },
   { id: "news", label: "Berita", icon: Newspaper },
@@ -92,6 +94,7 @@ export default function AdminSidebar({
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
   const isOTS = userRole === "Admin-OTS";
+  const isAyo = userRole === "Admin-Ayo";
   const isNewsOnly = userRole === "Admin-news";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
@@ -156,9 +159,15 @@ export default function AdminSidebar({
         userRole === "Owner" ||
         userRole === "Admin-magnifico" ||
         userRole === "Admin-red-alert" ||
-        userRole === "Admin-OTS"
+        userRole === "Admin-OTS" ||
+        userRole === "Admin-Ayo"
       );
-    if ((isMagnifico || isRedAlert || isOTS) && RESTRICTED.includes(item.id))
+    if (item.id === "refund" || item.id === "schedule-verification")
+      return userRole === "Admin" || userRole === "Owner";
+    if (
+      (isMagnifico || isRedAlert || isOTS || isAyo) &&
+      RESTRICTED.includes(item.id)
+    )
       return false;
     return true;
   });

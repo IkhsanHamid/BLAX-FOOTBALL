@@ -1,4 +1,11 @@
-import { ListSchedule, ScheduleOverview } from "@/types/schedule";
+import {
+  ListSchedule,
+  PendingVerificationResponse,
+  RejectedScheduleResponse,
+  ScheduleOverview,
+  VerificationDetailResponse,
+  VerifyScheduleRequest,
+} from "@/types/schedule";
 import { apiClient } from "./api";
 import {
   BookingHistory,
@@ -168,6 +175,79 @@ class AdminService {
       return response.data;
     } catch (error) {
       console.error("Error deleting schedule:", error);
+      throw error;
+    }
+  }
+
+  async getPendingVerification(
+    skip?: number,
+    limit?: number,
+  ): Promise<PendingVerificationResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
+      const response = await apiClient.get(
+        `/api/v1/matches/pending-verification?${queryParams.toString()}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching pending verification:", error);
+      throw error;
+    }
+  }
+
+  async getVerificationDetail(id: string): Promise<VerificationDetailResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/matches/verification/${id}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching verification detail:", error);
+      throw error;
+    }
+  }
+
+  async verifySchedule(data: VerifyScheduleRequest): Promise<any> {
+    try {
+      const response = await apiClient.post(`/api/v1/matches/verify`, data);
+      return response;
+    } catch (error) {
+      console.error("Error verifying schedule:", error);
+      throw error;
+    }
+  }
+
+  async getRejectedSchedules(
+    skip?: number,
+    limit?: number,
+  ): Promise<RejectedScheduleResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
+      const response = await apiClient.get(
+        `/api/v1/schedule/rejected?${queryParams.toString()}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching rejected schedules:", error);
+      throw error;
+    }
+  }
+
+  async reviseSchedule(id: string, formData: FormData): Promise<any> {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/schedule/revision/${id}`,
+        formData,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error revising schedule:", error);
       throw error;
     }
   }
@@ -463,7 +543,10 @@ class AdminService {
     }
   }
 
-  async listScheduleActiveByVenue(venueId: string, scheduleId?: string): Promise<ListSchedule[]> {
+  async listScheduleActiveByVenue(
+    venueId: string,
+    scheduleId?: string,
+  ): Promise<ListSchedule[]> {
     try {
       const queryParams = new URLSearchParams();
       queryParams.append("venueId", venueId);
@@ -553,7 +636,11 @@ class AdminService {
     }
   }
 
-  async createRescheduleRecord(bookId: string, reason: string, scheduleId?: string) {
+  async createRescheduleRecord(
+    bookId: string,
+    reason: string,
+    scheduleId?: string,
+  ) {
     const payload: Record<string, string> = { bookId, reason };
     if (scheduleId) payload.scheduleId = scheduleId;
     const response = await apiClient.post("/api/v1/reschedule", payload);
@@ -650,9 +737,7 @@ class AdminService {
     }
   }
 
-  async exportDepositHistories(
-    search?: string,
-  ): Promise<{
+  async exportDepositHistories(search?: string): Promise<{
     data: DepositHistory[];
     totalData: number;
   }> {
@@ -684,9 +769,7 @@ class AdminService {
     }
   }
 
-  async exportVoucherHistories(
-    search?: string,
-  ): Promise<{
+  async exportVoucherHistories(search?: string): Promise<{
     data: VoucherHistoryRecord[];
     totalData: number;
   }> {
@@ -774,9 +857,7 @@ class AdminService {
     }
   }
 
-  async exportAdminDepositHistories(
-    search?: string,
-  ): Promise<{
+  async exportAdminDepositHistories(search?: string): Promise<{
     data: DepositHistoryRecord[];
     totalData: number;
   }> {

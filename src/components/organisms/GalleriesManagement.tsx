@@ -33,6 +33,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
   const isMagnifico = userRole === "Admin-magnifico";
   const isRedAlert = userRole === "Admin-red-alert";
   const isOTS = userRole === "Admin-OTS";
+  const isAyo = userRole === "Admin-Ayo";
 
   const [galleries, setGalleries] = useState<GalleryData[]>([]);
   const [schedules, setSchedules] = useState<ListSchedule[]>([]);
@@ -247,7 +248,9 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
           ? (gallery.community || "").toLowerCase() === "red-alert"
           : isOTS
             ? (gallery.community || "").toLowerCase() === "ots"
-            : true;
+            : isAyo
+              ? (gallery.community || "").toLowerCase() === "ayo-bola"
+              : true;
 
     return matchesSearch && matchesCommunity;
   });

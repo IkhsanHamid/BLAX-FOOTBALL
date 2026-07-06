@@ -16,11 +16,14 @@ export interface Schedule {
   description: string;
   gmapLink: string;
   address: string;
-facilities: Facilites[];
+  facilities: Facilites[];
   canRegistTeam: boolean;
   availableGkSlots: number;
   availablePlayerSlots: number;
   isOpen: boolean;
+  isVerified?: boolean;
+  isRejected?: boolean;
+  rejectReason?: string;
 }
 
 export interface ScheduleDetail extends Schedule {
@@ -61,6 +64,9 @@ export interface ScheduleOverview {
   rules: Rules[];
   facilities: Facilites[];
   isOpen: boolean;
+  isVerified?: boolean;
+  isRejected?: boolean;
+  rejectReason?: string;
 }
 
 export interface ListSchedule {
@@ -68,4 +74,116 @@ export interface ListSchedule {
   name: string;
   date: string;
   time: string;
+}
+
+export interface PendingVerificationItem {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  typeMatch: string;
+  team: number;
+  community: string;
+  venue: string;
+  paymentProof: string;
+  createdBy: string;
+  createdByPhone: string;
+  createdAt: string;
+}
+
+export interface PendingVerificationResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: {
+    data: PendingVerificationItem[];
+    meta: {
+      total: number;
+      skip: number;
+      limit: number;
+    };
+  };
+}
+
+export interface VerificationFacility {
+  id: string;
+  name: string;
+}
+
+export interface VerificationRule {
+  id: string;
+  description: string;
+}
+
+export interface VerificationCreatedBy {
+  name: string;
+  phone: string;
+  email: string;
+}
+
+export interface VerificationDetail {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  typeEvent: string;
+  typeMatch: string;
+  team: number;
+  feePlayer: number;
+  feeGk: number;
+  community: string;
+  imageUrl: string;
+  paymentProof: string;
+  isVerified: boolean;
+  isRejected: boolean;
+  venue: { id: string; name: string };
+  facilities: VerificationFacility[];
+  rules: VerificationRule[];
+  createdBy: VerificationCreatedBy;
+  createdAt: string;
+}
+
+export interface VerificationDetailResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: VerificationDetail;
+}
+
+export interface VerifyScheduleRequest {
+  scheduleId: string;
+  action: "approve" | "reject";
+  rejectReason?: string;
+}
+
+export interface RejectedScheduleItem {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  typeMatch: string;
+  team: number;
+  community: string;
+  venue: string;
+  paymentProof: string;
+  imageUrl: string;
+  createdBy: string;
+  createdByPhone: string;
+  createdAt: string;
+  rejectedAt?: string;
+  rejectReason: string;
+}
+
+export interface RejectedScheduleResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: {
+    data: RejectedScheduleItem[];
+    meta: {
+      total: number;
+      skip: number;
+      limit: number;
+    };
+  };
 }
