@@ -162,7 +162,7 @@ export default function AdminSidebar({
         userRole === "Admin-OTS" ||
         userRole === "Admin-Ayo"
       );
-    if (item.id === "refund" || item.id === "schedule-verification")
+    if (item.id === "refund")
       return userRole === "Admin" || userRole === "Owner";
     if (
       (isMagnifico || isRedAlert || isOTS || isAyo) &&

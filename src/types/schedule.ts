@@ -187,3 +187,51 @@ export interface RejectedScheduleResponse {
     };
   };
 }
+
+export interface ScheduleDetailVenue {
+  id: string;
+  name: string;
+  address: string;
+  gmapLink: string;
+}
+
+export interface ScheduleDetailSlots {
+  bookedSlots: number;
+  openSlots: number;
+  totalSlots: number;
+  gkSlots: number;
+  playerSlots: number;
+}
+
+export interface ScheduleDetailItem {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  typeEvent: string;
+  typeMatch: string;
+  community: string;
+  team: number;
+  feePlayer: number;
+  feeGk: number;
+  imageUrl: string;
+  paymentProof: string;
+  isOpen: boolean;
+  isActive: boolean;
+  isVerified: boolean;
+  isRejected: boolean;
+  rejectReason: string | null;
+  venue: ScheduleDetailVenue;
+  slots: ScheduleDetailSlots;
+  facilities: { id: string; name: string }[];
+  rules: { id: string; description: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleDetailResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: ScheduleDetailItem;
+}

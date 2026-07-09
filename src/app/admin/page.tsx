@@ -213,15 +213,6 @@ export default function AdminPage() {
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
       case "schedule-verification":
-        if (user?.role !== "Admin" && user?.role !== "Owner") {
-          return (
-            <div className="text-center py-12">
-              <p className="text-gray-600">
-                Anda tidak memiliki akses ke menu ini.
-              </p>
-            </div>
-          );
-        }
         return <ScheduleVerificationTab />;
       case "lineup":
         return <LineupManagement />;
