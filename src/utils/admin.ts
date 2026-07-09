@@ -2,6 +2,7 @@ import {
   ListSchedule,
   PendingVerificationResponse,
   RejectedScheduleResponse,
+  ScheduleDetailResponse,
   ScheduleOverview,
   VerificationDetailResponse,
   VerifyScheduleRequest,
@@ -163,6 +164,16 @@ class AdminService {
       return response.data;
     } catch (error) {
       console.error("Error updating schedule:", error);
+      throw error;
+    }
+  }
+
+  async getScheduleDetail(id: string): Promise<ScheduleDetailResponse> {
+    try {
+      const response = await apiClient.get(`/api/v1/matches/schedule/${id}`);
+      return response;
+    } catch (error) {
+      console.error("Error fetching schedule detail:", error);
       throw error;
     }
   }

@@ -14,6 +14,7 @@ import {
   Lock,
   ToggleLeft,
   ToggleRight,
+  Eye,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -42,6 +43,7 @@ import ConfirmationModal from "../molecules/ConfirmationModal";
 import Pagination from "../atoms/Pagination";
 import { TableLoadingSkeleton } from "./LoadingSkeleton";
 import ImageUpload from "../atoms/ImageUpload";
+import ScheduleDetailView from "./ScheduleDetailView";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Constants
@@ -195,6 +197,7 @@ export default function ScheduleTab({
     useState<ScheduleOverview | null>(null);
   const [scheduleToDelete, setScheduleToDelete] =
     useState<ScheduleOverview | null>(null);
+  const [detailScheduleId, setDetailScheduleId] = useState<string | null>(null);
   const [scheduleForm, setScheduleForm] =
     useState<ScheduleForm>(initialFormState);
   const [lockSlotCounts, setLockSlotCounts] = useState({
@@ -480,7 +483,8 @@ export default function ScheduleTab({
     if (
       scheduleForm.community &&
       scheduleForm.community.toLowerCase() !== "blax" &&
-      !scheduleForm.paymentProof
+      !scheduleForm.paymentProof &&
+      !editingSchedule
     ) {
       errors.paymentProof =
         "Bukti pembayaran lapangan wajib diupload untuk community selain Blax";
@@ -497,7 +501,7 @@ export default function ScheduleTab({
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [scheduleForm]);
+  }, [scheduleForm, editingSchedule]);
 
   // CRUD Operations
   const handleSaveSchedule = useCallback(async () => {
@@ -935,6 +939,16 @@ export default function ScheduleTab({
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
+                          <span title="Lihat Detail">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDetailScheduleId(schedule.id)}
+                              className="text-sky-600"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </span>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1530,6 +1544,24 @@ export default function ScheduleTab({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog
+        open={!!detailScheduleId}
+        onOpenChange={(open) => !open && setDetailScheduleId(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detail Jadwal</DialogTitle>
+          </DialogHeader>
+          {detailScheduleId && (
+            <ScheduleDetailView
+              scheduleId={detailScheduleId}
+              onClose={() => setDetailScheduleId(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

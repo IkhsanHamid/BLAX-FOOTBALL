@@ -37,6 +37,7 @@ import { formatCurrency, formatDate } from "@/lib/helper";
 import { adminService } from "@/utils/admin";
 import ScheduleRevisionForm from "./ScheduleRevisionForm";
 import ConfirmationModal from "../molecules/ConfirmationModal";
+import { useAuth } from "@/contexts/AuthContext";
 import type {
   PendingVerificationItem,
   RejectedScheduleItem,
@@ -67,7 +68,13 @@ const TableRowSkeleton = () => (
 );
 
 export default function ScheduleVerificationTab() {
-  const [activeTab, setActiveTab] = useState<TabKey>("pending");
+  const { user } = useAuth();
+  const isAdminOrOwner =
+    user?.role === "Admin" || user?.role === "Owner";
+
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    isAdminOrOwner ? "pending" : "rejected",
+  );
   const [pendingItems, setPendingItems] = useState<PendingVerificationItem[]>(
     [],
   );
@@ -290,8 +297,9 @@ export default function ScheduleVerificationTab() {
           Verifikasi Jadwal
         </h2>
         <p className="text-sm text-gray-500 mt-1">
-          Review dan setujui jadwal dari community selain Blax yang menunggu
-          verifikasi.
+          {isAdminOrOwner
+            ? "Review dan setujui jadwal dari community selain Blax yang menunggu verifikasi."
+            : "Lihat jadwal yang ditolak dan lakukan revisi."}
         </p>
       </div>
 
@@ -299,32 +307,36 @@ export default function ScheduleVerificationTab() {
         <CardContent className="p-4">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-              <button
-                onClick={() => {
-                  setActiveTab("pending");
-                  setCurrentPage(1);
-                }}
-                className={`px-4 py-2 text-sm rounded-md transition-colors ${
-                  activeTab === "pending"
-                    ? "bg-white text-sky-700 shadow-sm font-medium"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Menunggu Verifikasi
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("rejected");
-                  setCurrentPage(1);
-                }}
-                className={`px-4 py-2 text-sm rounded-md transition-colors ${
-                  activeTab === "rejected"
-                    ? "bg-white text-sky-700 shadow-sm font-medium"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Ditolak
-              </button>
+              {isAdminOrOwner && (
+                <button
+                  onClick={() => {
+                    setActiveTab("pending");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                    activeTab === "pending"
+                      ? "bg-white text-sky-700 shadow-sm font-medium"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Menunggu Verifikasi
+                </button>
+              )}
+              {!isAdminOrOwner && (
+                <button
+                  onClick={() => {
+                    setActiveTab("rejected");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                    activeTab === "rejected"
+                      ? "bg-white text-sky-700 shadow-sm font-medium"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Ditolak
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
