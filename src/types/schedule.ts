@@ -26,9 +26,27 @@ export interface Schedule {
   rejectReason?: string;
 }
 
+export interface LineupPlayer {
+  id: string;
+  name: string;
+  type: string;
+  jerseySize: string;
+  isMember: boolean;
+}
+
+export interface LineupTeam {
+  team: string;
+  hexColor: string | null;
+  image: string | null;
+  scheduleTeamId: string | null;
+  nameTeam: string | null;
+  gk: LineupPlayer | null;
+  players: LineupPlayer[];
+}
+
 export interface ScheduleDetail extends Schedule {
   rules: Rules[];
-  lineUp: object;
+  lineUp: LineupTeam[];
 }
 
 interface Facilites {
@@ -66,6 +84,7 @@ export interface ScheduleOverview {
   isOpen: boolean;
   isVerified?: boolean;
   isRejected?: boolean;
+  scheduleTeams?: string[];
   rejectReason?: string;
 }
 
@@ -234,4 +253,89 @@ export interface ScheduleDetailResponse {
   code: number;
   message: string;
   data: ScheduleDetailItem;
+}
+
+export interface MasterTeam {
+  id: string;
+  name: string;
+  hexColor: string | null;
+  image: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface MasterTeamListMeta {
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface MasterTeamListData {
+  data: MasterTeam[];
+  meta: MasterTeamListMeta;
+}
+
+export interface MasterTeamListResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: MasterTeamListData;
+}
+
+export interface MasterTeamDetailResponse {
+  status: boolean;
+  code: number;
+  message: string;
+  data: MasterTeam;
+}
+
+export interface MasterTeamCreatePayload {
+  name: string;
+  hexColor?: string;
+  image?: string | File | null;
+}
+
+export interface MasterTeamUpdatePayload {
+  name?: string;
+  hexColor?: string | null;
+  image?: string | File | null;
+}
+
+export interface ScheduleMatchTeam {
+  id: string;
+  name: string;
+  hexColor: string | null;
+  image: string | null;
+}
+
+export interface ScheduleMatch {
+  id: string;
+  matchTime: string;
+  matchOrder: number;
+  teamA: ScheduleMatchTeam;
+  teamB: ScheduleMatchTeam;
+}
+
+export interface ScheduleMatchListResponse {
+  status?: boolean;
+  code?: number;
+  message?: string;
+  data: ScheduleMatch[];
+}
+
+export interface ScheduleMatchInput {
+  teamA: string;
+  teamB: string;
+  matchTime: string;
+}
+
+export interface ScheduleMatchBulkPayload {
+  matches: ScheduleMatchInput[];
+}
+
+export interface ScheduleMatchUpdatePayload {
+  matchTime?: string;
+  teamA?: string;
+  teamB?: string;
 }

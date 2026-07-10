@@ -18,7 +18,12 @@ import Button from "@/components/atoms/Button";
 import Badge from "@/components/atoms/Badge";
 import { useNotifications } from "@/components/organisms/NotificationContainer";
 import { formatCurrency } from "@/lib/helper";
-import { Rules, Schedule, ScheduleDetail } from "@/types/schedule";
+import {
+  Rules,
+  Schedule,
+  ScheduleDetail,
+  ScheduleMatch,
+} from "@/types/schedule";
 import { useSchedule } from "@/contexts/ScheduleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import LineupBlur from "@/components/molecules/LineupBlur";
@@ -209,7 +214,7 @@ const PlayerCard = ({ player, isGK }: { player: any; isGK: boolean }) => {
       className={`flex items-center space-x-3 p-3 rounded-lg transition-colors border ${bgClass}`}
     >
       <Avatar className="h-10 w-10">
-        <AvatarFallback className={`${avatarClass} text-white text-sm`}>
+        <AvatarFallback className={`${avatarClass} text-black text-sm`}>
           {player.name.charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -230,6 +235,8 @@ export default function ScheduleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [schedule, setSchedule] = useState<ScheduleDetail | null>(null);
+  const [scheduleMatches, setScheduleMatches] = useState<ScheduleMatch[]>([]);
+  const [matchesLoaded, setMatchesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const { showError } = useNotifications();
@@ -324,6 +331,20 @@ export default function ScheduleDetailPage() {
         setSchedule(null);
       } finally {
         setLoading(false);
+      }
+
+      // Fetch schedule matches (independent of detail fetch)
+      try {
+        setMatchesLoaded(false);
+        const matches = await scheduleService.getScheduleMatches(
+          params.id as string,
+        );
+        setScheduleMatches(matches ?? []);
+      } catch (error) {
+        console.error("Error fetching schedule matches:", error);
+        setScheduleMatches([]);
+      } finally {
+        setMatchesLoaded(true);
       }
     };
     fetchScheduleDetail();
@@ -588,7 +609,7 @@ export default function ScheduleDetailPage() {
               {!isLineupVisible ? (
                 /* ❌ NON-MEMBER & BOOKING MASIH BUKA → BLUR */
                 <LineupBlur onUpgradeClick={() => handleClickMembership()} />
-              ) : schedule.lineUp && Object.keys(schedule.lineUp).length > 0 ? (
+              ) : schedule.lineUp && schedule.lineUp.length > 0 ? (
                 /* ✅ MEMBER ATAU H-2 JAM → LINEUP ASLI */
                 <>
                   <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-purple-100">
@@ -600,85 +621,185 @@ export default function ScheduleDetailPage() {
                     </div>
                     <div className="p-6">
                       <div className="grid gap-3">
-                        {[
-                          {
-                            team1: "MERAH",
-                            team2: "BIRU",
-                            color1: "red",
-                            color2: "blue",
-                          },
-                          {
-                            team1: "PUTIH",
-                            team2: "KUNING",
-                            color1: "slate",
-                            color2: "yellow",
-                          },
-                          {
-                            team1: "BIRU MUDA",
-                            team2: "MERAH",
-                            color1: "sky",
-                            color2: "red",
-                          },
-                          {
-                            team1: "BIRU",
-                            team2: "KUNING",
-                            color1: "blue",
-                            color2: "yellow",
-                          },
-                          {
-                            team1: "PUTIH",
-                            team2: "BIRU MUDA",
-                            color1: "slate",
-                            color2: "sky",
-                          },
-                        ].map((match, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-purple-50 rounded-lg border border-purple-100 hover:shadow-md transition-all"
-                          >
-                            <div className="flex items-center space-x-3 flex-1">
-                              <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
-                                {index + 1}
-                              </div>
-                              <div className="flex items-center space-x-2 flex-1">
-                                <span
-                                  className={`font-bold text-${match.color1}-600 bg-${match.color1}-100 px-3 py-1 rounded-full text-sm`}
+                        {(() => {
+                          // Loading state
+                          if (!matchesLoaded) {
+                            return (
+                              <>
+                                {[1, 2, 3].map((i) => (
+                                  <div
+                                    key={i}
+                                    className="h-14 bg-gray-100 rounded-lg animate-pulse"
+                                  />
+                                ))}
+                              </>
+                            );
+                          }
+
+                          // API matches (array > 0) — pakai response dari API
+                          if (scheduleMatches.length > 0) {
+                            const displayMatches = scheduleMatches.map(
+                              (m) => ({
+                                team1: m.teamA?.name || "",
+                                team2: m.teamB?.name || "",
+                                time: m.matchTime,
+                                colorA: m.teamA?.hexColor || "#6B7280",
+                                colorB: m.teamB?.hexColor || "#6B7280",
+                                textColorA:
+                                  m.teamA?.hexColor === "#F8F9FA"
+                                    ? "#000000"
+                                    : undefined,
+                                textColorB:
+                                  m.teamB?.hexColor === "#F8F9FA"
+                                    ? "#000000"
+                                    : undefined,
+                                imageA: m.teamA?.image || null,
+                                imageB: m.teamB?.image || null,
+                              }),
+                            );
+                            return displayMatches.map(
+                              (match: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-purple-50 rounded-lg border border-purple-100 hover:shadow-md transition-all"
                                 >
-                                  {match.team1}
-                                </span>
-                                <span className="text-slate-400 font-bold">
-                                  VS
-                                </span>
-                                <span
-                                  className={`font-bold text-${match.color2}-600 bg-${match.color2}-100 px-3 py-1 rounded-full text-sm`}
-                                >
-                                  {match.team2}
-                                </span>
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                                      {index + 1}
+                                    </div>
+                                    <div className="flex items-center space-x-2 flex-1">
+                                      <span
+                                        className="font-bold px-3 py-1 rounded-full text-sm border"
+                                        style={{
+                                          color:
+                                            match.textColorA || match.colorA,
+                                          backgroundColor: `${match.colorA}20`,
+                                          borderColor: `${match.colorA}40`,
+                                        }}
+                                      >
+                                        {match.team1}
+                                      </span>
+                                      <span className="text-slate-400 font-bold">
+                                        VS
+                                      </span>
+                                      <span
+                                        className="font-bold px-3 py-1 rounded-full text-sm border"
+                                        style={{
+                                          color:
+                                            match.textColorB || match.colorB,
+                                          backgroundColor: `${match.colorB}20`,
+                                          borderColor: `${match.colorB}40`,
+                                        }}
+                                      >
+                                        {match.team2}
+                                      </span>
+                                    </div>
+                                    {match.time && (
+                                      <span className="text-xs text-slate-500 ml-2">
+                                        {match.time}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ),
+                            );
+                          }
+
+                          // Hardcode fallback (API tidak return matches)
+                          const hardcodedMatches = [
+                            {
+                              team1: "MERAH",
+                              team2: "BIRU",
+                              colorA: "#EF4444",
+                              colorB: "#3B82F6",
+                            },
+                            {
+                              team1: "PUTIH",
+                              team2: "KUNING",
+                              colorA: "#F8F9FA",
+                              colorB: "#EAB308",
+                              textColorA: "#000000",
+                            },
+                            {
+                              team1: "BIRU MUDA",
+                              team2: "MERAH",
+                              colorA: "#06B6D4",
+                              colorB: "#EF4444",
+                            },
+                            {
+                              team1: "BIRU",
+                              team2: "KUNING",
+                              colorA: "#3B82F6",
+                              colorB: "#EAB308",
+                            },
+                            {
+                              team1: "PUTIH",
+                              team2: "BIRU MUDA",
+                              colorA: "#F8F9FA",
+                              colorB: "#06B6D4",
+                              textColorA: "#000000",
+                            },
+                          ];
+                          return hardcodedMatches.map(
+                            (match: any, index: number) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-purple-50 rounded-lg border border-purple-100 hover:shadow-md transition-all"
+                              >
+                                <div className="flex items-center space-x-3 flex-1">
+                                  <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                                    {index + 1}
+                                  </div>
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    <span
+                                      className="font-bold px-3 py-1 rounded-full text-sm border"
+                                      style={{
+                                        color: match.textColorA || match.colorA,
+                                        backgroundColor: `${match.colorA}20`,
+                                        borderColor: `${match.colorA}40`,
+                                      }}
+                                    >
+                                      {match.team1}
+                                    </span>
+                                    <span className="text-slate-400 font-bold">
+                                      VS
+                                    </span>
+                                    <span
+                                      className="font-bold px-3 py-1 rounded-full text-sm border"
+                                      style={{
+                                        color: match.textColorB || match.colorB,
+                                        backgroundColor: `${match.colorB}20`,
+                                        borderColor: `${match.colorB}40`,
+                                      }}
+                                    >
+                                      {match.team2}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        ))}
+                            ),
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {Object.entries(schedule.lineUp).map(
-                      ([teamKey, team]: [string, any]) => (
+                    {schedule.lineUp.map((team) => (
                         <div
-                          key={teamKey}
+                          key={team.team}
                           className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-blue-100"
                         >
                           <div className="p-6 border-b border-slate-200">
                             <div className="flex items-center justify-between">
                               <h3 className="text-lg font-semibold text-slate-900">
-                                Team {teamKey}
+                                Team {team.team}
                               </h3>
                               <Badge
                                 variant="outline"
                                 className="bg-blue-50 text-blue-700 border-blue-200"
                               >
-                                {(team.PLAYERS?.length || 0) +
-                                  (team.GK ? 1 : 0)}{" "}
+                                {(team.players?.length || 0) +
+                                  (team.gk ? 1 : 0)}{" "}
                                 Players
                               </Badge>
                             </div>
@@ -686,8 +807,8 @@ export default function ScheduleDetailPage() {
 
                           <div className="p-6">
                             <div className="space-y-3">
-                              {team.GK && <PlayerCard player={team.GK} isGK />}
-                              {team.PLAYERS?.map(
+                              {team.gk && <PlayerCard player={team.gk} isGK />}
+                              {team.players?.map(
                                 (player: any, index: number) => (
                                   <PlayerCard
                                     key={index}
@@ -699,8 +820,7 @@ export default function ScheduleDetailPage() {
                             </div>
                           </div>
                         </div>
-                      ),
-                    )}
+                      ))}
                   </div>
                 </>
               ) : (

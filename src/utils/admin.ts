@@ -1,8 +1,15 @@
 import {
   ListSchedule,
+  MasterTeamCreatePayload,
+  MasterTeamDetailResponse,
+  MasterTeamListResponse,
+  MasterTeamUpdatePayload,
   PendingVerificationResponse,
   RejectedScheduleResponse,
   ScheduleDetailResponse,
+  ScheduleMatchBulkPayload,
+  ScheduleMatchListResponse,
+  ScheduleMatchUpdatePayload,
   ScheduleOverview,
   VerificationDetailResponse,
   VerifyScheduleRequest,
@@ -26,6 +33,22 @@ import {
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
+
+function buildMasterTeamFormData(
+  payload: MasterTeamCreatePayload | MasterTeamUpdatePayload,
+): FormData {
+  const formData = new FormData();
+  if (payload.name !== undefined) formData.append("name", payload.name);
+  if (payload.hexColor !== undefined && payload.hexColor !== null) {
+    formData.append("hexColor", payload.hexColor);
+  }
+  if (payload.image instanceof File) {
+    formData.append("image", payload.image);
+  } else if (typeof payload.image === "string" && payload.image) {
+    formData.append("image", payload.image);
+  }
+  return formData;
+}
 
 class AdminService {
   // User Management
@@ -174,6 +197,139 @@ class AdminService {
       return response;
     } catch (error) {
       console.error("Error fetching schedule detail:", error);
+      throw error;
+    }
+  }
+
+  async getMasterTeams(
+    search?: string,
+    skip?: number,
+    limit?: number,
+  ): Promise<MasterTeamListResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+      if (skip !== undefined) queryParams.append("skip", skip.toString());
+      if (limit) queryParams.append("limit", limit.toString());
+
+      const response = await apiClient.get(
+        `/api/v1/teams?${queryParams.toString()}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching master teams:", error);
+      throw error;
+    }
+  }
+
+  async getMasterTeam(id: string): Promise<MasterTeamDetailResponse> {
+    try {
+      const response = await apiClient.get(`/api/v1/teams/${id}`);
+      return response;
+    } catch (error) {
+      console.error("Error fetching master team:", error);
+      throw error;
+    }
+  }
+
+  async createMasterTeam(
+    payload: MasterTeamCreatePayload,
+  ): Promise<MasterTeamDetailResponse> {
+    try {
+      const body = payload.image instanceof File
+        ? buildMasterTeamFormData(payload)
+        : payload;
+      const response = await apiClient.post(`/api/v1/teams`, body);
+      return response;
+    } catch (error) {
+      console.error("Error creating master team:", error);
+      throw error;
+    }
+  }
+
+  async updateMasterTeam(
+    id: string,
+    payload: MasterTeamUpdatePayload,
+  ): Promise<MasterTeamDetailResponse> {
+    try {
+      const body = payload.image instanceof File
+        ? buildMasterTeamFormData(payload)
+        : payload;
+      const response = await apiClient.put(
+        `/api/v1/teams/${id}`,
+        body,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error updating master team:", error);
+      throw error;
+    }
+  }
+
+  async deleteMasterTeam(id: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(`/api/v1/teams/${id}`);
+      return response;
+    } catch (error) {
+      console.error("Error deleting schedule team:", error);
+      throw error;
+    }
+  }
+
+  async getScheduleMatches(
+    scheduleId: string,
+  ): Promise<ScheduleMatchListResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/schedule/${scheduleId}/matches`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching schedule matches:", error);
+      throw error;
+    }
+  }
+
+  async bulkReplaceScheduleMatches(
+    scheduleId: string,
+    payload: ScheduleMatchBulkPayload,
+  ): Promise<ScheduleMatchListResponse> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/schedule/${scheduleId}/matches`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error bulk replacing schedule matches:", error);
+      throw error;
+    }
+  }
+
+  async updateScheduleMatch(
+    id: string,
+    payload: ScheduleMatchUpdatePayload,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/schedule-matches/${id}`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error updating schedule match:", error);
+      throw error;
+    }
+  }
+
+  async deleteScheduleMatch(id: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/schedule-matches/${id}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting schedule match:", error);
       throw error;
     }
   }

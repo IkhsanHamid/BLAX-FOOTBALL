@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { MapPin, FileText, Gift, Settings } from "lucide-react";
+import {
+  MapPin,
+  FileText,
+  Gift,
+  Settings,
+  Users,
+  Swords,
+} from "lucide-react";
 import VenueManagement from "./VenueManagement";
 import RuleManagement from "./RuleManagement";
 import VoucherManagement from "./VoucherManagement";
 import FacilityManagement from "./FacilityManagement";
+import LineupTeamManagement from "./LineupTeamManagement";
+import ScheduleMatchManagement from "./ScheduleMatchManagement";
 
 // Tab configuration
 const TABS = [
@@ -22,6 +31,18 @@ const TABS = [
     label: "Facilities",
     icon: Settings,
     component: FacilityManagement,
+  },
+  {
+    id: "lineup-teams",
+    label: "Lineup Team",
+    icon: Users,
+    component: LineupTeamManagement,
+  },
+  {
+    id: "schedule-matches",
+    label: "Jadwal Match",
+    icon: Swords,
+    component: ScheduleMatchManagement,
   },
 ];
 
@@ -79,17 +100,18 @@ export default function MasterDataTab() {
             Master Data Management
           </h2>
           <p className="text-sm sm:text-base text-gray-600">
-            Kelola data master venue, aturan, voucher, dan fasilitas
+            Kelola data master venue, aturan, voucher, fasilitas, lineup team,
+            dan jadwal pertandingan
           </p>
         </header>
 
         {/* Tab Navigation */}
         <nav
-          className="bg-gray-100 rounded-lg p-1 max-w-2xl mx-auto"
+          className="bg-gray-100 rounded-lg p-1 max-w-4xl mx-auto"
           role="tablist"
           aria-label="Master data sections"
         >
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
             {TABS.map((tab) => (
               <TabButton
                 key={tab.id}

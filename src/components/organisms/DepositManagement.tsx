@@ -379,8 +379,6 @@ export default function DepositManagementComponent() {
         "Amount",
         "Saldo Sebelum",
         "Saldo Sesudah",
-        "Booking ID",
-        "Payment ID",
         "Dibuat",
       ];
 
@@ -392,8 +390,6 @@ export default function DepositManagementComponent() {
         record.amount,
         record.balanceBefore,
         record.balanceAfter,
-        record.bookingId || "-",
-        record.paymentId,
         new Date(record.createdAt).toLocaleDateString("id-ID", {
           day: "numeric",
           month: "long",
@@ -700,8 +696,6 @@ export default function DepositManagementComponent() {
                         <TableHead>Amount</TableHead>
                         <TableHead>Saldo Sebelum</TableHead>
                         <TableHead>Saldo Sesudah</TableHead>
-                        <TableHead>Booking ID</TableHead>
-                        <TableHead>Payment ID</TableHead>
                         <TableHead>Created</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -731,20 +725,6 @@ export default function DepositManagementComponent() {
                           </TableCell>
                           <TableCell>
                             {formatCurrency(record.balanceAfter)}
-                          </TableCell>
-                          <TableCell>
-                            {record.bookingId ? (
-                              <Badge variant="outline" className="text-xs">
-                                {record.bookingId}
-                              </Badge>
-                            ) : (
-                              "-"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-500">
-                            {record.paymentId
-                              ? record.paymentId.slice(0, 8) + "..."
-                              : "-"}
                           </TableCell>
                           <TableCell>{formatDate(record.createdAt)}</TableCell>
                         </TableRow>

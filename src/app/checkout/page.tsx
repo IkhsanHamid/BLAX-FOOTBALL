@@ -513,7 +513,7 @@ export default function CheckoutPage() {
       isPlayer: bookingType === "team" ? true : bookerRole === "player",
       isGk: bookingType === "team" ? true : bookerRole === "goalkeeper",
       isTeam: bookingType === "team" && includeRoster,
-      useDeposit: useBlaxPay || undefined,
+      useDeposit: useBlaxPay,
       voucherCode: appliedVoucher?.code || undefined,
       jerseySize:
         bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,

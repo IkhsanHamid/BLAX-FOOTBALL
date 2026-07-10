@@ -15,6 +15,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Eye,
+  AlertCircle,
 } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent } from "@/components/atoms/Card";
@@ -100,6 +101,7 @@ interface ScheduleForm {
   paymentProof: File | null;
   facilityIds: string[];
   ruleIds: string[];
+  teamIds: string[];
   community: string;
 }
 
@@ -118,6 +120,7 @@ const initialFormState: ScheduleForm = {
   paymentProof: null,
   facilityIds: [],
   ruleIds: [],
+  teamIds: [],
   community: "",
 };
 
@@ -188,6 +191,15 @@ export default function ScheduleTab({
   const [venues, setVenues] = useState<Venue[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
+  const [masterTeams, setMasterTeams] = useState<
+    {
+      id: string;
+      name: string;
+      hexColor: string | null;
+      image: string | null;
+      isActive: boolean;
+    }[]
+  >([]);
 
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
@@ -200,6 +212,10 @@ export default function ScheduleTab({
   const [detailScheduleId, setDetailScheduleId] = useState<string | null>(null);
   const [scheduleForm, setScheduleForm] =
     useState<ScheduleForm>(initialFormState);
+  // Track if the schedule being edited has any teams in the response.
+  // Used to decide whether to show the team selection section in edit mode.
+  const [scheduleHasTeamsFromResponse, setScheduleHasTeamsFromResponse] =
+    useState(false);
   const [lockSlotCounts, setLockSlotCounts] = useState({
     gk: "",
     player: "",
@@ -249,14 +265,17 @@ export default function ScheduleTab({
 
   const fetchMasterData = useCallback(async () => {
     try {
-      const [venuesData, facilitiesData, rulesData] = await Promise.all([
-        masterDataService.getVenues(""),
-        masterDataService.getFacilities("", 1, 100),
-        masterDataService.getRules("", 1, 10),
-      ]);
+      const [venuesData, facilitiesData, rulesData, teamsData] =
+        await Promise.all([
+          masterDataService.getVenues(""),
+          masterDataService.getFacilities("", 1, 100),
+          masterDataService.getRules("", 1, 10),
+          adminService.getMasterTeams("", 0, 100),
+        ]);
       setVenues(venuesData);
       setFacilities(facilitiesData.data);
       setRules(rulesData);
+      setMasterTeams(teamsData?.data?.data ?? []);
     } catch (error) {
       showError("Error", "Failed to load master data");
     }
@@ -359,7 +378,11 @@ export default function ScheduleTab({
   }, []);
 
   const handleArrayChange = useCallback(
-    (field: "facilityIds" | "ruleIds", id: string, checked: boolean) => {
+    (
+      field: "facilityIds" | "ruleIds" | "teamIds",
+      id: string,
+      checked: boolean,
+    ) => {
       setScheduleForm((prev) => ({
         ...prev,
         [field]: checked
@@ -375,6 +398,7 @@ export default function ScheduleTab({
     setScheduleForm(initialFormState);
     setFormErrors({});
     setEditingSchedule(null);
+    setScheduleHasTeamsFromResponse(false);
   }, []);
 
   const handleLockSlots = useCallback((schedule: ScheduleOverview) => {
@@ -542,6 +566,7 @@ export default function ScheduleTab({
         formData.append("facilityIds[]", id),
       );
       scheduleForm.ruleIds.forEach((id) => formData.append("ruleIds[]", id));
+      scheduleForm.teamIds.forEach((id) => formData.append("teamIds[]", id));
 
       if (editingSchedule) {
         await adminService.updateSchedule(editingSchedule.id, formData);
@@ -574,6 +599,20 @@ export default function ScheduleTab({
     (schedule: ScheduleOverview) => {
       const venue = venues.find((v) => v.name === schedule.venue);
       setEditingSchedule(schedule);
+
+      const scheduleTeams: string[] = Array.isArray(
+        (schedule as any).scheduleTeams,
+      )
+        ? (schedule as any).scheduleTeams
+        : [];
+      const hasScheduleTeams = scheduleTeams.length > 0;
+      setScheduleHasTeamsFromResponse(hasScheduleTeams);
+
+      // Pre-fill teamIds by matching masterTeams name with scheduleTeams
+      const matchedTeamIds = masterTeams
+        .filter((mt) => scheduleTeams.includes(mt.name))
+        .map((mt) => mt.id);
+
       setScheduleForm({
         name: schedule.name,
         date: schedule.date,
@@ -594,11 +633,12 @@ export default function ScheduleTab({
         ruleIds:
           schedule.rules?.map((r: any) => (typeof r === "string" ? r : r.id)) ||
           [],
+        teamIds: matchedTeamIds,
         community: schedule.community || "",
       });
       setShowScheduleDialog(true);
     },
-    [venues, isWithinH3, showError],
+    [venues, masterTeams, isWithinH3, showError],
   );
 
   const handleDeleteSchedule = useCallback(async () => {
@@ -1368,6 +1408,89 @@ export default function ScheduleTab({
                 </p>
               )}
             </div>
+
+            {(!editingSchedule || scheduleHasTeamsFromResponse) && (() => {
+              const isEditLocked =
+                !!editingSchedule &&
+                ((editingSchedule.bookedSlots || 0) > 0 ||
+                  (editingSchedule.lockedSlotsGk || 0) > 0 ||
+                  (editingSchedule.lockedSlotsPlayer || 0) > 0);
+              return (
+                <div>
+                  <label className="block text-sm font-medium mb-3">
+                    Teams (Master Data){" "}
+                    <span className="text-gray-500 font-normal text-xs">
+                      · {scheduleForm.teamIds.length} dipilih
+                    </span>
+                  </label>
+                  {isEditLocked && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-3 flex gap-2 text-sm text-amber-800">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>
+                        Team tidak dapat diubah karena jadwal sudah memiliki
+                        booking atau slot yang di-lock.
+                      </span>
+                    </div>
+                  )}
+                  {masterTeams.length === 0 ? (
+                    <div className="text-sm text-gray-500 italic p-3 border border-dashed rounded-lg">
+                      Belum ada master team. Tambahkan di menu Master Data →
+                      Lineup Team.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {masterTeams.map((t) => (
+                        <label
+                          key={t.id}
+                          className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
+                            isEditLocked
+                              ? "opacity-60 cursor-not-allowed border-gray-200"
+                              : scheduleForm.teamIds.includes(t.id)
+                                ? "border-sky-400 bg-sky-50 cursor-pointer"
+                                : "border-gray-200 hover:bg-gray-50 cursor-pointer"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={scheduleForm.teamIds.includes(t.id)}
+                            disabled={isEditLocked}
+                            onChange={(e) =>
+                              handleArrayChange(
+                                "teamIds",
+                                t.id,
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-gray-300 text-sky-600 disabled:cursor-not-allowed"
+                          />
+                          <div
+                            className="w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0"
+                            style={{ backgroundColor: t.hexColor || "#6B7280" }}
+                          >
+                            {t.image ? (
+                              <img
+                                src={t.image}
+                                alt={t.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              t.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <span className="text-sm font-medium flex-1 truncate">
+                            {t.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Pilih team yang akan bermain di jadwal ini. Team yang tidak
+                    dipilih tidak akan ditampilkan ke player saat booking.
+                  </p>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end space-x-3 pt-6 border-t">
               <Button
