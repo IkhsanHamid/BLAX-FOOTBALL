@@ -149,6 +149,50 @@ export function QRISPaymentPage({
     };
   }, [paymentId]); // Only depend on paymentId for initial fetch
 
+  // Auto-polling status check every 5 seconds (same as topup)
+  useEffect(() => {
+    if (paymentStatus !== "pending") return;
+    if (!paymentId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        let result;
+        if (paymentType === "membership") {
+          result = await paymentService.checkPaymentStatusMembership(paymentId);
+        } else if (paymentType === "booking") {
+          result = await bookingService.checkPaymentStatusBooking(paymentId);
+        }
+
+        if (!result) return;
+
+        if (result.status === "settlement" || result.status === true) {
+          setPaymentStatus("settled");
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          setSuccessPayment(true);
+          showSuccess("Berhasil", "Pembayaran telah dikonfirmasi");
+        } else if (result.status === "expire") {
+          setPaymentStatus("expired");
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          showError(
+            "error",
+            "Pembayaran telah kadaluarsa, silakan login kembali",
+          );
+          setTimeout(() => router.push("/"), 1000);
+        }
+      } catch (err) {
+        // ignore polling errors silently
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [paymentStatus, paymentId, paymentType, showSuccess, showError, router]);
+
   // Timer effect with proper cleanup and expiry handling
   useEffect(() => {
     // Don't run timer if payment settled or no expiry time

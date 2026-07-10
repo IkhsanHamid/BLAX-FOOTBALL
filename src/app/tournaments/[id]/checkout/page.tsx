@@ -1580,7 +1580,7 @@ export default function EventCheckoutPage() {
       isPlayer: bookingType === "team" ? !picIsGk : bookerRole === "player",
       isGk: bookingType === "team" ? picIsGk : bookerRole === "goalkeeper",
       isTeam: bookingType === "team" && includeRoster,
-      useDeposit: useBlaxPay || undefined,
+      useDeposit: useBlaxPay,
       jerseySize:
         bookingType === "individual" ? slots[0]?.jerseySize : picJerseySize,
       gkQuantity: bookingType === "individual" ? countGk() : 0,

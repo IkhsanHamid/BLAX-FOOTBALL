@@ -1,4 +1,5 @@
-import { Schedule, ScheduleDetail } from "@/types/schedule";
+import { Schedule, ScheduleDetail, ScheduleMatch } from "@/types/schedule";
+import { apiClient } from "./api";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_BE}/api/v1/matches`;
 
@@ -53,6 +54,30 @@ class ScheduleService {
 
       return result.data;
     } catch (error) {
+      return null;
+    }
+  }
+
+  async getScheduleMatches(
+    scheduleId: string,
+  ): Promise<ScheduleMatch[] | null> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/schedule/${scheduleId}/matches`,
+      );
+      // API wraps array in { status, code, message, data: [...] }
+      // Try multiple known shapes
+      let list: any = response?.data?.data;
+      if (!Array.isArray(list)) {
+        list = response?.data;
+      }
+      if (!Array.isArray(list)) {
+        list = response;
+      }
+      if (!Array.isArray(list)) return null;
+      return list as ScheduleMatch[];
+    } catch (error) {
+      console.error("Error fetching schedule matches:", error);
       return null;
     }
   }

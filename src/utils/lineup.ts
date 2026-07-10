@@ -1,5 +1,23 @@
 import { apiClient } from "@/utils/api";
 
+export interface ApiLineupPlayer {
+  id: string;
+  name: string;
+  type: string;
+  jerseySize: string;
+  isMember: boolean;
+}
+
+export interface ApiLineupTeam {
+  team: string;
+  hexColor: string | null;
+  image: string | null;
+  scheduleTeamId: string | null;
+  nameTeam: string | null;
+  gk: ApiLineupPlayer | null;
+  players: ApiLineupPlayer[];
+}
+
 export interface ApiLineupResponse {
   id: string;
   scheduleName: string;
@@ -7,32 +25,14 @@ export interface ApiLineupResponse {
   date: string;
   time: string;
   status: "DRAFT" | "CONFIRMED" | "COMPLETED" | "ACTIVE";
-  bookedSlots?: number;
-  lockLineup: boolean;
-  openSlots?: number;
-  totalSlots?: number;
+  totalPlayers: number;
+  bookedSlots: number;
+  openSlots: number;
+  totalSlots: number;
+  lineUp: ApiLineupTeam[];
   team: number;
-  lineUp: Record<
-    string,
-    {
-      GK?: {
-        id: string;
-        name: string;
-        phone: string;
-        jerseySize: string;
-        type?: string;
-        isMember: boolean;
-      };
-      PLAYERS?: Array<{
-        id: string;
-        name: string;
-        phone: string;
-        jerseySize: string;
-        type?: string;
-        isMember: boolean;
-      }>;
-    }
-  >;
+  lockLineup: boolean;
+  isOpen: boolean;
 }
 
 export interface UpdatePlayerTeamRequest {
@@ -76,6 +76,7 @@ export interface LineupMatch {
   bookedSlots?: number;
   openSlots?: number;
   totalSlots?: number;
+  isOpen?: boolean;
 }
 
 export class LineupService {
@@ -83,73 +84,53 @@ export class LineupService {
     const allPlayers: LineupPlayer[] = [];
     const groupedTeams: Record<string, LineupPlayer[]> = {};
 
-    // Ambil data lineup dari response
-    Object.entries(apiResponse.lineUp || {}).forEach(([teamKey, teamData]) => {
+    // Iterate array of teams from response
+    (apiResponse.lineUp || []).forEach((teamData) => {
+      const teamKey = teamData.team;
       if (!groupedTeams[teamKey]) {
         groupedTeams[teamKey] = [];
       }
 
-      // GK
-      if (teamData.GK) {
+      // GK (single object, may be null)
+      if (teamData.gk) {
         const gkPlayer: LineupPlayer = {
-          id: teamData.GK.id,
+          id: teamData.gk.id,
           realId: apiResponse.id,
-          name: teamData.GK.name,
-          phone: teamData.GK.phone,
-          jerseySize: teamData.GK.jerseySize,
+          name: teamData.gk.name,
+          phone: "",
+          jerseySize: teamData.gk.jerseySize,
           position: "GK",
           team: teamKey,
           order: 1,
-          type: teamData.GK.type,
-          isMember: teamData.GK.isMember,
+          type: teamData.gk.type,
+          isMember: teamData.gk.isMember,
         };
         allPlayers.push(gkPlayer);
         groupedTeams[teamKey].push(gkPlayer);
       }
 
-      // PLAYERS
-      if (teamData.PLAYERS) {
-        teamData.PLAYERS.forEach((player, index) => {
-          const lineupPlayer: LineupPlayer = {
-            id: player.id,
-            realId: apiResponse.id,
-            name: player.name,
-            phone: player.phone,
-            jerseySize: player.jerseySize,
-            position: "PLAYER",
-            team: teamKey,
-            order: index + 2,
-            type: player.type,
-            isMember: player.isMember,
-          };
-          allPlayers.push(lineupPlayer);
-          groupedTeams[teamKey].push(lineupPlayer);
-        });
-      }
+      // PLAYERS array
+      (teamData.players || []).forEach((player, index) => {
+        const lineupPlayer: LineupPlayer = {
+          id: player.id,
+          realId: apiResponse.id,
+          name: player.name,
+          phone: "",
+          jerseySize: player.jerseySize,
+          position: "PLAYER",
+          team: teamKey,
+          order: index + 2,
+          type: player.type,
+          isMember: player.isMember,
+        };
+        allPlayers.push(lineupPlayer);
+        groupedTeams[teamKey].push(lineupPlayer);
+      });
     });
 
-    // ==== Tambahkan tim kosong jika belum ada ====
-    // Urutan warna sesuai backend: MERAH, PUTIH, BIRU, KUNING, BIRU MUDA, HITAM, HIJAU, ORANYE, UNGU, PINK
-    const totalTeams = apiResponse.team || Object.keys(groupedTeams).length;
-    const teamColors = [
-      "MERAH",
-      "PUTIH",
-      "BIRU",
-      "KUNING",
-      "BIRU MUDA",
-      "HITAM",
-      "HIJAU",
-      "ORANYE",
-      "UNGU",
-      "PINK",
-    ];
-
-    for (let i = 0; i < totalTeams; i++) {
-      const teamLabel = teamColors[i]; // Gunakan nama warna, bukan A, B, C
-      if (!groupedTeams[teamLabel]) {
-        groupedTeams[teamLabel] = []; // tim kosong
-      }
-    }
+    // Add empty teams up to total team count if missing
+    const totalTeams =
+      apiResponse.team || Object.keys(groupedTeams).length;
 
     return {
       id: apiResponse.id,
@@ -168,6 +149,7 @@ export class LineupService {
       bookedSlots: apiResponse.bookedSlots,
       openSlots: apiResponse.openSlots,
       totalSlots: apiResponse.totalSlots,
+      isOpen: apiResponse.isOpen,
     };
   }
 
