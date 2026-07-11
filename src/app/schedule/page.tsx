@@ -125,6 +125,7 @@ export default function SchedulePage() {
           availableGkSlots: schedule.availableGkSlots,
           availablePlayerSlots: schedule.availablePlayerSlots,
           isOpen: schedule.isOpen,
+          community: schedule.community,
         })),
     [schedules],
   );
@@ -672,6 +673,14 @@ export default function SchedulePage() {
     );
   };
 
+  const communityDisplay: Record<string, { logo: string; name: string }> = {
+    blax: { logo: "/blax-logo.png", name: "Blax" },
+    magnifico: { logo: "/magnifico-logo.png", name: "Magnifico" },
+    "red-alert": { logo: "/red-alert.png", name: "Red Alert" },
+    ots: { logo: "/OTS.png", name: "OTS" },
+    "ayo-bola": { logo: "/ayo-bola.jpeg", name: "Ayo Bola" },
+  };
+
   const MatchCard = ({ match }: { match: (typeof matchesData)[0] }) => {
     const minFee = Math.min(match.feePlayer, match.feeGk);
     const isBookingClosed = isBookingAllowed(
@@ -762,6 +771,29 @@ export default function SchedulePage() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 mt-auto gap-3">
                 <div className="flex flex-col">
+                  {/* Community Branding */}
+                  {match.community &&
+                    communityDisplay[match.community.toLowerCase()] && (
+                      <div className="flex items-center justify-center gap-2 mb-1.5">
+                        <img
+                          src={
+                            communityDisplay[match.community.toLowerCase()]
+                              .logo
+                          }
+                          alt={
+                            communityDisplay[match.community.toLowerCase()]
+                              .name
+                          }
+                          className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded"
+                        />
+                        <span className="text-xs sm:text-sm font-bold text-slate-600">
+                          {
+                            communityDisplay[match.community.toLowerCase()]
+                              .name
+                          }
+                        </span>
+                      </div>
+                    )}
                   <div className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">
                     Mulai dari
                   </div>

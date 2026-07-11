@@ -232,6 +232,14 @@ export default function ScheduleFeaturedGrid() {
     { label: "Padel", value: "PADEL", icon: TrendingUp },
   ];
 
+  const communityDisplay: Record<string, { logo: string; name: string }> = {
+    blax: { logo: "/blax-logo.png", name: "Blax" },
+    magnifico: { logo: "/magnifico-logo.png", name: "Magnifico" },
+    "red-alert": { logo: "/red-alert.png", name: "Red Alert" },
+    ots: { logo: "/OTS.png", name: "OTS" },
+    "ayo-bola": { logo: "/ayo-bola.jpeg", name: "Ayo Bola" },
+  };
+
   // Featured Card Component
   const FeaturedCard = ({ match, index }: { match: any; index: number }) => {
     const isBookable = isBookingAllowed(match.date, match.time, match.isOpen);
@@ -328,6 +336,23 @@ export default function ScheduleFeaturedGrid() {
 
         {/* Content */}
         <div className="p-4 sm:p-6">
+          {/* Community Branding */}
+          {match.community &&
+            communityDisplay[match.community.toLowerCase()] && (
+              <div className="flex items-center justify-center gap-3 mb-4 pb-3 border-b border-slate-100">
+                <img
+                  src={
+                    communityDisplay[match.community.toLowerCase()].logo
+                  }
+                  alt={communityDisplay[match.community.toLowerCase()].name}
+                  className="w-8 h-8 object-contain rounded"
+                />
+                <span className="text-base font-bold text-slate-700">
+                  {communityDisplay[match.community.toLowerCase()].name}
+                </span>
+              </div>
+            )}
+
           {/* Price */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-5">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 sm:p-4 border-2 border-blue-200">
@@ -496,6 +521,23 @@ export default function ScheduleFeaturedGrid() {
               </span>
             )}
           </div>
+
+          {/* Community Branding */}
+          {match.community &&
+            communityDisplay[match.community.toLowerCase()] && (
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <img
+                  src={
+                    communityDisplay[match.community.toLowerCase()].logo
+                  }
+                  alt={communityDisplay[match.community.toLowerCase()].name}
+                  className="w-6 h-6 object-contain rounded"
+                />
+                <span className="text-sm font-bold text-slate-600">
+                  {communityDisplay[match.community.toLowerCase()].name}
+                </span>
+              </div>
+            )}
 
           {/* Price */}
           <div className="flex items-baseline gap-1.5 sm:gap-2 mb-3">
