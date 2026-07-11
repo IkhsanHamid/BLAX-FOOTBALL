@@ -2,23 +2,26 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  BarChart3,
+  History,
   Calendar,
+  CheckSquare,
+  Shield,
   Users,
   Newspaper,
-  Database,
-  History,
-  Shield,
   Image,
   Clock,
+  Database,
   Trophy,
-  ChevronDown,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
   Wallet,
   Undo2,
-  CheckSquare,
+  BarChart3,
+  Zap,
+  UserPlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronDown,
+  ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 
 interface NavItem {
@@ -69,6 +72,15 @@ const navItems: NavItem[] = [
   },
   { id: "deposit", label: "Deposit", icon: Wallet },
   { id: "refund", label: "Refund", icon: Undo2 },
+  {
+    id: "akses-cepat",
+    label: "Akses Cepat",
+    icon: Zap,
+    shortLabel: "Cepat",
+    children: [
+      { id: "membership-access", label: "Akses Membership", icon: UserPlus },
+    ],
+  },
   { id: "reports", label: "Laporan", icon: BarChart3 },
 ];
 
@@ -100,14 +112,22 @@ export default function AdminSidebar({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
       const eventChildIds = ["event-kelola", "event-team"];
-      return { event: eventChildIds.includes(selectedTab) };
+      const aksesCepatIds = ["membership-access"];
+      return {
+        event: eventChildIds.includes(selectedTab),
+        "akses-cepat": aksesCepatIds.includes(selectedTab),
+      };
     },
   );
 
   useEffect(() => {
     const eventChildIds = ["event-kelola", "event-team"];
+    const aksesCepatIds = ["membership-access"];
     if (eventChildIds.includes(selectedTab)) {
       setExpandedItems((prev) => ({ ...prev, event: true }));
+    }
+    if (aksesCepatIds.includes(selectedTab)) {
+      setExpandedItems((prev) => ({ ...prev, "akses-cepat": true }));
     }
   }, [selectedTab]);
 
@@ -163,6 +183,8 @@ export default function AdminSidebar({
         userRole === "Admin-Ayo"
       );
     if (item.id === "refund")
+      return userRole === "Admin" || userRole === "Owner";
+    if (item.id === "akses-cepat")
       return userRole === "Admin" || userRole === "Owner";
     if (
       (isMagnifico || isRedAlert || isOTS || isAyo) &&

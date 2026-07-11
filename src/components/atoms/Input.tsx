@@ -9,6 +9,8 @@ interface InputProps {
   icon?: React.ReactNode;
   min?: string;
   max?: string;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
+  maxLength?: number;
   disabled?: boolean;
   error?: string;
 }
@@ -22,6 +24,8 @@ export default function Input({
   icon,
   min,
   max,
+  inputMode,
+  maxLength,
   disabled,
   error,
 }: InputProps) {
@@ -37,6 +41,8 @@ export default function Input({
         placeholder={placeholder}
         min={min}
         max={max}
+        inputMode={inputMode}
+        maxLength={maxLength}
         value={value}
         onChange={onChange}
         disabled={disabled}

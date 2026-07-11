@@ -251,3 +251,38 @@ export interface VoucherHistoryRecord {
   createdAt: string;
   createdByName: string;
 }
+
+export interface NonMemberUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface NonMemberSearchResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: NonMemberUser[];
+}
+
+export interface CreateFreeMembershipData {
+  id: string;
+  userId: string;
+  paymentId: string;
+  validUntil: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFreeMembershipResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: CreateFreeMembershipData;
+}
+
+export interface CreateFreeMembershipPayload {
+  userId: string;
+  durationMonths: number;
+}

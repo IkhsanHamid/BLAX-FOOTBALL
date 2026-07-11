@@ -18,10 +18,13 @@ import { apiClient } from "./api";
 import {
   BookingHistory,
   BookingHistoryResponse,
+  CreateFreeMembershipPayload,
+  CreateFreeMembershipResponse,
   DepositHistory,
   DepositHistoryRecord,
   DepositUsage,
   ListUserMember,
+  NonMemberSearchResponse,
   RefundHistoryResponse,
   RefundableBookingResponse,
   ReportBooking,
@@ -1142,6 +1145,38 @@ class AdminService {
       return response;
     } catch (error) {
       console.error("Error toggling event status:", error);
+      throw error;
+    }
+  }
+
+  async searchNonMembers(
+    search?: string,
+  ): Promise<NonMemberSearchResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append("search", search);
+
+      const response = await apiClient.get(
+        `/api/v1/member/search-non-member?${queryParams.toString()}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error searching non-members:", error);
+      throw error;
+    }
+  }
+
+  async createFreeMembership(
+    payload: CreateFreeMembershipPayload,
+  ): Promise<CreateFreeMembershipResponse> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/member/create-free`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error creating free membership:", error);
       throw error;
     }
   }
