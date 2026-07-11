@@ -303,17 +303,19 @@ export default function ScheduleDetailPage() {
     [],
   );
 
-  // Function to check if lineup should be visible (H-2 hours or if user is member)
   const isLineupVisible = useMemo(() => {
     if (!schedule) return false;
     if (user?.isMember) return true;
-    return !isBookingAllowed(
-      schedule.date,
-      schedule.time,
-      user?.email,
-      schedule.isOpen,
-    );
-  }, [schedule, user?.isMember, isBookingAllowed]);
+
+    const now = new Date();
+    const matchDateTime = new Date(schedule.date);
+    const [hours, minutes] = schedule.time.split(":").map(Number);
+    matchDateTime.setHours(hours, minutes, 0, 0);
+    const diffInHours =
+      (matchDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    return diffInHours <= 3;
+  }, [schedule, user?.isMember]);
 
   useEffect(() => {
     const fetchScheduleDetail = async () => {
@@ -372,6 +374,14 @@ export default function ScheduleDetailPage() {
     }
   };
 
+  const communityDisplay: Record<string, { logo: string; name: string }> = {
+    blax: { logo: "/blax-logo.png", name: "Blax" },
+    magnifico: { logo: "/magnifico-logo.png", name: "Magnifico" },
+    "red-alert": { logo: "/red-alert.png", name: "Red Alert" },
+    ots: { logo: "/OTS.png", name: "OTS" },
+    "ayo-bola": { logo: "/ayo-bola.jpeg", name: "Ayo Bola" },
+  };
+
   const statsData = [
     {
       icon: Users,
@@ -383,6 +393,22 @@ export default function ScheduleDetailPage() {
       icon: Wallet,
       value: (
         <div className="space-y-2">
+          {/* Community Branding */}
+          {schedule.community &&
+            communityDisplay[schedule.community.toLowerCase()] && (
+              <div className="flex items-center justify-center gap-3 pb-3 border-b border-slate-100">
+                <img
+                  src={
+                    communityDisplay[schedule.community.toLowerCase()].logo
+                  }
+                  alt={communityDisplay[schedule.community.toLowerCase()].name}
+                  className="w-7 h-7 object-contain rounded"
+                />
+                <span className="text-sm font-bold text-slate-700">
+                  {communityDisplay[schedule.community.toLowerCase()].name}
+                </span>
+              </div>
+            )}
           <div>
             <div className="text-2xl font-bold">
               {formatCurrency(Number(schedule.feePlayer))}
