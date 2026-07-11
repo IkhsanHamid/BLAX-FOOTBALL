@@ -24,6 +24,7 @@ import TeamManagementTab from "@/components/organisms/EventTeamManagement";
 import DepositManagementComponent from "@/components/organisms/DepositManagement";
 import RefundTab from "@/components/organisms/RefundTab";
 import ScheduleVerificationTab from "@/components/organisms/ScheduleVerificationTab";
+import MembershipAccessTab from "@/components/organisms/MembershipAccessTab";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -246,6 +247,18 @@ export default function AdminPage() {
           );
         }
         return <RefundTab />;
+
+      // ── Akses Cepat children ─────────────────────────────────────────────────
+      case "membership-access":
+        if (user?.role !== "Admin" && user?.role !== "Owner") {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-600">Anda tidak memiliki akses ke menu ini.</p>
+            </div>
+          );
+        }
+        return <MembershipAccessTab />;
+      // ────────────────────────────────────────────────────────────────────────
 
       // ── Event children ──────────────────────────────────────────────────────
       case "event-kelola":
