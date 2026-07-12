@@ -122,6 +122,16 @@ interface EventDetail {
   category?: string;
 }
 
+interface EventLineupPlayer {
+  name: string;
+  position: string;
+}
+
+interface EventLineupTeam {
+  teamName: string;
+  players: EventLineupPlayer[];
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const formatDate = (dateStr: string) => {
@@ -289,6 +299,44 @@ function Section({
     </div>
   );
 }
+
+const TabsTrigger = ({
+  value,
+  onClick,
+  isActive,
+  children,
+}: {
+  value: string;
+  onClick: (v: string) => void;
+  isActive: boolean;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={() => onClick(value)}
+    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
+      isActive
+        ? "bg-white text-slate-900 shadow-sm"
+        : "text-slate-500 hover:text-slate-700"
+    }`}
+  >
+    {children}
+  </button>
+);
+
+const TabsContent = ({
+  value,
+  activeTab,
+  children,
+  className = "",
+}: {
+  value: string;
+  activeTab: string;
+  children: React.ReactNode;
+  className?: string;
+}) => {
+  if (value !== activeTab) return null;
+  return <div className={className}>{children}</div>;
+};
 
 // ─── Pot Badge ─────────────────────────────────────────────────────────────────
 
@@ -506,6 +554,9 @@ export default function EventDetailPage() {
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [lineupData, setLineupData] = useState<EventLineupTeam[]>([]);
+  const [lineupLocked, setLineupLocked] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
@@ -520,7 +571,20 @@ export default function EventDetailPage() {
         setIsLoading(false);
       }
     };
+    const fetchLineup = async () => {
+      try {
+        const res = await adminService.getEventLineup(eventId);
+        if (res.locked) {
+          setLineupLocked(true);
+        } else {
+          setLineupData(res.data ?? []);
+        }
+      } catch (_) {
+        // fail silently
+      }
+    };
     fetchDetail();
+    fetchLineup();
   }, [eventId]);
 
   const handleBooking = () => {
@@ -632,7 +696,8 @@ export default function EventDetailPage() {
             <p className="text-slate-500 font-medium">Event tidak ditemukan</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div>
+          <div className="space-y-4 pb-20 sm:pb-24">
             {/* ── Hero Image ── */}
             <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700">
               {event.imageUrl ? (
@@ -781,6 +846,30 @@ export default function EventDetailPage() {
               )}
             </div>
 
+            {/* ── Tab Navigation ── */}
+            <div className="sticky top-16 z-30 bg-white/80 backdrop-blur-sm border border-slate-200 shadow rounded-xl p-1 mb-4">
+              <div className="grid w-full grid-cols-4 gap-1">
+                {[
+                  { id: "overview", label: "Overview", icon: Layers },
+                  { id: "tim", label: "Tim", icon: Users },
+                  { id: "fasilitas", label: "Fasilitas", icon: CheckCircle2 },
+                  { id: "peraturan", label: "Aturan", icon: ShieldCheck },
+                ].map((t) => (
+                  <TabsTrigger
+                    key={t.id}
+                    value={t.id}
+                    onClick={setActiveTab}
+                    isActive={activeTab === t.id}
+                  >
+                    <t.icon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline ml-1">{t.label}</span>
+                  </TabsTrigger>
+                ))}
+              </div>
+            </div>
+
+            <TabsContent value="overview" activeTab={activeTab} className="space-y-4">
+
             {/* ── Description ── */}
             {event.description && (
               <Section icon={<Layers className="w-4 h-4" />} title="Deskripsi">
@@ -794,6 +883,9 @@ export default function EventDetailPage() {
             {isMulti && (
               <PotPricingSection pots={pots} activePhase={activePhase} />
             )}
+            </TabsContent>
+
+            <TabsContent value="tim" activeTab={activeTab} className="space-y-4">
 
             {/* ── Teams ── */}
             {event.teams && event.teams.length > 0 && (
@@ -939,6 +1031,46 @@ export default function EventDetailPage() {
               </Section>
             )}
 
+            {/* ── Lineup ── */}
+            {!lineupLocked && lineupData.length > 0 && (
+              <div className="space-y-4">
+                {lineupData.map((team) => {
+                  const sorted = [...team.players].sort((a, b) => {
+                    const order: Record<string, number> = { GK: 0, Player: 1, Substitute: 2 };
+                    return (order[a.position] ?? 99) - (order[b.position] ?? 99);
+                  });
+                  return (
+                    <div key={team.teamName} className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <p className="text-sm font-bold text-slate-800">{team.teamName}</p>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {sorted.map((player, i) => (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center gap-3">
+                              <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                              <span className="text-sm text-slate-700">{player.name}</span>
+                            </div>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${player.position === "GK" ? "bg-yellow-100 text-yellow-700" : player.position === "Substitute" ? "bg-slate-100 text-slate-500" : "bg-blue-100 text-blue-600"}`}>{player.position}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {lineupLocked && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+                <LockKeyhole className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-amber-800">Lineup akan tersedia H-3 sebelum event dimulai</p>
+                <p className="text-xs text-amber-600 mt-1">Kembali lagi nanti untuk melihat susunan pemain</p>
+              </div>
+            )}
+            </TabsContent>
+
+            <TabsContent value="overview" activeTab={activeTab} className="space-y-4">
+
             {/* ── Phases ── */}
             {event.phases && event.phases.length > 0 && (
               <Section
@@ -962,6 +1094,9 @@ export default function EventDetailPage() {
                 </div>
               </Section>
             )}
+            </TabsContent>
+
+            <TabsContent value="fasilitas" activeTab={activeTab} className="space-y-4">
 
             {/* ── Facilities ── */}
             {event.facilities && event.facilities.length > 0 && (
@@ -982,6 +1117,9 @@ export default function EventDetailPage() {
                 </div>
               </Section>
             )}
+            </TabsContent>
+
+            <TabsContent value="peraturan" activeTab={activeTab} className="space-y-4">
 
             {/* ── Rules ── */}
             {event.rules && event.rules.length > 0 && (
@@ -1004,85 +1142,68 @@ export default function EventDetailPage() {
                 </ol>
               </Section>
             )}
-
-            {/* ── Sticky Booking Footer ── */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 p-4 flex items-center justify-between gap-4">
-              <div>
-                {activePhase ? (
-                  <>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 mb-1">
-                      <Zap className="w-3 h-3" />
-                      {activePhase.name}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold text-blue-600">
-                        {formatCurrency(minFeeAfterPhase!)}
-                      </span>
-                      <span className="text-sm text-slate-400 line-through">
-                        {formatCurrency(minFee)}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {isExternal ? "/team" : "/orang"}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {isMulti
-                        ? "Harga terendah setelah promo"
-                        : "Harga setelah promo"}{" "}
-                      · s/d {formatDateShort(activePhase.endDate)}
-                    </p>
-                  </>
-                ) : isExternal ? (
-                  <>
-                    <p className="text-[11px] text-slate-400 mb-0.5">
-                      Mulai dari
-                    </p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-blue-600">
-                        {formatCurrency(minFee)}
-                      </span>
-                      <span className="text-xs text-slate-400">/team</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[11px] text-slate-400 mb-0.5">
-                      {isMulti ? "Mulai dari" : "Mulai dari"}
-                    </p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-blue-600">
-                        {formatCurrency(minFee)}
-                      </span>
-                      <span className="text-xs text-slate-400">/orang</span>
-                    </div>
-                    {isMulti && (
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Harga berbeda per pot tim
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <Button
-                variant="primary"
-                onClick={handleBooking}
-                disabled={!event.isOpen || isExpired || isFullBlocked}
-                className="flex-shrink-0 shadow-md hover:shadow-lg px-6"
-              >
-                {isFullBlocked
-                  ? "FULL"
-                  : isExpired
-                    ? "Event Selesai"
-                    : !event.isOpen
-                      ? "Belum Dibuka"
-                      : "Booking Sekarang"}
-                {!isFullBlocked && event.isOpen && !isExpired && (
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                )}
-              </Button>
-            </div>
+            </TabsContent>
           </div>
+
+          {/* ── Floating Booking Bar ── */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg shadow-slate-300/50 p-3 sm:p-4 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              {activePhase ? (
+                <div className="flex flex-col">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 mb-1 w-fit">
+                    <Zap className="w-3 h-3" />
+                    {activePhase.name}
+                  </span>
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <span className="text-lg sm:text-xl font-bold text-blue-600">
+                      {formatCurrency(minFeeAfterPhase!)}
+                    </span>
+                    <span className="text-xs text-slate-400 line-through">
+                      {formatCurrency(minFee)}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-slate-400">
+                      {isExternal ? "/team" : "/orang"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col min-w-0">
+                  <p className="text-[10px] sm:text-xs text-slate-400 mb-0.5">Mulai dari</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg sm:text-xl font-bold text-blue-600">
+                      {formatCurrency(minFee)}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-slate-400">
+                      {isExternal ? "/team" : "/orang"}
+                    </span>
+                  </div>
+                  {isMulti && (
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Harga berbeda per pot tim
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <Button
+              variant="primary"
+              onClick={handleBooking}
+              disabled={!event.isOpen || isExpired || isFullBlocked}
+              className="flex-shrink-0 shadow-md hover:shadow-lg px-5 sm:px-6 text-sm sm:text-base"
+            >
+              {isFullBlocked
+                ? "FULL"
+                : isExpired
+                  ? "Selesai"
+                  : !event.isOpen
+                    ? "Belum Dibuka"
+                    : "Book Sekarang"}
+              {!isFullBlocked && event.isOpen && !isExpired && (
+                <ChevronRight className="w-4 h-4 ml-1" />
+              )}
+            </Button>
+          </div>
+        </div>
         )}
       </div>
     </div>

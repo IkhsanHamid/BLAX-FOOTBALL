@@ -1116,6 +1116,29 @@ class AdminService {
     return result.data;
   }
 
+  async getEventLineup(
+    id: string,
+  ): Promise<{ data: any[] | null; locked: boolean }> {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events/${id}/lineup`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (response.status === 404) {
+      return { data: [], locked: false };
+    }
+    if (response.status === 403) {
+      return { data: null, locked: true };
+    }
+    if (!response.ok) {
+      throw new Error(result.message || result.error || "Gagal memuat lineup");
+    }
+    return { data: result.data ?? [], locked: false };
+  }
+
   async editEvents(id: string, eventData: FormData): Promise<any> {
     try {
       const response = await apiClient.put(`/api/v1/events/${id}`, eventData);
