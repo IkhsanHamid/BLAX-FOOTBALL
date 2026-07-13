@@ -25,6 +25,7 @@ import DepositManagementComponent from "@/components/organisms/DepositManagement
 import RefundTab from "@/components/organisms/RefundTab";
 import ScheduleVerificationTab from "@/components/organisms/ScheduleVerificationTab";
 import MembershipAccessTab from "@/components/organisms/MembershipAccessTab";
+import EventBracketManagement from "@/components/organisms/EventBracketManagement";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -263,9 +264,10 @@ export default function AdminPage() {
       // ── Event children ──────────────────────────────────────────────────────
       case "event-kelola":
         return <EventTab showError={showError} showSuccess={showSuccess} />;
-      // Tambah child lain di sini jika diperlukan:
       case "event-team":
         return <TeamManagementTab />;
+      case "event-bracket":
+        return <EventBracketManagement />;
       // ────────────────────────────────────────────────────────────────────────
 
       default:

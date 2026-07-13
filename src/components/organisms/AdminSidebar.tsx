@@ -17,6 +17,7 @@ import {
   BarChart3,
   Zap,
   UserPlus,
+  Swords,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -68,6 +69,7 @@ const navItems: NavItem[] = [
     children: [
       { id: "event-kelola", label: "Kelola Event", icon: Trophy },
       { id: "event-team", label: "Kelola Team", icon: Shield },
+      { id: "event-bracket", label: "Bracket & Score", icon: Swords },
     ],
   },
   { id: "deposit", label: "Deposit", icon: Wallet },
@@ -111,7 +113,7 @@ export default function AdminSidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
-      const eventChildIds = ["event-kelola", "event-team"];
+      const eventChildIds = ["event-kelola", "event-team", "event-bracket"];
       const aksesCepatIds = ["membership-access"];
       return {
         event: eventChildIds.includes(selectedTab),
@@ -121,7 +123,7 @@ export default function AdminSidebar({
   );
 
   useEffect(() => {
-    const eventChildIds = ["event-kelola", "event-team"];
+    const eventChildIds = ["event-kelola", "event-team", "event-bracket"];
     const aksesCepatIds = ["membership-access"];
     if (eventChildIds.includes(selectedTab)) {
       setExpandedItems((prev) => ({ ...prev, event: true }));
