@@ -20,6 +20,9 @@ import {
   Layers,
   UnlockKeyhole,
   LockKeyhole,
+  Swords,
+  BarChart3,
+  Medal,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -557,6 +560,9 @@ export default function EventDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [lineupData, setLineupData] = useState<EventLineupTeam[]>([]);
   const [lineupLocked, setLineupLocked] = useState(false);
+  const [bracketData, setBracketData] = useState<any[]>([]);
+  const [topScorers, setTopScorers] = useState<any[]>([]);
+  const [standings, setStandings] = useState<any[]>([]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -580,11 +586,42 @@ export default function EventDetailPage() {
           setLineupData(res.data ?? []);
         }
       } catch (_) {
-        // fail silently
       }
     };
-    fetchDetail();
-    fetchLineup();
+    const fetchBracket = async () => {
+      try {
+        const res = await adminService.getBracket(eventId);
+        const data = res?.data ?? [];
+        setBracketData(data);
+        return data.length > 0;
+      } catch (_) {
+        return false;
+      }
+    };
+    const fetchTopScorers = async () => {
+      try {
+        const res = await adminService.getTopScorers(eventId);
+        setTopScorers(res?.data ?? []);
+      } catch (_) {
+      }
+    };
+    const fetchStandings = async () => {
+      try {
+        const res = await adminService.getStandings(eventId);
+        setStandings(res?.data ?? []);
+      } catch (_) {
+      }
+    };
+    const init = async () => {
+      fetchDetail();
+      fetchLineup();
+      const hasBracket = await fetchBracket();
+      if (hasBracket) {
+        fetchTopScorers();
+        fetchStandings();
+      }
+    };
+    init();
   }, [eventId]);
 
   const handleBooking = () => {
@@ -848,10 +885,12 @@ export default function EventDetailPage() {
 
             {/* ── Tab Navigation ── */}
             <div className="sticky top-16 z-30 bg-white/80 backdrop-blur-sm border border-slate-200 shadow rounded-xl p-1 mb-4">
-              <div className="grid w-full grid-cols-4 gap-1">
+              <div className="flex overflow-x-auto gap-1">
                 {[
                   { id: "overview", label: "Overview", icon: Layers },
                   { id: "tim", label: "Tim", icon: Users },
+                  { id: "bracket", label: "Bracket", icon: Swords },
+                  { id: "top-skors", label: "Top Skor", icon: Medal },
                   { id: "fasilitas", label: "Fasilitas", icon: CheckCircle2 },
                   { id: "peraturan", label: "Aturan", icon: ShieldCheck },
                 ].map((t) => (
@@ -1142,6 +1181,264 @@ export default function EventDetailPage() {
                 </ol>
               </Section>
             )}
+            </TabsContent>
+
+            <TabsContent value="bracket" activeTab={activeTab} className="space-y-4">
+              {(() => {
+                const AVATAR_COLORS = [
+                  "bg-blue-500", "bg-red-500", "bg-emerald-500", "bg-amber-500",
+                  "bg-violet-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500",
+                  "bg-teal-500", "bg-indigo-500", "bg-rose-500", "bg-lime-500",
+                ];
+                const avatarColor = (name: string) => {
+                  let hash = 0;
+                  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+                };
+                const TeamAvatar = ({ team }: { team: any }) => (
+                  team?.imageUrl ? (
+                    <img src={team.imageUrl} alt={team.name} className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full ${avatarColor(team?.name ?? "?")} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
+                      {team?.name?.charAt(0)?.toUpperCase() ?? "?"}
+                    </div>
+                  )
+                );
+
+                return bracketData.length > 0 ? (
+                <div className={bracketData[0]?.stage === "group"
+                  ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  : "-mx-2 sm:mx-0 overflow-x-auto pb-4"
+                }>
+                  {bracketData[0]?.stage === "group" ? (
+                    bracketData.map((round: any, ri: number) => (
+                      <div key={round.round ?? ri} className="flex flex-col gap-3">
+                        <div className="bg-slate-800 text-white text-center py-2 px-3 rounded-lg">
+                          <p className="text-xs font-bold uppercase tracking-wide">{round.roundName}</p>
+                        </div>
+                        {round.matches?.map((match: any) => (
+                          <div
+                            key={match.id}
+                            className={`relative bg-white rounded-xl border-2 p-3 ${
+                              match.score?.status === "finished"
+                                ? "border-green-200"
+                                : match.score?.status === "live"
+                                  ? "border-red-300 shadow-md shadow-red-100"
+                                  : "border-slate-200"
+                            }`}
+                          >
+                            {match.score?.status === "live" && (
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow animate-pulse">
+                                LIVE
+                              </span>
+                            )}
+                            {match.score?.status === "finished" && (
+                              <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                                Selesai
+                              </span>
+                            )}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <TeamAvatar team={match.teamA} />
+                                  <span className="text-xs font-medium truncate">{match.teamA?.name ?? "TBD"}</span>
+                                </div>
+                                <span className="text-base font-black text-slate-700 flex-shrink-0">
+                                  {match.score?.scoreA ?? 0}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <TeamAvatar team={match.teamB} />
+                                  <span className="text-xs font-medium truncate">{match.teamB?.name ?? "TBD"}</span>
+                                </div>
+                                <span className="text-base font-black text-slate-700 flex-shrink-0">
+                                  {match.score?.scoreB ?? 0}
+                                </span>
+                              </div>
+                              {match.goals?.length > 0 && (
+                                <div className="border-t border-slate-100 pt-1.5 mt-1 space-y-0.5">
+                                  <p className="text-[10px] font-semibold text-slate-400">Pencetak Goal:</p>
+                                  {match.goals.map((goal: any) => (
+                                    <div key={goal.id} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                      <span className={`w-1 h-1 rounded-full flex-shrink-0 ${goal.type === "penalty" ? "bg-amber-400" : goal.type === "own_goal" ? "bg-red-400" : "bg-green-400"}`} />
+                                      <span className="font-medium text-slate-600">{goal.userName ?? goal.teamName}</span>
+                                      <span>{goal.minute}&apos;</span>
+                                      {goal.type === "penalty" && <span className="text-amber-500">(P)</span>}
+                                      {goal.type === "own_goal" && <span className="text-red-400">(OG)</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex gap-4 sm:gap-6 min-w-max px-2 sm:px-0">
+                      {bracketData.map((round: any, ri: number) => (
+                        <div key={round.round ?? ri} className="flex flex-col gap-3" style={{ minWidth: 180 }}>
+                          <div className="bg-slate-800 text-white text-center py-2 px-3 rounded-lg">
+                            <p className="text-xs font-bold uppercase tracking-wide">{round.roundName}</p>
+                          </div>
+                          {round.matches?.map((match: any) => (
+                            <div
+                              key={match.id}
+                              className={`relative bg-white rounded-xl border-2 p-3 w-full ${
+                                match.score?.status === "finished"
+                                  ? "border-green-200"
+                                  : match.score?.status === "live"
+                                    ? "border-red-300 shadow-md shadow-red-100"
+                                    : "border-slate-200"
+                              }`}
+                            >
+                              {match.score?.status === "live" && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow animate-pulse">
+                                  LIVE
+                                </span>
+                              )}
+                              {match.score?.status === "finished" && (
+                                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                                  Selesai
+                                </span>
+                              )}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <TeamAvatar team={match.teamA} />
+                                    <span className="text-sm font-medium truncate">{match.teamA?.name ?? "TBD"}</span>
+                                  </div>
+                                  <span className="text-lg font-black text-slate-700 flex-shrink-0">
+                                    {match.score?.scoreA ?? 0}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <TeamAvatar team={match.teamB} />
+                                    <span className="text-sm font-medium truncate">{match.teamB?.name ?? "TBD"}</span>
+                                  </div>
+                                  <span className="text-lg font-black text-slate-700 flex-shrink-0">
+                                    {match.score?.scoreB ?? 0}
+                                  </span>
+                                </div>
+                                {match.goals?.length > 0 && (
+                                  <div className="border-t border-slate-100 pt-1.5 mt-1 space-y-0.5">
+                                    <p className="text-[10px] font-semibold text-slate-400">Pencetak Goal:</p>
+                                    {match.goals.map((goal: any) => (
+                                      <div key={goal.id} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                        <span className={`w-1 h-1 rounded-full flex-shrink-0 ${goal.type === "penalty" ? "bg-amber-400" : goal.type === "own_goal" ? "bg-red-400" : "bg-green-400"}`} />
+                                        <span className="font-medium text-slate-600">{goal.userName ?? goal.teamName}</span>
+                                        <span>{goal.minute}&apos;</span>
+                                        {goal.type === "penalty" && <span className="text-amber-500">(P)</span>}
+                                        {goal.type === "own_goal" && <span className="text-red-400">(OG)</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Swords className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Bracket belum tersedia</p>
+                  <p className="text-xs text-slate-400 mt-1">Bracket akan muncul setelah dibuat oleh admin</p>
+                </div>
+              )})()}
+
+              {standings.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
+                    <span className="text-blue-500"><BarChart3 className="w-4 h-4" /></span>
+                    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Klasemen</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-xs text-slate-500 uppercase">
+                          <th className="text-center py-2 w-8">#</th>
+                          <th className="text-left py-2">Tim</th>
+                          <th className="text-center py-2 w-8">P</th>
+                          <th className="text-center py-2 w-8">W</th>
+                          <th className="text-center py-2 w-8">D</th>
+                          <th className="text-center py-2 w-8">L</th>
+                          <th className="text-center py-2">GF</th>
+                          <th className="text-center py-2">GA</th>
+                          <th className="text-center py-2">GD</th>
+                          <th className="text-center py-2 font-bold">PTS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map((s: any, i: number) => (
+                          <tr key={s.teamId} className="border-t border-slate-100">
+                            <td className="text-center py-2 font-bold">{i + 1}</td>
+                            <td className="py-2">
+                              <div className="flex items-center gap-2">
+                                {s.teamImageUrl && <img src={s.teamImageUrl} className="w-5 h-5 rounded" />}
+                                <span className="font-medium">{s.teamName}</span>
+                              </div>
+                            </td>
+                            <td className="text-center py-2 text-xs">{s.played}</td>
+                            <td className="text-center py-2 text-xs">{s.wins}</td>
+                            <td className="text-center py-2 text-xs">{s.draws}</td>
+                            <td className="text-center py-2 text-xs">{s.losses}</td>
+                            <td className="text-center py-2 text-xs">{s.goalsFor}</td>
+                            <td className="text-center py-2 text-xs">{s.goalsAgainst}</td>
+                            <td className="text-center py-2 text-xs">{s.goalDifference}</td>
+                            <td className="text-center py-2 text-sm font-bold">{s.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="top-skors" activeTab={activeTab} className="space-y-4">
+              {topScorers.length > 0 ? (
+                <div className="space-y-2">
+                  {topScorers.map((player: any, i: number) => (
+                    <div
+                      key={player.userId ?? `${player.eventTeamId}-${i}`}
+                      className={`flex items-center gap-3 p-3 rounded-xl border ${
+                        i === 0
+                          ? "bg-amber-50 border-amber-200"
+                          : i === 1
+                            ? "bg-slate-50 border-slate-200"
+                            : i === 2
+                              ? "bg-orange-50 border-orange-100"
+                              : "bg-white border-slate-100"
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {player.name ?? "Pemain tidak dikenal"}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">{player.teamName}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="text-xl font-black text-slate-800">{player.goals}</span>
+                        <span className="text-xs text-slate-400">gol</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <BarChart3 className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Belum ada data top skor</p>
+                </div>
+              )}
             </TabsContent>
           </div>
 

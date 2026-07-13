@@ -162,8 +162,8 @@ export default function ScheduleRevisionForm({
       formData.append("feePlayer", form.feePlayer || "0");
       formData.append("feeGk", form.feeGk || "0");
       formData.append("venueId", form.venueId);
-      formData.append("facilityIds", JSON.stringify(form.facilityIds));
-      formData.append("ruleIds", JSON.stringify(form.ruleIds));
+      form.facilityIds.forEach((id) => formData.append("facilityIds[]", id));
+      form.ruleIds.forEach((id) => formData.append("ruleIds[]", id));
 
       if (imageFile) formData.append("imageUrl", imageFile);
       if (paymentProofFile) formData.append("paymentProof", paymentProofFile);

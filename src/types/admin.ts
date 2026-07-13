@@ -286,3 +286,185 @@ export interface CreateFreeMembershipPayload {
   userId: string;
   durationMonths: number;
 }
+
+export interface BracketTeam {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
+
+export interface BracketScore {
+  id?: string;
+  matchId?: string;
+  scoreA: number;
+  scoreB: number;
+  status: "scheduled" | "live" | "finished";
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BracketGoal {
+  id: string;
+  userId: string | null;
+  userName: string | null;
+  teamId: string;
+  teamName: string;
+  minute: number;
+  type: "goal" | "own_goal" | "penalty";
+}
+
+export interface BracketMatch {
+  id: string;
+  matchOrder: number;
+  roundName?: string;
+  teamA: BracketTeam | null;
+  teamB: BracketTeam | null;
+  score: BracketScore;
+  nextMatchId: string | null;
+  goals: BracketGoal[];
+}
+
+export interface BracketRound {
+  stage?: "knockout" | "group";
+  round?: number;
+  roundName: string;
+  matches: BracketMatch[];
+}
+
+export interface BracketResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: BracketRound[];
+}
+
+export interface GenerateBracketRound {
+  round: number;
+  roundName: string;
+}
+
+export interface GenerateBracketGroup {
+  roundName: string;
+  teamIds?: string[];
+}
+
+export interface GenerateBracketPayload {
+  stage: "knockout" | "group";
+  rounds?: GenerateBracketRound[];
+  groups?: GenerateBracketGroup[];
+}
+
+export interface MatchDetail {
+  id: string;
+  round: number;
+  roundName?: string;
+  matchOrder: number;
+  teamA: BracketTeam | null;
+  teamB: BracketTeam | null;
+  score: BracketScore;
+  nextMatchId: string | null;
+  goals: BracketGoal[];
+}
+
+export interface MatchDetailResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: MatchDetail;
+}
+
+export interface UpdateMatchPayload {
+  teamAId?: string | null;
+  teamBId?: string | null;
+  matchOrder?: number;
+  round?: number;
+  roundName?: string | null;
+  nextMatchId?: string | null;
+  scoreA?: number;
+  scoreB?: number;
+  status?: "scheduled" | "live" | "finished";
+}
+
+export interface AddGoalPayload {
+  eventTeamId: string;
+  userId?: string | null;
+  scorerName?: string | null;
+  type?: "goal" | "own_goal" | "penalty";
+}
+
+export interface AddGoalResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: {
+    id: string;
+    matchId: string;
+    eventTeamId: string;
+    userId: string | null;
+    minute: number | null;
+    type: string;
+    createdAt: string;
+  };
+}
+
+export interface TopScorer {
+  userId: string | null;
+  name: string | null;
+  teamName: string;
+  teamImageUrl: string;
+  eventTeamId: string;
+  goals: number;
+}
+
+export interface TopScorerResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: TopScorer[];
+}
+
+export interface Standing {
+  teamId: string;
+  teamName: string;
+  teamImageUrl: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+export interface StandingResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: Standing[];
+}
+
+export interface MatchPlayer {
+  userId: string;
+  name: string;
+}
+
+export interface MatchTeamPlayers {
+  teamId: string;
+  teamName: string;
+  players: MatchPlayer[];
+}
+
+export interface MatchPlayersData {
+  teamA: MatchTeamPlayers;
+  teamB: MatchTeamPlayers;
+}
+
+export interface MatchPlayersResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: MatchPlayersData;
+}

@@ -33,6 +33,15 @@ import {
   UserManagement,
   Users,
   VoucherHistoryRecord,
+  BracketResponse,
+  GenerateBracketPayload,
+  MatchDetailResponse,
+  UpdateMatchPayload,
+  AddGoalPayload,
+  AddGoalResponse,
+  TopScorerResponse,
+  StandingResponse,
+  MatchPlayersResponse,
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
@@ -239,9 +248,10 @@ class AdminService {
     payload: MasterTeamCreatePayload,
   ): Promise<MasterTeamDetailResponse> {
     try {
-      const body = payload.image instanceof File
-        ? buildMasterTeamFormData(payload)
-        : payload;
+      const body =
+        payload.image instanceof File
+          ? buildMasterTeamFormData(payload)
+          : payload;
       const response = await apiClient.post(`/api/v1/teams`, body);
       return response;
     } catch (error) {
@@ -255,13 +265,11 @@ class AdminService {
     payload: MasterTeamUpdatePayload,
   ): Promise<MasterTeamDetailResponse> {
     try {
-      const body = payload.image instanceof File
-        ? buildMasterTeamFormData(payload)
-        : payload;
-      const response = await apiClient.put(
-        `/api/v1/teams/${id}`,
-        body,
-      );
+      const body =
+        payload.image instanceof File
+          ? buildMasterTeamFormData(payload)
+          : payload;
+      const response = await apiClient.put(`/api/v1/teams/${id}`, body);
       return response;
     } catch (error) {
       console.error("Error updating master team:", error);
@@ -327,9 +335,7 @@ class AdminService {
 
   async deleteScheduleMatch(id: string): Promise<any> {
     try {
-      const response = await apiClient.delete(
-        `/api/v1/schedule-matches/${id}`,
-      );
+      const response = await apiClient.delete(`/api/v1/schedule-matches/${id}`);
       return response;
     } catch (error) {
       console.error("Error deleting schedule match:", error);
@@ -400,7 +406,7 @@ class AdminService {
       if (limit) queryParams.append("limit", limit.toString());
 
       const response = await apiClient.get(
-        `/api/v1/schedule/rejected?${queryParams.toString()}`,
+        `/api/v1/matches/rejected?${queryParams.toString()}`,
       );
       return response;
     } catch (error) {
@@ -412,7 +418,7 @@ class AdminService {
   async reviseSchedule(id: string, formData: FormData): Promise<any> {
     try {
       const response = await apiClient.put(
-        `/api/v1/schedule/revision/${id}`,
+        `/api/v1/matches/revision/${id}`,
         formData,
       );
       return response;
@@ -1172,9 +1178,7 @@ class AdminService {
     }
   }
 
-  async searchNonMembers(
-    search?: string,
-  ): Promise<NonMemberSearchResponse> {
+  async searchNonMembers(search?: string): Promise<NonMemberSearchResponse> {
     try {
       const queryParams = new URLSearchParams();
       if (search) queryParams.append("search", search);
@@ -1200,6 +1204,148 @@ class AdminService {
       return response;
     } catch (error) {
       console.error("Error creating free membership:", error);
+      throw error;
+    }
+  }
+
+  async getBracket(eventId: string): Promise<BracketResponse> {
+    try {
+      const response = await apiClient.get(`/api/v1/events/${eventId}/bracket`);
+      return response;
+    } catch (error) {
+      console.error("Error fetching bracket:", error);
+      throw error;
+    }
+  }
+
+  async generateBracket(
+    eventId: string,
+    payload: GenerateBracketPayload,
+  ): Promise<BracketResponse> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/events/${eventId}/bracket`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error generating bracket:", error);
+      throw error;
+    }
+  }
+
+  async getMatchDetail(
+    eventId: string,
+    matchId: string,
+  ): Promise<MatchDetailResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/events/${eventId}/matches/${matchId}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching match detail:", error);
+      throw error;
+    }
+  }
+
+  async updateMatch(
+    eventId: string,
+    matchId: string,
+    payload: UpdateMatchPayload,
+  ): Promise<MatchDetailResponse> {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/events/${eventId}/matches/${matchId}`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error updating match:", error);
+      throw error;
+    }
+  }
+
+  async addGoal(
+    eventId: string,
+    matchId: string,
+    payload: AddGoalPayload,
+  ): Promise<AddGoalResponse> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/events/${eventId}/matches/${matchId}/goals`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error adding goal:", error);
+      throw error;
+    }
+  }
+
+  async deleteGoal(
+    eventId: string,
+    matchId: string,
+    goalId: string,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/events/${eventId}/matches/${matchId}/goals/${goalId}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      throw error;
+    }
+  }
+
+  async getTopScorers(eventId: string): Promise<TopScorerResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/events/${eventId}/top-scorers`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching top scorers:", error);
+      throw error;
+    }
+  }
+
+  async deleteBracket(eventId: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/events/${eventId}/bracket`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting bracket:", error);
+      throw error;
+    }
+  }
+
+  async getStandings(eventId: string): Promise<StandingResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/events/${eventId}/standings`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching standings:", error);
+      throw error;
+    }
+  }
+
+  async getMatchPlayers(
+    eventId: string,
+    matchId: string,
+  ): Promise<MatchPlayersResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/events/${eventId}/matches/${matchId}/players`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching match players:", error);
       throw error;
     }
   }
