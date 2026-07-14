@@ -716,7 +716,21 @@ export default function SchedulePage() {
               {/* Header */}
               <div className="mb-3 sm:mb-4">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
+                    {/* Community Branding — Mobile (above name) */}
+                    {match.community &&
+                      communityDisplay[match.community.toLowerCase()] && (
+                        <div className="flex sm:hidden items-center justify-center gap-2 mb-1.5">
+                          <img
+                            src={communityDisplay[match.community.toLowerCase()].logo}
+                            alt={communityDisplay[match.community.toLowerCase()].name}
+                            className="w-7 h-7 object-contain rounded flex-shrink-0"
+                          />
+                          <span className="text-sm font-bold text-slate-700">
+                            {communityDisplay[match.community.toLowerCase()].name}
+                          </span>
+                        </div>
+                      )}
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 line-clamp-2 sm:line-clamp-1">
                       {match.name}
                     </h3>
@@ -730,6 +744,20 @@ export default function SchedulePage() {
                       </span>
                     </div>
                   </div>
+                  {/* Community Branding — Desktop (right, inline with name) */}
+                  {match.community &&
+                    communityDisplay[match.community.toLowerCase()] && (
+                      <div className="hidden sm:flex items-center gap-2 flex-shrink-0 ml-3">
+                        <img
+                          src={communityDisplay[match.community.toLowerCase()].logo}
+                          alt={communityDisplay[match.community.toLowerCase()].name}
+                          className="w-10 h-10 object-contain rounded"
+                        />
+                        <span className="text-sm font-bold text-slate-700">
+                          {communityDisplay[match.community.toLowerCase()].name}
+                        </span>
+                      </div>
+                    )}
                 </div>
 
                 {/* Details */}
@@ -771,29 +799,6 @@ export default function SchedulePage() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 mt-auto gap-3">
                 <div className="flex flex-col">
-                  {/* Community Branding */}
-                  {match.community &&
-                    communityDisplay[match.community.toLowerCase()] && (
-                      <div className="flex items-center justify-center gap-2 mb-1.5">
-                        <img
-                          src={
-                            communityDisplay[match.community.toLowerCase()]
-                              .logo
-                          }
-                          alt={
-                            communityDisplay[match.community.toLowerCase()]
-                              .name
-                          }
-                          className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded"
-                        />
-                        <span className="text-xs sm:text-sm font-bold text-slate-600">
-                          {
-                            communityDisplay[match.community.toLowerCase()]
-                              .name
-                          }
-                        </span>
-                      </div>
-                    )}
                   <div className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">
                     Mulai dari
                   </div>
