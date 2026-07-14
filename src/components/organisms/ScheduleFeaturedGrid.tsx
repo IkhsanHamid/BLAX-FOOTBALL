@@ -637,7 +637,7 @@ export default function ScheduleFeaturedGrid() {
         </div>
 
         {/* Community Filter Buttons */}
-        <div className="flex justify-center gap-2 sm:gap-4 mb-5 sm:mb-7">
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mb-5 sm:mb-7">
           {communityButtons.map((btn) => (
             <button
               key={btn.value}
@@ -646,7 +646,7 @@ export default function ScheduleFeaturedGrid() {
                   selectedCommunity === btn.value ? "all" : btn.value,
                 )
               }
-              className={`relative flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-8 py-2 sm:py-3.5 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-base transition-all duration-300 ${
+              className={`relative flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-8 py-2 sm:py-3.5 rounded-full sm:rounded-2xl font-bold text-[10px] sm:text-base transition-all duration-300 ${
                 selectedCommunity === btn.value
                   ? btn.activeClass
                   : btn.inactiveClass
@@ -665,7 +665,7 @@ export default function ScheduleFeaturedGrid() {
                   }`}
                 />
               )}
-              {btn.label}
+              <span className="hidden sm:inline">{btn.label}</span>
               {selectedCommunity === btn.value && (
                 <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full flex items-center justify-center shadow-md">
                   <span className="text-[10px] sm:text-xs font-black text-slate-800">✓</span>
