@@ -204,9 +204,13 @@ export default function SchedulePage() {
     });
 
     filtered.sort((a, b) => {
-      const dateA = new Date(a.date + " " + a.time).getTime();
-      const dateB = new Date(b.date + " " + b.time).getTime();
-      return dateA - dateB;
+      const [ha, ma] = a.time.split(":").map(Number);
+      const [hb, mb] = b.time.split(":").map(Number);
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      dateA.setHours(ha, ma, 0, 0);
+      dateB.setHours(hb, mb, 0, 0);
+      return dateA.getTime() - dateB.getTime();
     });
 
     return filtered;
