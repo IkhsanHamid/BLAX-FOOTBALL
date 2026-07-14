@@ -975,7 +975,7 @@ export default function EventDetailPage() {
                             <p className="text-sm font-bold text-slate-800 truncate">
                               {team.name.trim()}
                             </p>
-                            {team.slot && (
+                            {team.slot && !isExternal && !isOnlyTeamMode && (
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 <span className="text-[11px] text-slate-500">
                                   <span className="font-semibold text-blue-600">

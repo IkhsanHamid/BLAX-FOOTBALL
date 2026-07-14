@@ -339,17 +339,18 @@ export default function ScheduleFeaturedGrid() {
           {/* Community Branding */}
           {match.community &&
             communityDisplay[match.community.toLowerCase()] && (
-              <div className="flex items-center justify-center gap-3 mb-4 pb-3 border-b border-slate-100">
+              <div className="flex items-center justify-center sm:justify-end gap-3 sm:gap-3.5 mb-4 sm:mb-5 pb-3 sm:pb-4 border-b border-slate-100">
                 <img
-                  src={
-                    communityDisplay[match.community.toLowerCase()].logo
-                  }
+                  src={communityDisplay[match.community.toLowerCase()].logo}
                   alt={communityDisplay[match.community.toLowerCase()].name}
-                  className="w-8 h-8 object-contain rounded"
+                  className="w-10 h-10 sm:w-14 sm:h-14 object-contain rounded flex-shrink-0"
                 />
-                <span className="text-base font-bold text-slate-700">
-                  {communityDisplay[match.community.toLowerCase()].name}
-                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide">Community</p>
+                  <p className="text-sm sm:text-lg font-bold text-slate-800 truncate">
+                    {communityDisplay[match.community.toLowerCase()].name}
+                  </p>
+                </div>
               </div>
             )}
 
@@ -486,15 +487,47 @@ export default function ScheduleFeaturedGrid() {
         {/* Content */}
         <div className="p-3 sm:p-4">
           <div className="mb-3">
-            <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1.5 line-clamp-1">
-              {match.name}
-            </h4>
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 mb-2">
-              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-semibold">
-                {match.type}
-              </span>
-              <span className="text-slate-400">•</span>
-              <span className="font-medium">{match.typeMatch}</span>
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                {/* Community Branding — Mobile (above name) */}
+                {match.community &&
+                  communityDisplay[match.community.toLowerCase()] && (
+                    <div className="flex sm:hidden items-center justify-center gap-2 mb-1.5">
+                      <img
+                        src={communityDisplay[match.community.toLowerCase()].logo}
+                        alt={communityDisplay[match.community.toLowerCase()].name}
+                        className="w-8 h-8 object-contain rounded flex-shrink-0"
+                      />
+                      <span className="text-sm font-bold text-slate-700">
+                        {communityDisplay[match.community.toLowerCase()].name}
+                      </span>
+                    </div>
+                  )}
+                <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1.5 line-clamp-1">
+                  {match.name}
+                </h4>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 mb-2">
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md font-semibold">
+                    {match.type}
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <span className="font-medium">{match.typeMatch}</span>
+                </div>
+              </div>
+              {/* Community Branding — Desktop (right, inline with name) */}
+              {match.community &&
+                communityDisplay[match.community.toLowerCase()] && (
+                  <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                    <img
+                      src={communityDisplay[match.community.toLowerCase()].logo}
+                      alt={communityDisplay[match.community.toLowerCase()].name}
+                      className="w-10 h-10 object-contain rounded"
+                    />
+                    <span className="text-sm font-bold text-slate-700">
+                      {communityDisplay[match.community.toLowerCase()].name}
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
 
@@ -521,23 +554,6 @@ export default function ScheduleFeaturedGrid() {
               </span>
             )}
           </div>
-
-          {/* Community Branding */}
-          {match.community &&
-            communityDisplay[match.community.toLowerCase()] && (
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <img
-                  src={
-                    communityDisplay[match.community.toLowerCase()].logo
-                  }
-                  alt={communityDisplay[match.community.toLowerCase()].name}
-                  className="w-6 h-6 object-contain rounded"
-                />
-                <span className="text-sm font-bold text-slate-600">
-                  {communityDisplay[match.community.toLowerCase()].name}
-                </span>
-              </div>
-            )}
 
           {/* Price */}
           <div className="flex items-baseline gap-1.5 sm:gap-2 mb-3">
