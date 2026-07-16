@@ -21,7 +21,7 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import autoTable from "jspdf-autotable";
-import { ReportBooking } from "@/types/admin";
+import { ReportBooking, EventBookingReport } from "@/types/admin";
 import { adminService } from "@/utils/admin";
 import BookingDetailModal from "../molecules/BookingDetailModal";
 
@@ -50,6 +50,7 @@ interface Schedule {
   typeMatch: string;
   status: boolean;
   players: number;
+  bookingCount: number;
   revenue: number;
 }
 
@@ -97,18 +98,19 @@ export default function ScheduleReportTab({
 
   const { showSuccess, showError } = useNotifications();
   const abortControllerRef = useRef<AbortController | null>(null);
-  const isInitialMount = useRef(true);
+  const mountedRef = useRef(false);
+  const isFetchingRef = useRef(false);
 
-  // Fetch schedule report data
   const fetchScheduleData = async (): Promise<void> => {
     if (!startDate || !endDate) return;
+    if (isFetchingRef.current) return;
 
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
 
+    isFetchingRef.current = true;
     setLoading(true);
     try {
       const skip = (currentPage - 1) * itemsPerPage;
@@ -122,59 +124,26 @@ export default function ScheduleReportTab({
       );
       setReportData(reportResponse);
 
-      // Update pagination info if available
-      if (reportResponse.totalPages) {
-        setTotalPages(reportResponse.totalPages);
-      }
-      if (reportResponse.total !== undefined) {
-        setTotalData(reportResponse.total);
-      }
-
-      if (!isInitialMount.current) {
-        showSuccess("Data berhasil di-refresh");
-      }
+      if (reportResponse.totalPages) setTotalPages(reportResponse.totalPages);
+      if (reportResponse.total !== undefined) setTotalData(reportResponse.total);
     } catch (error: any) {
-      // Ignore abort errors
       if (error.name === "AbortError") return;
-
-      if (error.message.includes("fetch")) {
-        showError(
-          "Network Error",
-          "Tidak dapat terhubung ke server. Pastikan server berjalan di localhost:3100",
-        );
-      } else if (error.message.includes("404")) {
-        showError(
-          "API Not Found",
-          "Endpoint API tidak ditemukan. Periksa URL API",
-        );
-      } else if (error.message.includes("500")) {
-        showError("Server Error", "Server mengalami error internal");
-      } else {
-        showError("Error", `Gagal memuat data laporan: ${error.message}`);
-      }
+      showError("Error", `Gagal memuat data laporan: ${error.message}`);
     } finally {
       setLoading(false);
-      isInitialMount.current = false;
+      isFetchingRef.current = false;
     }
   };
 
-  // Initial load
   useEffect(() => {
+    mountedRef.current = true;
     fetchScheduleData();
-
-    // Cleanup
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+    return () => { abortControllerRef.current?.abort(); };
   }, []);
 
-  // Refetch when pagination or filters change
   useEffect(() => {
-    if (!isInitialMount.current) {
-      fetchScheduleData();
-    }
+    if (!mountedRef.current) return;
+    fetchScheduleData();
   }, [currentPage, itemsPerPage, startDate, endDate, venueId, community]);
 
   // Generate PDF Report
@@ -535,10 +504,10 @@ export default function ScheduleReportTab({
         </Card>
       </div>
 
-      {/* Schedule Table */}
+      {/* Unified Schedule + Event Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Detail Laporan Jadwal</CardTitle>
+          <CardTitle>Detail Laporan</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -556,89 +525,79 @@ export default function ScheduleReportTab({
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tanggal
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nama
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Venue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipe
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pemain
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pendapatan
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pemain</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pendapatan</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {reportData.schedules.map((schedule: Schedule) => (
-                    <tr
-                      key={schedule.scheduleId}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                          {new Date(schedule.date).toLocaleDateString("id-ID")}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {schedule.time}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleScheduleClick(schedule)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center transition-colors"
-                        >
-                          {schedule.name}
-                          <Eye className="w-4 h-4 ml-2" />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {schedule.venue}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {schedule.typeMatch}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Users className="w-4 h-4 text-gray-400 mr-2" />
-                          {schedule.players}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-green-600">
-                          Rp {schedule.revenue.toLocaleString("id-ID")}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            schedule.status
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {schedule.status ? "Aktif" : "Selesai"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const rows: any[] = [];
+                    (reportData.schedules || []).forEach((s) => {
+                      rows.push({ ...s, _type: "schedule", _key: s.scheduleId, _status: s.status ? "Aktif" : "Selesai", _clickable: true });
+                    });
+                    (reportData.events || []).forEach((e) => {
+                      rows.push({ ...e, scheduleId: e.eventId, _type: "event", _key: `ev-${e.eventId}`, _status: e.status ? "Aktif" : "Selesai", _clickable: false, time: e.time || "" });
+                    });
+                    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    return rows.map((row) => (
+                      <tr key={row._key} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                            {new Date(row.date).toLocaleDateString("id-ID")}
+                          </div>
+                          <div className="text-xs text-gray-500">{row.time}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {row._clickable ? (
+                            <button onClick={() => handleScheduleClick(row)} className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 transition-colors">
+                              {row.name}
+                              <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+                            </button>
+                          ) : (
+                            <span className="text-sm font-medium text-gray-900">{row.name}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row._type === "event" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
+                            {row._type === "event" ? "Event" : "Jadwal"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.venue}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{row.typeMatch}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <Users className="w-4 h-4 text-gray-400 mr-2" />
+                            {row.players}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-green-600">Rp {row.revenue.toLocaleString("id-ID")}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.status || row._status === "Aktif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                            {row._status}
+                          </span>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
+            </div>
+          )}
+          {reportData && reportData.schedules.length === 0 && (!reportData.events || reportData.events.length === 0) && !loading && (
+            <div className="text-center py-8">
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">Belum ada data laporan</p>
             </div>
           )}
         </CardContent>

@@ -36,15 +36,14 @@ export interface Roles {
 }
 
 export interface ReportBooking {
+  total: number;
+  totalPages: number;
+  currentPage: number;
   totalBooking: number;
   totalRevenue: number;
   totalPlayers: number;
   schedules: ScheduleBookingReports[];
-  skip: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  currentPage: number;
+  events: EventBookingReport[];
 }
 
 export interface ScheduleBookingReports {
@@ -56,6 +55,22 @@ export interface ScheduleBookingReports {
   typeMatch: string;
   status: boolean;
   players: number;
+  bookingCount: number;
+  revenue: number;
+}
+
+export interface EventBookingReport {
+  eventId: string;
+  name: string;
+  date: string;
+  startDate?: string;
+  time: string;
+  venue: string;
+  typeMatch: string;
+  status: boolean;
+  teams: number;
+  players: number;
+  bookingCount: number;
   revenue: number;
 }
 
@@ -467,4 +482,75 @@ export interface MatchPlayersResponse {
   statusCode: number;
   message: string;
   data: MatchPlayersData;
+}
+
+export interface AttendancePlayer {
+  lineupId: string;
+  userId: string | null;
+  name: string | null;
+  position: string;
+  isPresent: boolean;
+  jerseyNumber: string | null;
+  jerseySize: string | null;
+}
+
+export interface AttendanceTeam {
+  teamName: string;
+  hexColor: string | null;
+  image: string | null;
+  scheduleTeamId: string | null;
+  nameTeam: string | null;
+  gk: AttendancePlayer | null;
+  players: AttendancePlayer[];
+}
+
+export interface AttendanceChecklistResponse {
+  status: boolean;
+  statusCode: number;
+  data: AttendanceTeam[];
+}
+
+export interface UpdateAttendancePayload {
+  jerseyNumber?: string;
+  jerseySize?: string;
+  isPresent?: boolean;
+}
+
+export interface CompleteSchedulePayload {
+  penanggungJawab: string;
+}
+
+export interface AttendanceHistoryPlayer {
+  userId: string | null;
+  name: string | null;
+  position: string;
+  isPresent: boolean;
+  jerseyNumber: string | null;
+  jerseySize: string | null;
+}
+
+export interface AttendanceHistoryTeam {
+  teamName: string;
+  gk: AttendanceHistoryPlayer | null;
+  players: AttendanceHistoryPlayer[];
+}
+
+export interface AttendanceHistoryData {
+  scheduleId: string;
+  scheduleName: string;
+  date: string;
+  time: string;
+  penanggungJawab: string;
+  attendance: {
+    totalPlayers: number;
+    hadir: number;
+    tidakHadir: number;
+  };
+  lineup: AttendanceHistoryTeam[];
+}
+
+export interface AttendanceHistoryResponse {
+  status: boolean;
+  statusCode: number;
+  data: AttendanceHistoryData;
 }
