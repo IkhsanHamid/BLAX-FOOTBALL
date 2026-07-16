@@ -39,10 +39,11 @@ interface BookingDetail {
   totalAmount?: number;
   adminFee?: string;
   discountAmount?: string;
+  teamName?: string;
 }
 
 interface Schedule {
-  scheduleId: string;
+  id: string;
   name: string;
   date: string;
   time: string;
@@ -312,6 +313,11 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                       Nama & No HP
                     </th>
+                    {bookings.some((b: any) => b.teamName) && (
+                      <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                        Tim
+                      </th>
+                    )}
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                       Tipe
                     </th>
@@ -361,13 +367,10 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                             <div className="flex items-center mt-1">
                               <Phone className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-400 mr-1 shrink-0" />
                               <a
-                                href={`https://wa.me/${booking.userPhone.replace(
-                                  /^0/,
-                                  "62",
-                                )}`}
+                                href={`https://wa.me/${booking.userPhone.replace(/^0/, "62")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 underline hover:text-blue-700"
+                                className="text-xs md:text-sm text-blue-600 hover:text-blue-800 truncate"
                               >
                                 {booking.userPhone}
                               </a>
@@ -375,6 +378,13 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                           </div>
                         </div>
                       </td>
+                      {bookings.some((b: any) => b.teamName) && (
+                        <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
+                          <span className="text-xs md:text-sm text-gray-900">
+                            {booking.teamName || "-"}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-3 md:px-4 py-3 md:py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -438,7 +448,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={bookings.some((b: any) => b.teamName) ? 5 : 4}
                       className="px-3 md:px-4 py-3 text-right font-semibold text-gray-700 text-xs md:text-sm"
                     >
                       Total:
