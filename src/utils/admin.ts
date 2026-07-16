@@ -42,6 +42,10 @@ import {
   TopScorerResponse,
   StandingResponse,
   MatchPlayersResponse,
+  AttendanceChecklistResponse,
+  UpdateAttendancePayload,
+  CompleteSchedulePayload,
+  AttendanceHistoryResponse,
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
@@ -478,12 +482,17 @@ class AdminService {
     }
   }
 
-  async getScheduleBookings(scheduleId: string) {
+  async getScheduleBookings(id: string, type?: string): Promise<any> {
     try {
+      const query = type ? `?type=${type}` : "";
       const response = await apiClient.get(
-        `/api/v1/reports/booking-report-detail/${scheduleId}`,
+        `/api/v1/reports/booking-report-detail/${id}${query}`,
       );
-      return response.data;
+      const data = response?.data ?? response ?? {};
+      return {
+        ...data,
+        bookings: Array.isArray(data.bookings) ? data.bookings : [],
+      };
     } catch (error) {
       throw error;
     }
@@ -1346,6 +1355,78 @@ class AdminService {
       return response;
     } catch (error) {
       console.error("Error fetching match players:", error);
+      throw error;
+    }
+  }
+
+  async getAttendanceChecklist(
+    scheduleId: string,
+  ): Promise<AttendanceChecklistResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/attendance/checklist/${scheduleId}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching attendance checklist:", error);
+      throw error;
+    }
+  }
+
+  async updateAttendance(
+    lineupId: string,
+    payload: UpdateAttendancePayload,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.put(
+        `/api/v1/attendance/lineup/${lineupId}`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+      throw error;
+    }
+  }
+
+  async completeSchedule(
+    scheduleId: string,
+    payload: CompleteSchedulePayload,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/attendance/schedule/${scheduleId}/complete`,
+        payload,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error completing schedule:", error);
+      throw error;
+    }
+  }
+
+  async getAttendanceHistory(
+    scheduleId: string,
+  ): Promise<AttendanceHistoryResponse> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/attendance/schedule/${scheduleId}/history`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching attendance history:", error);
+      throw error;
+    }
+  }
+
+  async deleteRejectedSchedule(scheduleId: string): Promise<any> {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/matches/rejected/${scheduleId}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting rejected schedule:", error);
       throw error;
     }
   }
