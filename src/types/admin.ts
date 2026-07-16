@@ -47,7 +47,7 @@ export interface ReportBooking {
 }
 
 export interface ScheduleBookingReports {
-  scheduleId: string;
+  id: string;
   name: string;
   date: string;
   time: string;
@@ -60,7 +60,7 @@ export interface ScheduleBookingReports {
 }
 
 export interface EventBookingReport {
-  eventId: string;
+  id: string;
   name: string;
   date: string;
   startDate?: string;

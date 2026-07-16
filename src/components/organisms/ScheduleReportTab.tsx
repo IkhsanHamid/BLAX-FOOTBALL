@@ -42,7 +42,7 @@ interface BookingDetail {
 }
 
 interface Schedule {
-  scheduleId: string;
+  id: string;
   name: string;
   date: string;
   time: string;
@@ -125,7 +125,8 @@ export default function ScheduleReportTab({
       setReportData(reportResponse);
 
       if (reportResponse.totalPages) setTotalPages(reportResponse.totalPages);
-      if (reportResponse.total !== undefined) setTotalData(reportResponse.total);
+      if (reportResponse.total !== undefined)
+        setTotalData(reportResponse.total);
     } catch (error: any) {
       if (error.name === "AbortError") return;
       showError("Error", `Gagal memuat data laporan: ${error.message}`);
@@ -138,7 +139,9 @@ export default function ScheduleReportTab({
   useEffect(() => {
     mountedRef.current = true;
     fetchScheduleData();
-    return () => { abortControllerRef.current?.abort(); };
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -300,7 +303,7 @@ export default function ScheduleReportTab({
       const scheduleData: (string | number | boolean)[][] = [
         scheduleHeaders,
         ...reportData.schedules.map((schedule) => [
-          schedule.scheduleId,
+          schedule.id,
           schedule.name,
           schedule.date,
           schedule.time,
@@ -331,12 +334,27 @@ export default function ScheduleReportTab({
   const handleScheduleClick = async (schedule: Schedule): Promise<void> => {
     setSelectedSchedule(schedule);
     setShowDetailModal(true);
-
     try {
-      const bookings = await adminService.getScheduleBookings(
-        schedule.scheduleId,
-      );
-      setBookingDetails(bookings);
+      const type = (schedule as any).type;
+      const result = await adminService.getScheduleBookings(schedule.id, type);
+      if (type === "event" && Array.isArray(result.teams)) {
+        const allBookings: any[] = [];
+        result.teams.forEach((team: any) => {
+          (team.bookings || []).forEach((b: any) => {
+            allBookings.push({
+              ...b,
+              teamName: team.teamName,
+              teamId: team.teamId,
+              teamImageUrl: team.imageUrl,
+            });
+          });
+        });
+        setBookingDetails(allBookings);
+      } else {
+        setBookingDetails(
+          Array.isArray(result.bookings) ? result.bookings : [],
+        );
+      }
     } catch (error) {
       showError("Error", "Gagal memuat detail booking");
       setBookingDetails([]);
@@ -525,53 +543,105 @@ export default function ScheduleReportTab({
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pemain</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pendapatan</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tanggal
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nama
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Jenis
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Venue
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tipe
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pemain
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pendapatan
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {(() => {
                     const rows: any[] = [];
-                    (reportData.schedules || []).forEach((s) => {
-                      rows.push({ ...s, _type: "schedule", _key: s.scheduleId, _status: s.status ? "Aktif" : "Selesai", _clickable: true });
+                    (reportData.schedules || []).forEach((s, i) => {
+                      const sid = s.id || (s as any).scheduleId || `sch-${i}`;
+                      rows.push({
+                        ...s,
+                        id: sid,
+                        _type: "schedule",
+                        _key: sid,
+                        _status: s.status ? "Aktif" : "Selesai",
+                        _clickable: true,
+                      });
                     });
-                    (reportData.events || []).forEach((e) => {
-                      rows.push({ ...e, scheduleId: e.eventId, _type: "event", _key: `ev-${e.eventId}`, _status: e.status ? "Aktif" : "Selesai", _clickable: false, time: e.time || "" });
+                    (reportData.events || []).forEach((e, i) => {
+                      const eid = e.id || (e as any).eventId || `evt-${i}`;
+                      rows.push({
+                        ...e,
+                        id: eid,
+                        _type: "event",
+                        _key: eid,
+                        _status: e.status ? "Aktif" : "Selesai",
+                        _clickable: true,
+                        time: e.time || "",
+                      });
                     });
-                    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    rows.sort(
+                      (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
+                    );
                     return rows.map((row) => (
-                      <tr key={row._key} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={row._key}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <Calendar className="w-4 h-4 text-gray-400 mr-2" />
                             {new Date(row.date).toLocaleDateString("id-ID")}
                           </div>
-                          <div className="text-xs text-gray-500">{row.time}</div>
+                          <div className="text-xs text-gray-500">
+                            {row.time}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {row._clickable ? (
-                            <button onClick={() => handleScheduleClick(row)} className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 transition-colors">
+                            <button
+                              onClick={() => handleScheduleClick(row)}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 transition-colors"
+                            >
                               {row.name}
                               <Eye className="w-3.5 h-3.5 flex-shrink-0" />
                             </button>
                           ) : (
-                            <span className="text-sm font-medium text-gray-900">{row.name}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {row.name}
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row._type === "event" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row._type === "event" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}
+                          >
                             {row._type === "event" ? "Event" : "Jadwal"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.venue}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {row.venue}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{row.typeMatch}</span>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {row.typeMatch}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -580,10 +650,14 @@ export default function ScheduleReportTab({
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-green-600">Rp {row.revenue.toLocaleString("id-ID")}</div>
+                          <div className="text-sm font-medium text-green-600">
+                            Rp {row.revenue.toLocaleString("id-ID")}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.status || row._status === "Aktif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.status || row._status === "Aktif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                          >
                             {row._status}
                           </span>
                         </td>
@@ -594,12 +668,15 @@ export default function ScheduleReportTab({
               </table>
             </div>
           )}
-          {reportData && reportData.schedules.length === 0 && (!reportData.events || reportData.events.length === 0) && !loading && (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">Belum ada data laporan</p>
-            </div>
-          )}
+          {reportData &&
+            reportData.schedules.length === 0 &&
+            (!reportData.events || reportData.events.length === 0) &&
+            !loading && (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">Belum ada data laporan</p>
+              </div>
+            )}
         </CardContent>
       </Card>
 
