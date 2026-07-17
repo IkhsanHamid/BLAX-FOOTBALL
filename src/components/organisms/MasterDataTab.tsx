@@ -7,14 +7,12 @@ import {
   Gift,
   Settings,
   Users,
-  Swords,
 } from "lucide-react";
 import VenueManagement from "./VenueManagement";
 import RuleManagement from "./RuleManagement";
 import VoucherManagement from "./VoucherManagement";
 import FacilityManagement from "./FacilityManagement";
 import LineupTeamManagement from "./LineupTeamManagement";
-import ScheduleMatchManagement from "./ScheduleMatchManagement";
 
 // Tab configuration
 const TABS = [
@@ -37,12 +35,6 @@ const TABS = [
     label: "Lineup Team",
     icon: Users,
     component: LineupTeamManagement,
-  },
-  {
-    id: "schedule-matches",
-    label: "Jadwal Match",
-    icon: Swords,
-    component: ScheduleMatchManagement,
   },
 ];
 
@@ -100,8 +92,7 @@ export default function MasterDataTab() {
             Master Data Management
           </h2>
           <p className="text-sm sm:text-base text-gray-600">
-            Kelola data master venue, aturan, voucher, fasilitas, lineup team,
-            dan jadwal pertandingan
+            Kelola data master venue, aturan, voucher, fasilitas, dan lineup team
           </p>
         </header>
 
@@ -111,7 +102,7 @@ export default function MasterDataTab() {
           role="tablist"
           aria-label="Master data sections"
         >
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
             {TABS.map((tab) => (
               <TabButton
                 key={tab.id}

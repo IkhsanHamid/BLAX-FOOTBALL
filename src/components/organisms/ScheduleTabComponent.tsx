@@ -216,6 +216,7 @@ export default function ScheduleTab({
   // Used to decide whether to show the team selection section in edit mode.
   const [scheduleHasTeamsFromResponse, setScheduleHasTeamsFromResponse] =
     useState(false);
+  const [originalTeamIds, setOriginalTeamIds] = useState<string[]>([]);
   const [lockSlotCounts, setLockSlotCounts] = useState({
     gk: "",
     player: "",
@@ -247,6 +248,19 @@ export default function ScheduleTab({
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     return diffDays <= 3;
+  }, []);
+
+  const isWithinH1 = useCallback((scheduleDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const schedule = new Date(scheduleDate);
+    schedule.setHours(0, 0, 0, 0);
+
+    const diffTime = schedule.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays <= 1;
   }, []);
 
   // Data Fetching
@@ -399,6 +413,7 @@ export default function ScheduleTab({
     setFormErrors({});
     setEditingSchedule(null);
     setScheduleHasTeamsFromResponse(false);
+    setOriginalTeamIds([]);
   }, []);
 
   const handleLockSlots = useCallback((schedule: ScheduleOverview) => {
@@ -612,6 +627,7 @@ export default function ScheduleTab({
       const matchedTeamIds = masterTeams
         .filter((mt) => scheduleTeams.includes(mt.name))
         .map((mt) => mt.id);
+      setOriginalTeamIds(matchedTeamIds);
 
       setScheduleForm({
         name: schedule.name,
@@ -989,13 +1005,15 @@ export default function ScheduleTab({
                               <Eye className="w-4 h-4" />
                             </Button>
                           </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditSchedule(schedule)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                          {!isWithinH1(schedule.date) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEditSchedule(schedule)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1020,25 +1038,27 @@ export default function ScheduleTab({
                           >
                             <Lock className="w-4 h-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              if (isWithinH3(schedule.date)) {
-                                showError(
-                                  "Cannot Delete",
-                                  "Schedule cannot be deleted within 3 days before the event date (H-3)",
-                                );
-                                return;
-                              }
-                              setScheduleToDelete(schedule);
-                              setShowDeleteConfirm(true);
-                            }}
-                            disabled={isDisabled}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {!isWithinH1(schedule.date) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                if (isWithinH3(schedule.date)) {
+                                  showError(
+                                    "Cannot Delete",
+                                    "Schedule cannot be deleted within 3 days before the event date (H-3)",
+                                  );
+                                  return;
+                                }
+                                setScheduleToDelete(schedule);
+                                setShowDeleteConfirm(true);
+                              }}
+                              disabled={isDisabled}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1410,11 +1430,6 @@ export default function ScheduleTab({
             </div>
 
             {(!editingSchedule || scheduleHasTeamsFromResponse) && (() => {
-              const isEditLocked =
-                !!editingSchedule &&
-                ((editingSchedule.bookedSlots || 0) > 0 ||
-                  (editingSchedule.lockedSlotsGk || 0) > 0 ||
-                  (editingSchedule.lockedSlotsPlayer || 0) > 0);
               return (
                 <div>
                   <label className="block text-sm font-medium mb-3">
@@ -1423,15 +1438,6 @@ export default function ScheduleTab({
                       · {scheduleForm.teamIds.length} dipilih
                     </span>
                   </label>
-                  {isEditLocked && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-3 flex gap-2 text-sm text-amber-800">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <span>
-                        Team tidak dapat diubah karena jadwal sudah memiliki
-                        booking atau slot yang di-lock.
-                      </span>
-                    </div>
-                  )}
                   {masterTeams.length === 0 ? (
                     <div className="text-sm text-gray-500 italic p-3 border border-dashed rounded-lg">
                       Belum ada master team. Tambahkan di menu Master Data →
@@ -1439,21 +1445,24 @@ export default function ScheduleTab({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {masterTeams.map((t) => (
+                      {masterTeams.map((t) => {
+                        const isSelected = scheduleForm.teamIds.includes(t.id);
+                        const isOriginal = !!editingSchedule && originalTeamIds.includes(t.id);
+                        return (
                         <label
                           key={t.id}
                           className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
-                            isEditLocked
-                              ? "opacity-60 cursor-not-allowed border-gray-200"
-                              : scheduleForm.teamIds.includes(t.id)
+                            isOriginal
+                              ? "opacity-70 border-gray-200 bg-gray-50 cursor-not-allowed"
+                              : isSelected
                                 ? "border-sky-400 bg-sky-50 cursor-pointer"
                                 : "border-gray-200 hover:bg-gray-50 cursor-pointer"
                           }`}
                         >
                           <input
                             type="checkbox"
-                            checked={scheduleForm.teamIds.includes(t.id)}
-                            disabled={isEditLocked}
+                            checked={isSelected}
+                            disabled={isOriginal}
                             onChange={(e) =>
                               handleArrayChange(
                                 "teamIds",
@@ -1481,7 +1490,8 @@ export default function ScheduleTab({
                             {t.name}
                           </span>
                         </label>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   <p className="text-xs text-gray-500 mt-2">
