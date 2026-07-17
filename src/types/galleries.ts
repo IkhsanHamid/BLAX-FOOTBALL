@@ -1,5 +1,6 @@
 export interface GalleriesRequest {
-  scheduleId: string;
+  scheduleId?: string;
+  eventId?: string;
   linkVideos?: string;
   linkVideosMatch?: string | null;
   linkVideosSlowmo?: string | null;
