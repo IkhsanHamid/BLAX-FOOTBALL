@@ -18,6 +18,7 @@ import {
   Zap,
   UserPlus,
   Swords,
+  ClipboardCheck,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -49,9 +50,29 @@ const navItems: NavItem[] = [
     icon: History,
     shortLabel: "History",
   },
-  { id: "schedules", label: "Jadwal", icon: Calendar },
-  { id: "schedule-verification", label: "Verifikasi Jadwal", icon: CheckSquare },
-  { id: "lineup", label: "Lineup", icon: Shield },
+  {
+    id: "schedules",
+    label: "Jadwal",
+    icon: Calendar,
+    children: [
+      { id: "schedules", label: "Kelola Jadwal", icon: Calendar },
+      { id: "schedule-matches", label: "Jadwal Match", icon: Swords },
+    ],
+  },
+  {
+    id: "schedule-verification",
+    label: "Verifikasi Jadwal",
+    icon: CheckSquare,
+  },
+  {
+    id: "lineup",
+    label: "Lineup",
+    icon: Shield,
+    children: [
+      { id: "lineup", label: "Kelola Lineup", icon: Shield },
+      // { id: "lineup-kehadiran", label: "Kehadiran", icon: ClipboardCheck },
+    ],
+  },
   { id: "users", label: "Member", icon: Users },
   { id: "news", label: "Berita", icon: Newspaper },
   { id: "gallery", label: "Galeri", icon: Image },
@@ -115,9 +136,13 @@ export default function AdminSidebar({
     () => {
       const eventChildIds = ["event-kelola", "event-team", "event-bracket"];
       const aksesCepatIds = ["membership-access"];
+      const lineupChildIds = ["lineup", "lineup-kehadiran"];
+      const scheduleChildIds = ["schedules", "schedule-matches"];
       return {
         event: eventChildIds.includes(selectedTab),
         "akses-cepat": aksesCepatIds.includes(selectedTab),
+        lineup: lineupChildIds.includes(selectedTab),
+        schedules: scheduleChildIds.includes(selectedTab),
       };
     },
   );
@@ -125,11 +150,19 @@ export default function AdminSidebar({
   useEffect(() => {
     const eventChildIds = ["event-kelola", "event-team", "event-bracket"];
     const aksesCepatIds = ["membership-access"];
+    const lineupChildIds = ["lineup", "lineup-kehadiran"];
+    const scheduleChildIds = ["schedules", "schedule-matches"];
     if (eventChildIds.includes(selectedTab)) {
       setExpandedItems((prev) => ({ ...prev, event: true }));
     }
     if (aksesCepatIds.includes(selectedTab)) {
       setExpandedItems((prev) => ({ ...prev, "akses-cepat": true }));
+    }
+    if (lineupChildIds.includes(selectedTab)) {
+      setExpandedItems((prev) => ({ ...prev, lineup: true }));
+    }
+    if (scheduleChildIds.includes(selectedTab)) {
+      setExpandedItems((prev) => ({ ...prev, schedules: true }));
     }
   }, [selectedTab]);
 
