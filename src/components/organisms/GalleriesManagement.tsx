@@ -37,6 +37,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
 
   const [galleries, setGalleries] = useState<GalleryData[]>([]);
   const [schedules, setSchedules] = useState<ListSchedule[]>([]);
+  const [selectedType, setSelectedType] = useState<"schedule" | "event">("schedule");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +53,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
 
   const [formData, setFormData] = useState<GalleriesRequest>({
     scheduleId: "",
+    eventId: "",
     linkPhotos: "",
     linkVideosMatch: "",
     linkVideosSlowmo: "",
@@ -96,8 +98,8 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
   const validateForm = (): boolean => {
     const errors: Partial<GalleriesRequest> = {};
 
-    if (!formData.scheduleId.trim()) {
-      errors.scheduleId = "Schedule is required";
+    if (!editingGallery && !formData.scheduleId?.trim()) {
+      errors.scheduleId = "Schedule atau Event wajib dipilih";
     }
 
     if (!formData.linkPhotos.trim()) {
@@ -152,8 +154,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
     try {
       setSubmitting(true);
 
-      const payload = {
-        scheduleId: formData.scheduleId,
+      const payload: any = {
         linkPhotos: formData.linkPhotos,
         linkVideosMatch: formData.linkVideosMatch?.trim()
           ? formData.linkVideosMatch
@@ -163,6 +164,13 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
           : null,
         expiredAt: formData.expiredAt,
       };
+      if (!editingGallery) {
+        if (selectedType === "event") {
+          payload.eventId = formData.scheduleId;
+        } else {
+          payload.scheduleId = formData.scheduleId;
+        }
+      }
 
       if (editingGallery) {
         await adminService.updateGallery(editingGallery.id, payload);
@@ -221,11 +229,13 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
     setEditingGallery(null);
     setFormData({
       scheduleId: "",
+      eventId: "",
       linkPhotos: "",
       linkVideosMatch: "",
       linkVideosSlowmo: "",
       expiredAt: "",
     });
+    setSelectedType("schedule");
     setFormErrors({});
   };
 
@@ -438,26 +448,29 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Schedule Dropdown */}
+            {/* Schedule Dropdown — hanya saat tambah, tidak saat edit */}
+            {!editingGallery && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Schedule *
+                Schedule / Event *
               </label>
               <select
                 value={formData.scheduleId}
-                onChange={(e) =>
-                  handleInputChange("scheduleId", e.target.value)
-                }
+                onChange={(e) => {
+                  handleInputChange("scheduleId", e.target.value);
+                  const selected = schedules.find((s) => s.id === e.target.value);
+                  if (selected?.type) setSelectedType(selected.type);
+                }}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   formErrors.scheduleId ? "border-red-500" : "border-gray-300"
                 }`}
               >
-                <option value="">Pilih Schedule</option>
-                {schedules.map((schedule) => (
-                  <option key={schedule.id} value={schedule.id}>
-                    {schedule.name} -{" "}
-                    {new Date(schedule.date).toLocaleDateString("id-ID")} -{" "}
-                    {schedule.time}
+                <option value="">Pilih Schedule / Event</option>
+                {schedules.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    [{s.type === "event" ? "Event" : "Jadwal"}] {s.name} -{" "}
+                    {new Date(s.date).toLocaleDateString("id-ID")} -{" "}
+                    {s.time}
                   </option>
                 ))}
               </select>
@@ -472,6 +485,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
                 </p>
               )}
             </div>
+            )}
 
             {/* Link Photos */}
             <div>

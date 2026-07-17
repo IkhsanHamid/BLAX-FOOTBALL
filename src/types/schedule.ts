@@ -90,9 +90,11 @@ export interface ScheduleOverview {
 
 export interface ListSchedule {
   id: string;
+  type?: "schedule" | "event";
   name: string;
   date: string;
   time: string;
+  isOpen?: boolean;
 }
 
 export interface PendingVerificationItem {
