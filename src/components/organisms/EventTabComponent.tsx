@@ -140,6 +140,7 @@ interface EventForm {
   isOnlyIndividual: boolean;
   isJersey: boolean;
   category: Category;
+  community: string;
   feeTeam: string;
   maxSquadSize: string;
   /** Daftar pot (hanya relevan jika pricingMode === 'multi') */
@@ -269,6 +270,7 @@ const buildFormData = (form: EventForm): FormData => {
   fd.append("typeMatch", form.typeMatch);
   fd.append("isOpen", String(form.isOpen));
   fd.append("category", form.category);
+  fd.append("community", form.community);
   fd.append("maxSquadSize", form.maxSquadSize || "0");
 
   if (form.category === "EXTERNAL") {
@@ -364,6 +366,7 @@ const INITIAL_FORM: EventForm = {
   isOnlyIndividual: true,
   isJersey: false,
   category: "INTERNAL",
+  community: "",
   feeTeam: "",
   maxSquadSize: "",
   pricingMode: "single",
@@ -1055,6 +1058,7 @@ function EventFormView({
           isOnlyIndividual: data.isOnlyIndividual ?? true,
           isJersey: data.isJersey ?? false,
           category: data.category ?? "INTERNAL",
+          community: data.community ?? "",
           feeTeam: String(data.feeTeam ?? 0),
           maxSquadSize: String(data.maxSquadSize ?? 0),
           pricingMode: data.category === "EXTERNAL" ? "single" : pricingMode,
@@ -1421,6 +1425,21 @@ function EventFormView({
                   </button>
                 ))}
               </div>
+            </FormField>
+
+            <FormField label="Community">
+              <select
+                value={form.community}
+                onChange={(e) => setField("community", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="">Pilih Community</option>
+                <option value="blax">Blax</option>
+                <option value="magnifico">Magnifico</option>
+                <option value="red-alert">Red Alert</option>
+                <option value="ots">OTS</option>
+                <option value="ayo-bola">Ayo Bola</option>
+              </select>
             </FormField>
 
             <FormField label="Deskripsi" required error={errors.description}>

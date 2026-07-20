@@ -112,9 +112,6 @@ const RESTRICTED = [
   "news",
   "reschedule",
   "master-data",
-  "event-kelola",
-  "event",
-  "event-team",
   "deposit",
 ];
 
