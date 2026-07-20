@@ -1258,7 +1258,7 @@ function EventListView({
     const load = async () => {
       setIsLoading(true);
       try {
-        const res = await adminService.getEvents();
+        const res = await adminService.getAdminEvents();
         setEvents(res ?? []);
       } catch (err: any) {
         showError?.("Error", err.message ?? "Gagal memuat data event");

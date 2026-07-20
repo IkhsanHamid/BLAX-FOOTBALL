@@ -67,7 +67,7 @@ export default function EventBracketManagement() {
   const fetchEvents = async () => {
     setLoadingEvents(true);
     try {
-      const res = await adminService.getEvents();
+      const res = await adminService.getAdminEvents();
       setEvents(res || []);
     } catch {
       showError("Error", "Gagal memuat event");

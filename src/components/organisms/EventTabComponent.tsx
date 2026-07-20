@@ -2053,7 +2053,7 @@ function EventListView({
   const loadEvents = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await adminService.getEvents();
+      const res = await adminService.getAdminEvents();
       setEvents(res);
     } catch {
       showError?.("Error", "Gagal memuat data event");
