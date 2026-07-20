@@ -52,9 +52,6 @@ export default function HomePage() {
           <PaymentChecker />
         </div>
       </section>
-
-      <MerchandiseSection />
-
       <NewsSection />
       {/* <Testimonials /> */}
       <Footer />
