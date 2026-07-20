@@ -101,19 +101,16 @@ export default function ScheduleVerificationTab() {
     useState<RejectedScheduleItem | null>(null);
   const [revisionTargetId, setRevisionTargetId] = useState<string | null>(null);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const { showSuccess, showError } = useNotifications();
 
-  const fetchPending = useCallback(async () => {
-    if (isFetchingRef.current) return;
+  const fetchPending = useCallback(async (page: number) => {
     isFetchingRef.current = true;
     setLoading(true);
     try {
-      const skip = (currentPage - 1) * itemsPerPage;
-      const response = await adminService.getPendingVerification(
-        skip,
-        itemsPerPage,
-      );
+      const skip = (page - 1) * itemsPerPage;
+      const response = await adminService.getPendingVerification(skip, itemsPerPage);
       setPendingItems(response?.data?.data ?? []);
       setTotal(response?.data?.meta?.total ?? 0);
     } catch (error) {
@@ -125,18 +122,14 @@ export default function ScheduleVerificationTab() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [currentPage, showError]);
+  }, [showError]);
 
-  const fetchRejected = useCallback(async () => {
-    if (isFetchingRef.current) return;
+  const fetchRejected = useCallback(async (page: number) => {
     isFetchingRef.current = true;
     setLoading(true);
     try {
-      const skip = (currentPage - 1) * itemsPerPage;
-      const response = await adminService.getRejectedSchedules(
-        skip,
-        itemsPerPage,
-      );
+      const skip = (page - 1) * itemsPerPage;
+      const response = await adminService.getRejectedSchedules(skip, itemsPerPage);
       setRejectedItems(response?.data?.data ?? []);
       setTotal(response?.data?.meta?.total ?? 0);
     } catch (error) {
@@ -148,33 +141,31 @@ export default function ScheduleVerificationTab() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [currentPage, showError]);
+  }, [showError]);
 
   const fetchData = useCallback(async () => {
+    if (isFetchingRef.current) return;
     if (activeTab === "pending") {
-      await fetchPending();
+      await fetchPending(currentPage);
     } else {
-      await fetchRejected();
+      await fetchRejected(currentPage);
     }
-  }, [activeTab, fetchPending, fetchRejected]);
+  }, [activeTab, currentPage, fetchPending, fetchRejected]);
 
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      return;
-    }
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
+    mountedRef.current = true;
     fetchData();
   }, []);
 
   useEffect(() => {
-    if (mountedRef.current) {
-      setCurrentPage(1);
-    }
+    if (!mountedRef.current) return;
+    setCurrentPage(1);
   }, [debouncedSearch, activeTab]);
+
+  useEffect(() => {
+    if (!mountedRef.current) return;
+    fetchData();
+  }, [currentPage, activeTab]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -258,6 +249,21 @@ export default function ScheduleVerificationTab() {
       fetchData();
     } else {
       setActiveTab("pending");
+    }
+  };
+
+  const handleDeleteRejected = async () => {
+    if (!deleteTarget) return;
+    setActionLoading(true);
+    try {
+      await adminService.deleteRejectedSchedule(deleteTarget.id);
+      showSuccess("Berhasil", "Schedule berhasil dihapus permanen");
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err: any) {
+      showError("Error", err?.message || "Gagal menghapus schedule");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -481,6 +487,15 @@ export default function ScheduleVerificationTab() {
                             >
                               <Edit3 className="w-4 h-4 mr-1" />
                               Revisi
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              onClick={() => setDeleteTarget(it)}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Hapus
                             </Button>
                           </div>
                         )}
@@ -923,6 +938,24 @@ export default function ScheduleVerificationTab() {
         }
         type="info"
         confirmText={actionLoading ? "Memproses..." : "Setujui"}
+        cancelText="Batal"
+        isLoading={actionLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        onClose={() => {
+          if (!actionLoading) setDeleteTarget(null);
+        }}
+        onConfirm={handleDeleteRejected}
+        title="Hapus Jadwal Ditolak"
+        message={
+          deleteTarget
+            ? `Hapus permanen jadwal "${deleteTarget.name}"? Tindakan ini tidak dapat dibatalkan.`
+            : ""
+        }
+        type="danger"
+        confirmText={actionLoading ? "Menghapus..." : "Hapus Permanen"}
         cancelText="Batal"
         isLoading={actionLoading}
       />

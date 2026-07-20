@@ -26,6 +26,8 @@ import RefundTab from "@/components/organisms/RefundTab";
 import ScheduleVerificationTab from "@/components/organisms/ScheduleVerificationTab";
 import MembershipAccessTab from "@/components/organisms/MembershipAccessTab";
 import EventBracketManagement from "@/components/organisms/EventBracketManagement";
+import AttendanceTab from "@/components/organisms/AttendanceTab";
+import ScheduleMatchManagement from "@/components/organisms/ScheduleMatchManagement";
 
 export default function AdminPage() {
   const searchParams = useSearchParams();
@@ -214,10 +216,14 @@ export default function AdminPage() {
         return <ReportsTab userRole={user?.role} />;
       case "schedules":
         return <ScheduleTab showError={showError} showSuccess={showSuccess} />;
+      case "schedule-matches":
+        return <ScheduleMatchManagement />;
       case "schedule-verification":
         return <ScheduleVerificationTab />;
       case "lineup":
         return <LineupManagement />;
+      case "lineup-kehadiran":
+        return <AttendanceTab />;
       case "users":
         return <UsersTab />;
       case "news":

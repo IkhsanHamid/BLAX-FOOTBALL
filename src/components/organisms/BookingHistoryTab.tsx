@@ -170,10 +170,13 @@ export default function BookingHistoryTab({
 
   // Prevent multiple simultaneous API calls
   const isFetchingRef = useRef(false);
+  const isFetchingSchedulesRef = useRef(false);
   const mountedRef = useRef(false);
 
   // Fetch active schedules
   const fetchSchedules = useCallback(async () => {
+    if (isFetchingSchedulesRef.current) return;
+    isFetchingSchedulesRef.current = true;
     setLoadingSchedules(true);
     try {
       const response = await adminService.listScheduleActive();
@@ -185,12 +188,12 @@ export default function BookingHistoryTab({
       showError("Error", "Failed to load schedules");
     } finally {
       setLoadingSchedules(false);
+      isFetchingSchedulesRef.current = false;
     }
   }, [showError]);
 
   // Single unified fetch function
   const fetchData = useCallback(async () => {
-    // Prevent duplicate calls
     if (isFetchingRef.current) return;
 
     isFetchingRef.current = true;
@@ -199,7 +202,6 @@ export default function BookingHistoryTab({
     try {
       const { startDate, endDate } = getDateRange(dateFilter);
       const skip = (currentPage - 1) * itemsPerPage;
-      console.log("debouncedSearchTerm", debouncedSearchTerm);
 
       const response = (await adminService.historyRecentBooking(
         startDate,
@@ -230,6 +232,7 @@ export default function BookingHistoryTab({
       showError("Error", "Failed to load booking history");
       setBookings([]);
       setTotalCount(0);
+      setStats({ total: 0, confirmed: 0, pending: 0, failed: 0 });
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
@@ -244,45 +247,18 @@ export default function BookingHistoryTab({
     showError,
   ]);
 
-  const fetchPlayerDetails = useCallback(
-    async (bookingId: string) => {
-      setLoadingPlayers(true);
-      setPlayerModalBookingId(bookingId);
-      setPlayerModalOpen(true);
-      try {
-        const response = await adminService.getBookingPlayers(bookingId); // sesuaikan dengan endpoint yang ada
-        if (response?.data) {
-          setPlayerModalData(response.data);
-        } else {
-          setPlayerModalData([]);
-        }
-      } catch (error) {
-        console.error("Error fetching players:", error);
-        showError("Error", "Failed to load player details");
-        setPlayerModalData([]);
-      } finally {
-        setLoadingPlayers(false);
-      }
-    },
-    [showError],
-  );
-
-  // Single effect to handle all data fetching
+  // Initial load — single mount effect
   useEffect(() => {
-    // Skip first render, only fetch after component is mounted
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      return;
-    }
-
-    fetchData();
-  }, [fetchData]);
-
-  // Initial load only
-  useEffect(() => {
+    mountedRef.current = true;
     fetchData();
     fetchSchedules();
-  }, []); // Empty dependency - runs once on mount
+  }, []);
+
+  // Refetch when pagination changes OR filters change (but page reset is handled separately)
+  useEffect(() => {
+    if (!mountedRef.current) return;
+    fetchData();
+  }, [currentPage, debouncedSearchTerm, statusFilter, dateFilter, scheduleFilter]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -298,6 +274,29 @@ export default function BookingHistoryTab({
       onSearchConsumed?.();
     }
   }, [initialSearch]);
+
+  const fetchPlayerDetails = useCallback(
+    async (bookingId: string) => {
+      setLoadingPlayers(true);
+      setPlayerModalBookingId(bookingId);
+      setPlayerModalOpen(true);
+      try {
+        const response = await adminService.getBookingPlayers(bookingId);
+        if (response?.data) {
+          setPlayerModalData(response.data);
+        } else {
+          setPlayerModalData([]);
+        }
+      } catch (error) {
+        console.error("Error fetching players:", error);
+        showError("Error", "Failed to load player details");
+        setPlayerModalData([]);
+      } finally {
+        setLoadingPlayers(false);
+      }
+    },
+    [showError],
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);

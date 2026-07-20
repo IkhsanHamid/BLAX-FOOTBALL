@@ -3,6 +3,7 @@ import { AuthService } from "./auth";
 export class ApiClient {
   private static instance: ApiClient;
   private baseURL: string;
+  private redirecting = false;
 
   private constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_BE!;
@@ -34,20 +35,22 @@ export class ApiClient {
   }
 
   private async handleResponse(response: Response): Promise<any> {
-    // Check for authentication errors
     if (response.status === 401 || response.status === 403) {
-      // Cek session
+      if (this.redirecting) {
+        throw new Error("Authentication failed. Please sign in again.");
+      }
+      this.redirecting = true;
+
       const session = await AuthService.getSession();
 
       if (typeof window !== "undefined") {
+        AuthService.clearSession();
+
         if (session?.isAdmin) {
           window.location.href = "/b/auth/login";
         } else {
           window.location.href = "/";
         }
-
-        // Auto signout on authentication errors
-        AuthService.clearSession();
       }
 
       throw new Error("Authentication failed. Please sign in again.");
