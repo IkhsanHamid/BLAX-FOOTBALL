@@ -1102,11 +1102,26 @@ class AdminService {
   }
 
   async getEvents(): Promise<[]> {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BE}/api/v1/events`,
+      {
+        method: "GET",
+        headers: {},
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "Something went wrong!");
+    }
+    return result.data;
+  }
+
+  async getAdminEvents(): Promise<[]> {
     try {
       const response = await apiClient.get("/api/v1/events/admin");
       return response.data;
     } catch (error) {
-      console.error("Error fetching events:", error);
+      console.error("Error fetching admin events:", error);
       throw error;
     }
   }
