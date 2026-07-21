@@ -128,6 +128,7 @@ export default function AdminSidebar({
   const isOTS = userRole === "Admin-OTS";
   const isAyo = userRole === "Admin-Ayo";
   const isNewsOnly = userRole === "Admin-news";
+  const isSubAdmin = userRole === "Sub-Admin";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
@@ -204,7 +205,23 @@ export default function AdminSidebar({
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  const filteredNavItems = navItems.filter((item) => {
+  const filteredNavItems = (() => {
+    let items = navItems;
+    if (isSubAdmin) {
+      items = navItems.filter((item) =>
+        item.id === "lineup" || item.id === "schedules",
+      ).map((item) => {
+        if (item.id === "schedules" && item.children) {
+          return {
+            ...item,
+            children: item.children.filter((c) => c.id === "schedule-matches"),
+          };
+        }
+        return item;
+      });
+      return items;
+    }
+    return items.filter((item) => {
     if (isNewsOnly) return item.id === "news";
     if (item.id === "reports")
       return (
@@ -225,6 +242,7 @@ export default function AdminSidebar({
       return false;
     return true;
   });
+  })();
 
   const isChildActive = (item: NavItem) =>
     item.children?.some((c) => c.id === selectedTab) ?? false;
