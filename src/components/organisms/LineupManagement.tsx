@@ -27,6 +27,7 @@ import Badge from "../atoms/Badge";
 import { useNotifications } from "./NotificationContainer";
 import { formatDate } from "@/lib/helper";
 import { lineupService, LineupMatch, LineupPlayer } from "@/utils/lineup";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DndContext,
   PointerSensor,
@@ -391,6 +392,8 @@ export default function LineupManagement() {
   const [isExporting, setIsExporting] = useState(false);
 
   const { showError, showSuccess, showWarning } = useNotifications();
+  const { user } = useAuth();
+  const isSubAdmin = user?.role === "Sub-Admin";
 
   const [editingTeamName, setEditingTeamName] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
@@ -1066,7 +1069,7 @@ export default function LineupManagement() {
     if (!selectedLineup) return null;
 
     const maxPlayersPerTeam = getPlayersPerTeam(selectedLineup);
-    const isLocked = selectedLineup.lockLineup || false;
+    const isLocked = isSubAdmin || selectedLineup.lockLineup || false;
 
     const teamKeys = selectedLineup.teams
       ? Object.keys(selectedLineup.teams)
@@ -1489,6 +1492,7 @@ export default function LineupManagement() {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      {!isSubAdmin && (
                       <Button
                         onClick={handleLockLineup}
                         disabled={isLocking}
@@ -1515,6 +1519,7 @@ export default function LineupManagement() {
                           </>
                         )}
                       </Button>
+                      )}
 
                       <Button
                         onClick={handleExportToExcel}

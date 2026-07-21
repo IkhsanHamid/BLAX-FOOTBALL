@@ -49,6 +49,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin || !user) return;
     if (user.role === "Admin-news") return;
+    if (user.role === "Sub-Admin") return;
 
     const setupFCM = async () => {
       try {
@@ -142,16 +143,18 @@ export default function AdminPage() {
 
   const checkAdminAccess = async () => {
     try {
+      if (!user) return;
       const adminStatus = await AuthService.getSession();
 
       if (
-        user?.role !== "Admin" &&
-        user?.role !== "Owner" &&
-        user?.role !== "Admin-magnifico" &&
-        user?.role !== "Admin-red-alert" &&
-        user?.role !== "Admin-OTS" &&
-        user?.role !== "Admin-Ayo" &&
-        user?.role !== "Admin-news" &&
+        user.role !== "Admin" &&
+        user.role !== "Owner" &&
+        user.role !== "Admin-magnifico" &&
+        user.role !== "Admin-red-alert" &&
+        user.role !== "Admin-OTS" &&
+        user.role !== "Admin-Ayo" &&
+        user.role !== "Admin-news" &&
+        user.role !== "Sub-Admin" &&
         !adminStatus?.isAdmin
       ) {
         showError("Access Denied", "You don't have admin privileges");
@@ -160,8 +163,11 @@ export default function AdminPage() {
       }
 
       setIsAdmin(true);
-      if (user?.role === "Admin-news") {
+      if (user.role === "Admin-news") {
         setSelectedTab("news");
+      }
+      if (user.role === "Sub-Admin") {
+        setSelectedTab("schedule-matches");
       }
     } catch (error) {
       console.error("Error checking admin access:", error);
