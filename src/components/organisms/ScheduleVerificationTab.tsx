@@ -70,7 +70,7 @@ const TableRowSkeleton = () => (
 export default function ScheduleVerificationTab() {
   const { user } = useAuth();
   const isAdminOrOwner =
-    user?.role === "Admin" || user?.role === "Owner";
+    user?.role === "Admin" || user?.role === "Owner" || user?.role === "Co-Admin";
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     isAdminOrOwner ? "pending" : "rejected",

@@ -50,6 +50,7 @@ export default function AdminPage() {
     if (!isAdmin || !user) return;
     if (user.role === "Admin-news") return;
     if (user.role === "Sub-Admin") return;
+    if (user.role === "Co-Admin") return;
 
     const setupFCM = async () => {
       try {
@@ -154,6 +155,7 @@ export default function AdminPage() {
         user?.role !== "Admin-Ayo" &&
         user?.role !== "Admin-news" &&
         user?.role !== "Sub-Admin" &&
+        user?.role !== "Co-Admin" &&
         !adminStatus?.isAdmin
       ) {
         showError("Access Denied", "You don't have admin privileges");

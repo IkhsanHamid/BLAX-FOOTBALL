@@ -7,6 +7,7 @@ import { useNotifications } from "./NotificationContainer";
 import { adminService } from "@/utils/admin";
 import { masterDataService } from "@/utils/masterData";
 import type { VerificationDetail } from "@/types/schedule";
+import { useAuth } from "@/contexts/AuthContext";
 
 const COMMUNITY_OPTIONS = [
   { value: "blax", label: "Blax" },
@@ -31,6 +32,8 @@ export default function ScheduleRevisionForm({
   onSuccess,
 }: ScheduleRevisionFormProps) {
   const { showSuccess, showError } = useNotifications();
+  const { user } = useAuth();
+  const canSeeBlax = user?.role === "Admin" || user?.role === "Owner";
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [venues, setVenues] = useState<{ id: string; name: string }[]>([]);
@@ -284,7 +287,9 @@ export default function ScheduleRevisionForm({
             onChange={(e) => handleChange("community", e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
-            {COMMUNITY_OPTIONS.map((c) => (
+            {COMMUNITY_OPTIONS.filter(
+              (c) => c.value !== "blax" || canSeeBlax,
+            ).map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>

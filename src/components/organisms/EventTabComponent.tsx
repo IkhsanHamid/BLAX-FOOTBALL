@@ -34,6 +34,7 @@ import Pagination from "../atoms/Pagination";
 import ImageUpload from "@/components/atoms/ImageUpload";
 import { adminService } from "@/utils/admin";
 import { masterDataService } from "@/utils/masterData";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -962,6 +963,8 @@ function EventFormView({
   const [rules, setRules] = useState<Rule[]>([]);
   const [isMasterLoading, setIsMasterLoading] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const { user } = useAuth();
+  const canSeeBlax = user?.role === "Admin" || user?.role === "Owner";
 
   // Load master data
   useEffect(() => {
@@ -1434,7 +1437,7 @@ function EventFormView({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">Pilih Community</option>
-                <option value="blax">Blax</option>
+                {canSeeBlax && <option value="blax">Blax</option>}
                 <option value="magnifico">Magnifico</option>
                 <option value="red-alert">Red Alert</option>
                 <option value="ots">OTS</option>

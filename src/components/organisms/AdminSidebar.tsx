@@ -129,6 +129,7 @@ export default function AdminSidebar({
   const isAyo = userRole === "Admin-Ayo";
   const isNewsOnly = userRole === "Admin-news";
   const isSubAdmin = userRole === "Sub-Admin";
+  const isCoAdmin = userRole === "Co-Admin";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     () => {
@@ -221,6 +222,18 @@ export default function AdminSidebar({
       });
       return items;
     }
+    if (isCoAdmin) {
+      const coAdminIds = [
+        "booking-history",
+        "schedules",
+        "schedule-verification",
+        "lineup",
+        "gallery",
+        "event",
+        "reports",
+      ];
+      return navItems.filter((item) => coAdminIds.includes(item.id));
+    }
     return items.filter((item) => {
     if (isNewsOnly) return item.id === "news";
     if (item.id === "reports")
@@ -229,7 +242,8 @@ export default function AdminSidebar({
         userRole === "Admin-magnifico" ||
         userRole === "Admin-red-alert" ||
         userRole === "Admin-OTS" ||
-        userRole === "Admin-Ayo"
+        userRole === "Admin-Ayo" ||
+        userRole === "Co-Admin"
       );
     if (item.id === "refund")
       return userRole === "Admin" || userRole === "Owner";
