@@ -27,6 +27,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
   const isRedAlert = userRole === "Admin-red-alert";
   const isOTS = userRole === "Admin-OTS";
   const isAyo = userRole === "Admin-Ayo";
+  const canSeeBlax = userRole === "Admin" || userRole === "Owner";
 
   const [activeTab, setActiveTab] = useState<TabType>("schedules");
   const [loading, setLoading] = useState<boolean>(false);
@@ -272,7 +273,7 @@ export default function ReportsTab({ userRole }: ReportsTabProps): JSX.Element {
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Semua</option>
-                    <option value="blax">Blax</option>
+                    {canSeeBlax && <option value="blax">Blax</option>}
                     <option value="red-alert">Red Alert</option>
                     <option value="magnifico">Magnifico</option>
                     <option value="ots">OTS</option>

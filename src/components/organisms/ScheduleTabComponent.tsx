@@ -1217,7 +1217,9 @@ export default function ScheduleTab({
                 className="w-full px-4 py-3 border rounded-lg"
               >
                 <option value="">Select community</option>
-                {COMMUNITY_OPTIONS.map((c) => (
+                {COMMUNITY_OPTIONS.filter(
+                  (c) => c !== "blax" || user?.role === "Admin" || user?.role === "Owner",
+                ).map((c) => (
                   <option key={c} value={c}>
                     {c === "ots"
                       ? "OTS"
