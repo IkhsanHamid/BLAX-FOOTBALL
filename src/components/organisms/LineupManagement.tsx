@@ -990,13 +990,21 @@ export default function LineupManagement() {
         return;
       }
 
+      const samePayment = activePlayer.paymentId
+        ? updatedTeams[sourceTeam].filter(
+            (p) => p.paymentId === activePlayer.paymentId && p.id !== activePlayer.id,
+          )
+        : [];
+      const playersToMove = [activePlayer, ...samePayment];
+
       updatedTeams[sourceTeam] = updatedTeams[sourceTeam].filter(
-        (p) => p.id !== activeId,
+        (p) => !playersToMove.some((m) => m.id === p.id),
       );
 
-      const updatedPlayer = { ...activePlayer, team: targetTeam };
-      updatedTeams[targetTeam] = [...targetTeamPlayers];
-      updatedTeams[targetTeam].splice(targetIndex, 0, updatedPlayer);
+      playersToMove.forEach((p) => {
+        updatedTeams[targetTeam] = [...updatedTeams[targetTeam]];
+        updatedTeams[targetTeam].splice(targetIndex, 0, { ...p, team: targetTeam });
+      });
 
       Object.keys(updatedTeams).forEach((teamKey) => {
         updatedTeams[teamKey] = updatedTeams[teamKey].map((player, idx) => ({
@@ -1020,8 +1028,18 @@ export default function LineupManagement() {
       );
 
       try {
-        await lineupService.updatePlayerTeam(activePlayer.id, targetTeam);
-        showSuccess(`Player moved to Team ${targetTeam}`);
+        const samePaymentPlayers = activePlayer.paymentId
+          ? updatedTeams[sourceTeam].filter(
+              (p) => p.paymentId === activePlayer.paymentId && p.id !== activePlayer.id,
+            )
+          : [];
+        const moveIds = [activePlayer.id, ...samePaymentPlayers.map((p) => p.id)];
+        await Promise.all(moveIds.map((id) => lineupService.updatePlayerTeam(id, targetTeam)));
+        showSuccess(
+          samePaymentPlayers.length > 0
+            ? `${moveIds.length} players moved to Team ${targetTeam}`
+            : `Player moved to Team ${targetTeam}`,
+        );
       } catch (error) {
         showError("Error", "Failed to update player team");
         setSelectedLineup(selectedLineup);

@@ -6,6 +6,7 @@ export interface ApiLineupPlayer {
   type: string;
   jerseySize: string;
   isMember: boolean;
+  paymentId?: string;
 }
 
 export interface ApiLineupTeam {
@@ -50,13 +51,13 @@ export interface LineupPlayer {
   realId: string;
   name: string;
   phone: string;
-  position: "GK" | "PLAYER";
-  team: string;
   jerseySize: string;
+  position: string;
+  team: string;
   order: number;
-  notes?: string;
   type?: string;
   isMember: boolean;
+  paymentId?: string;
 }
 
 export interface LineupMatch {
@@ -104,6 +105,7 @@ export class LineupService {
           order: 1,
           type: teamData.gk.type,
           isMember: teamData.gk.isMember,
+          paymentId: teamData.gk.paymentId,
         };
         allPlayers.push(gkPlayer);
         groupedTeams[teamKey].push(gkPlayer);
@@ -122,6 +124,7 @@ export class LineupService {
           order: index + 2,
           type: player.type,
           isMember: player.isMember,
+          paymentId: player.paymentId,
         };
         allPlayers.push(lineupPlayer);
         groupedTeams[teamKey].push(lineupPlayer);

@@ -49,13 +49,18 @@ export default function EventBracketManagement() {
 
   // Edit match
   const [editMatch, setEditMatch] = useState<MatchDetail | null>(null);
-  const [editForm, setEditForm] = useState({ scoreA: 0, scoreB: 0, status: "scheduled" as string });
+  const [editForm, setEditForm] = useState({ status: "scheduled" as string });
 
   // Add goal
   const [goalMatch, setGoalMatch] = useState<MatchDetail | null>(null);
   const [goalForm, setGoalForm] = useState({ eventTeamId: "", userId: "", type: "goal" as string });
   const [matchPlayers, setMatchPlayers] = useState<any>(null);
   const [showDeleteGoal, setShowDeleteGoal] = useState<{ matchId: string; goalId: string } | null>(null);
+  const [showAdvancePreview, setShowAdvancePreview] = useState(false);
+  const [advanceData, setAdvanceData] = useState<any>(null);
+  const [advancing, setAdvancing] = useState(false);
+  const [manualAdvanceMode, setManualAdvanceMode] = useState(false);
+  const [manualAdvanceMatches, setManualAdvanceMatches] = useState<any[]>([]);
 
   const { showSuccess, showError } = useNotifications();
   const isFetchingRef = useRef(false);
@@ -163,14 +168,54 @@ export default function EventBracketManagement() {
       })
     : null;
 
+  const handlePreviewAdvance = async () => {
+    setAdvancing(true);
+    try {
+      const res = await adminService.getAdvancePreview(selectedEventId, 2);
+      setAdvanceData(res?.data ?? null);
+      setManualAdvanceMode(false);
+      setManualAdvanceMatches((res?.data?.advance ?? []).map((m: any) => ({
+        matchId: m.matchId, teamAId: m.teamA?.teamId ?? "", teamBId: m.teamB?.teamId ?? "",
+      })));
+      setShowAdvancePreview(true);
+    } catch (err: any) {
+      showError("Error", err?.message || "Gagal memuat preview");
+    } finally { setAdvancing(false); }
+  };
+
+  const handleSaveManualAdvance = async () => {
+    setAdvancing(true);
+    try {
+      await Promise.all(manualAdvanceMatches.map((m: any) =>
+        adminService.updateMatch(selectedEventId, m.matchId, {
+          teamAId: m.teamAId || undefined, teamBId: m.teamBId || undefined,
+        }),
+      ));
+      setShowAdvancePreview(false); setManualAdvanceMode(false);
+      showSuccess("Berhasil", "Knockout bracket berhasil diisi manual");
+      loadEventData(selectedEventId);
+    } catch (err: any) {
+      showError("Error", err?.message || "Gagal setup manual advance");
+    } finally { setAdvancing(false); }
+  };
+
+  const handleAutoAdvance = async () => {
+    setAdvancing(true);
+    try {
+      await adminService.autoAdvance(selectedEventId, 2);
+      showSuccess("Berhasil", "Knockout bracket berhasil diisi");
+      loadEventData(selectedEventId);
+    } catch (err: any) {
+      showError("Error", err?.message || "Gagal auto advance");
+    } finally { setAdvancing(false); }
+  };
+
   const openEditDialog = async (match: BracketMatch) => {
     try {
       const res = await adminService.getMatchDetail(selectedEventId, match.id);
       const d = res.data;
       setEditMatch(d);
       setEditForm({
-        scoreA: d.score?.scoreA ?? 0,
-        scoreB: d.score?.scoreB ?? 0,
         status: d.score?.status ?? "scheduled",
       });
     } catch {
@@ -183,8 +228,6 @@ export default function EventBracketManagement() {
     setSubmitting(true);
     try {
       await adminService.updateMatch(selectedEventId, editMatch.id, {
-        scoreA: editForm.scoreA,
-        scoreB: editForm.scoreB,
         status: editForm.status as any,
       });
       setEditMatch(null);
@@ -297,11 +340,11 @@ export default function EventBracketManagement() {
             </div>
             {selectedEventId && (
               <Button
-                variant="primary"
+                size="sm"
+                className="bg-gray-900 hover:bg-gray-800 text-white text-xs flex-shrink-0"
                 onClick={() => setShowGenerateDialog(true)}
-                className="flex-shrink-0"
               >
-                <Swords className="w-4 h-4 mr-2" />
+                <Swords className="w-3 h-3 mr-1" />
                 Generate Bracket
               </Button>
             )}
@@ -328,16 +371,22 @@ export default function EventBracketManagement() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 flex-wrap">
                   {bracket.length > 0 && (
-                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)} disabled={submitting}>
+                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 text-xs" onClick={() => setShowDeleteConfirm(true)} disabled={submitting}>
                       <Trash2 className="w-3 h-3 mr-1" />
-                      Hapus Bracket
+                      Hapus
                     </Button>
                   )}
-                  <Button variant="primary" size="sm" onClick={() => setShowGenerateDialog(true)}>
+                  {bracket.length > 0 && bracket.some((r: any) => r.stage === "knockout" && r.matches?.some((m: any) => !m.teamA && !m.teamB)) && (
+                    <>
+                      <Button variant="outline" size="sm" className="text-xs" onClick={handlePreviewAdvance} disabled={advancing}>Preview</Button>
+                      <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleAutoAdvance} disabled={advancing}>Auto Advance</Button>
+                    </>
+                  )}
+                  <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={() => setShowGenerateDialog(true)}>
                     <Swords className="w-3 h-3 mr-1" />
-                    {bracket.length > 0 ? "Generate Ulang" : "Generate Bracket"}
+                    {bracket.length > 0 ? "Generate Ulang" : "Generate"}
                   </Button>
                 </div>
               </div>
@@ -348,7 +397,7 @@ export default function EventBracketManagement() {
                     : "flex gap-4 min-w-max"
                   }>
                     {bracket.map((round, ri) => (
-                      <div key={round.round ?? ri} className="flex flex-col gap-3" style={{ minWidth: bracket[0]?.stage === "group" ? "auto" : 200 }}>
+                      <div key={`${round.roundName}-${ri}`} className="flex flex-col gap-3" style={{ minWidth: bracket[0]?.stage === "group" ? "auto" : 200 }}>
                         <div className="bg-slate-800 text-white text-center py-2 px-3 rounded-lg">
                           <p className="text-xs font-bold uppercase">{round.roundName}</p>
                         </div>
@@ -396,9 +445,9 @@ export default function EventBracketManagement() {
                             )}
                             <div className="flex gap-1">
                               <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => openEditDialog(match)}>
-                                Edit
+                                Status
                               </Button>
-                              {isEventDay && (
+                              {match.score?.status === "live" && (
                                 <Button size="sm" variant="outline" className="text-xs flex-1" onClick={() => openGoalDialog(match)}>
                                   Gol
                                 </Button>
@@ -418,55 +467,59 @@ export default function EventBracketManagement() {
 
           {/* Standings (Klasemen) */}
           {standings.length > 0 && (
-            <Card>
-              <CardContent className="p-0">
-                <div className="p-4 border-b">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Klasemen
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="w-12 text-center">#</TableHead>
-                        <TableHead>Tim</TableHead>
-                        <TableHead className="text-center w-10">P</TableHead>
-                        <TableHead className="text-center w-10">W</TableHead>
-                        <TableHead className="text-center w-10">D</TableHead>
-                        <TableHead className="text-center w-10">L</TableHead>
-                        <TableHead className="text-center">GF</TableHead>
-                        <TableHead className="text-center">GA</TableHead>
-                        <TableHead className="text-center">GD</TableHead>
-                        <TableHead className="text-center font-bold">P</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {standings.map((s: any, i: number) => (
-                        <TableRow key={s.teamId}>
-                          <TableCell className="text-center font-bold">{i + 1}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {s.teamImageUrl && <img src={s.teamImageUrl} className="w-6 h-6 rounded" />}
-                              <span className="text-sm font-medium">{s.teamName}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center text-xs">{s.played}</TableCell>
-                          <TableCell className="text-center text-xs">{s.wins}</TableCell>
-                          <TableCell className="text-center text-xs">{s.draws}</TableCell>
-                          <TableCell className="text-center text-xs">{s.losses}</TableCell>
-                          <TableCell className="text-center text-xs">{s.goalsFor}</TableCell>
-                          <TableCell className="text-center text-xs">{s.goalsAgainst}</TableCell>
-                          <TableCell className="text-center text-xs">{s.goalDifference}</TableCell>
-                          <TableCell className="text-center text-sm font-bold">{s.points}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {(standings as any[]).map((group: any, gi: number) => (
+                <Card key={gi}>
+                  <CardContent className="p-0">
+                    <div className="p-4 border-b">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        Klasemen — {group.roundName}
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50">
+                            <TableHead className="w-12 text-center">#</TableHead>
+                            <TableHead>Tim</TableHead>
+                            <TableHead className="text-center w-10">P</TableHead>
+                            <TableHead className="text-center w-10">W</TableHead>
+                            <TableHead className="text-center w-10">D</TableHead>
+                            <TableHead className="text-center w-10">L</TableHead>
+                            <TableHead className="text-center">GF</TableHead>
+                            <TableHead className="text-center">GA</TableHead>
+                            <TableHead className="text-center">GD</TableHead>
+                            <TableHead className="text-center font-bold">P</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(group.standings || []).map((s: any, i: number) => (
+                            <TableRow key={s.teamId || `${group.roundName}-${i}`}>
+                              <TableCell className="text-center font-bold">{i + 1}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {s.teamImageUrl && <img src={s.teamImageUrl} className="w-6 h-6 rounded" />}
+                                  <span className="text-sm font-medium">{s.teamName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-xs">{s.played}</TableCell>
+                              <TableCell className="text-center text-xs">{s.wins}</TableCell>
+                              <TableCell className="text-center text-xs">{s.draws}</TableCell>
+                              <TableCell className="text-center text-xs">{s.losses}</TableCell>
+                              <TableCell className="text-center text-xs">{s.goalsFor}</TableCell>
+                              <TableCell className="text-center text-xs">{s.goalsAgainst}</TableCell>
+                              <TableCell className="text-center text-xs">{s.goalDifference}</TableCell>
+                              <TableCell className="text-center text-sm font-bold">{s.points}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
 
           {/* Top Scorers */}
@@ -677,29 +730,104 @@ export default function EventBracketManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Advance Preview Dialog */}
+      <Dialog open={showAdvancePreview} onOpenChange={setShowAdvancePreview}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Advance — Group ke Knockout</DialogTitle>
+          </DialogHeader>
+          {advanceData && (
+            <div className="space-y-4 py-2">
+              <div className="text-xs font-semibold text-gray-700 mb-2">Klasemen</div>
+              {(Array.isArray(advanceData.standings) ? advanceData.standings : Array.isArray(advanceData) ? advanceData : []).map((group: any, gi: number) => (
+                <div key={gi} className="border rounded-lg overflow-hidden mb-2">
+                  <div className="bg-slate-100 px-3 py-1.5 text-xs font-semibold">{group.roundName}</div>
+                  <div className="divide-y text-xs">
+                    {(group.standings || group.teams || []).map((t: any, i: number) => (
+                      <div key={t.teamId} className={`flex items-center justify-between px-3 py-1.5 ${i < 2 ? "bg-green-50" : ""}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold w-4">{i + 1}</span>
+                          {t.teamImageUrl ? <img src={t.teamImageUrl} className="w-5 h-5 rounded" /> : null}
+                          <span>{t.teamName}</span>
+                        </div>
+                        <span className="text-gray-500">{t.played}M · {t.wins}W · {t.draws}D · P: {t.points}</span>
+                        {i < 2 && <span className="text-green-600 font-bold ml-1 text-[10px]">Lolos</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {(advanceData.advance?.length > 0) && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">{manualAdvanceMode ? "Setup Manual — pilih tim:" : "Prediksi Otomatis:"}</div>
+                  <div className="space-y-2">
+                    {advanceData.advance.map((m: any, i: number) => {
+                      const manual = manualAdvanceMatches[i];
+                      const allTeams = (Array.isArray(advanceData.standings) ? advanceData.standings : []).flatMap((g: any) => g.standings ?? g.teams ?? []).map((t: any) => ({ teamId: t.teamId, teamName: t.teamName }));
+                      return (
+                        <div key={i} className="bg-slate-50 rounded-lg px-3 py-2">
+                          <div className="text-[10px] text-gray-400 mb-1">{m.roundName} #{m.matchOrder}</div>
+                          {manualAdvanceMode ? (
+                            <div className="flex items-center gap-2">
+                              <select className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" value={manual?.teamAId ?? ""}
+                                onChange={(e) => { const u = [...manualAdvanceMatches]; u[i] = { ...u[i], teamAId: e.target.value }; setManualAdvanceMatches(u); }}>
+                                <option value="">--</option>
+                                {allTeams.map((t: any) => <option key={t.teamId} value={t.teamId}>{t.teamName}</option>)}
+                              </select>
+                              <span className="text-xs text-gray-400">vs</span>
+                              <select className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" value={manual?.teamBId ?? ""}
+                                onChange={(e) => { const u = [...manualAdvanceMatches]; u[i] = { ...u[i], teamBId: e.target.value }; setManualAdvanceMatches(u); }}>
+                                <option value="">--</option>
+                                {allTeams.map((t: any) => <option key={t.teamId} value={t.teamId}>{t.teamName}</option>)}
+                              </select>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-xs">
+                              <span>{m.teamA?.teamName ?? "?"} {m.teamA?.fromGroup ? `(${m.teamA.fromGroup})` : ""}</span>
+                              <span className="text-gray-400">vs</span>
+                              <span>{m.teamB?.teamName ?? "?"} {m.teamB?.fromGroup ? `(${m.teamB.fromGroup})` : ""}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-2 pt-2">
+                {manualAdvanceMode ? (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setManualAdvanceMode(false)} disabled={advancing}>Kembali</Button>
+                    <Button size="sm" className="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleSaveManualAdvance} disabled={advancing}>
+                      {advancing ? "Menyimpan..." : "Simpan Manual"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setShowAdvancePreview(false)}>Tutup</Button>
+                    <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setManualAdvanceMode(true)}>Setup Manual</Button>
+                    <Button size="sm" className="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleAutoAdvance} disabled={advancing}>
+                      {advancing ? "Memproses..." : "Gunakan Auto"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Match Dialog */}
       <Dialog open={!!editMatch} onOpenChange={(open) => { if (!open) setEditMatch(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Pertandingan</DialogTitle>
+            <DialogTitle>Status Pertandingan</DialogTitle>
           </DialogHeader>
           {editMatch && (
             <div className="space-y-4 py-4">
               <p className="text-sm text-gray-600">
                 {editMatch.teamA?.name ?? "TBD"} vs {editMatch.teamB?.name ?? "TBD"}
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Skor A</label>
-                  <Input type="text" inputMode="numeric" value={String(editForm.scoreA)}
-                    onChange={(e) => setEditForm({ ...editForm, scoreA: parseInt(e.target.value) || 0 })} />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Skor B</label>
-                  <Input type="text" inputMode="numeric" value={String(editForm.scoreB)}
-                    onChange={(e) => setEditForm({ ...editForm, scoreB: parseInt(e.target.value) || 0 })} />
-                </div>
-              </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Status</label>
                 <select value={editForm.status}
@@ -711,8 +839,8 @@ export default function EventBracketManagement() {
                 </select>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setEditMatch(null)}>Batal</Button>
-                <Button variant="primary" className="flex-1" onClick={handleUpdateMatch} disabled={submitting}>
+                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setEditMatch(null)}>Batal</Button>
+                <Button size="sm" className="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleUpdateMatch} disabled={submitting}>
                   {submitting ? "Menyimpan..." : "Simpan"}
                 </Button>
               </div>
@@ -798,8 +926,8 @@ export default function EventBracketManagement() {
               )}
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setGoalMatch(null)}>Batal</Button>
-                <Button variant="primary" className="flex-1" onClick={handleAddGoal} disabled={submitting}>
+                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setGoalMatch(null)}>Batal</Button>
+                <Button size="sm" className="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleAddGoal} disabled={submitting}>
                   {submitting ? "Menyimpan..." : "Tambah Gol"}
                 </Button>
               </div>
