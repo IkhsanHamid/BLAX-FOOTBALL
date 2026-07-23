@@ -33,9 +33,9 @@ export default function EventBracketManagement() {
   const [submitting, setSubmitting] = useState(false);
 
   // Generate bracket
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [stageMode, setStageMode] = useState<"knockout" | "group">("knockout");
+  const [stageMode, setStageMode] = useState<"knockout" | "group" | "group-knockout">("knockout");
   const [rounds, setRounds] = useState<{ round: number; roundName: string }[]>([
     { round: 1, roundName: "Quarter Final" },
     { round: 2, roundName: "Semi Final" },
@@ -44,6 +44,15 @@ export default function EventBracketManagement() {
   const [groups, setGroups] = useState<{ roundName: string; teamIds: string[] }[]>([
     { roundName: "Group A", teamIds: [] },
     { roundName: "Group B", teamIds: [] },
+  ]);
+  const [knockoutRounds, setKnockoutRounds] = useState<{ round: number; roundName: string }[]>([
+    { round: 1, roundName: "Semi Final" },
+    { round: 2, roundName: "Final" },
+  ]);
+  const [advancePerGroup, setAdvancePerGroup] = useState(2);
+  const [advanceText, setAdvanceText] = useState("2");
+  const [seedings, setSeedings] = useState<{ teamAId: string; teamBId: string }[]>([
+    { teamAId: "", teamBId: "" },
   ]);
   const [eventTeams, setEventTeams] = useState<any[]>([]);
 
@@ -116,41 +125,37 @@ export default function EventBracketManagement() {
     try {
       const payload: any = { stage: stageMode };
       if (stageMode === "knockout") {
-        if (rounds.length === 0) {
-          showError("Error", "Minimal 1 round");
-          setSubmitting(false);
-          return;
-        }
+        if (rounds.length === 0) { showError("Error", "Minimal 1 round"); setSubmitting(false); return; }
         payload.rounds = rounds;
+      } else if (stageMode === "group-knockout") {
+        if (groups.length === 0 || knockoutRounds.length === 0) { showError("Error", "Minimal 1 group dan 1 knockout round"); setSubmitting(false); return; }
+        payload.groups = groups.map((g) => ({ roundName: g.roundName, teamIds: g.teamIds.length > 0 ? g.teamIds : undefined }));
+        payload.knockoutRounds = knockoutRounds;
+        payload.advancePerGroup = advancePerGroup;
       } else {
-        if (groups.length === 0) {
-          showError("Error", "Minimal 1 group");
-          setSubmitting(false);
-          return;
-        }
-        payload.groups = groups.map((g) => ({
-          roundName: g.roundName,
-          teamIds: g.teamIds.length > 0 ? g.teamIds : undefined,
-        }));
+        if (groups.length === 0) { showError("Error", "Minimal 1 group"); setSubmitting(false); return; }
+        payload.groups = groups.map((g) => ({ roundName: g.roundName, teamIds: g.teamIds.length > 0 ? g.teamIds : undefined }));
       }
+      const validSeedings = seedings.filter((s) => s.teamAId.trim() && s.teamBId.trim());
+      if (validSeedings.length > 0) payload.seedings = validSeedings.map((s) => ({ teamAId: s.teamAId, teamBId: s.teamBId }));
       const res = await adminService.generateBracket(selectedEventId, payload);
       setBracket(res?.data ?? []);
-      setShowGenerateDialog(false);
-      showSuccess("Berhasil", "Bracket berhasil dibuat");
+      setShowGenerateForm(false);
+      showSuccess("Berhasil", res?.message || "Bracket berhasil dibuat");
+      loadEventData(selectedEventId);
     } catch (err: any) {
       showError("Error", err?.message || "Gagal membuat bracket");
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   const handleDeleteBracket = async () => {
     setSubmitting(true);
     try {
-      await adminService.deleteBracket(selectedEventId);
+      const result = await adminService.deleteBracket(selectedEventId);
       setBracket([]);
       setShowDeleteConfirm(false);
-      showSuccess("Berhasil", "Bracket berhasil dihapus");
+      showSuccess("Berhasil", result?.message || "Bracket berhasil dihapus");
+      loadEventData(selectedEventId);
     } catch (err: any) {
       showError("Error", err?.message || "Gagal menghapus bracket");
     } finally {
@@ -342,7 +347,7 @@ export default function EventBracketManagement() {
               <Button
                 size="sm"
                 className="bg-gray-900 hover:bg-gray-800 text-white text-xs flex-shrink-0"
-                onClick={() => setShowGenerateDialog(true)}
+                onClick={() => setShowGenerateForm(true)}
               >
                 <Swords className="w-3 h-3 mr-1" />
                 Generate Bracket
@@ -354,7 +359,7 @@ export default function EventBracketManagement() {
 
       {selectedEventId && loading ? (
         <div className="text-center py-12 text-gray-500">Memuat data...</div>
-      ) : selectedEventId ? (
+      ) : selectedEventId && !showGenerateForm ? (
         <>
           {/* Bracket View */}
           <Card>
@@ -384,7 +389,7 @@ export default function EventBracketManagement() {
                       <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleAutoAdvance} disabled={advancing}>Auto Advance</Button>
                     </>
                   )}
-                  <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={() => setShowGenerateDialog(true)}>
+                  <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={() => setShowGenerateForm(true)}>
                     <Swords className="w-3 h-3 mr-1" />
                     {bracket.length > 0 ? "Generate Ulang" : "Generate"}
                   </Button>
@@ -560,36 +565,32 @@ export default function EventBracketManagement() {
             </CardContent>
           </Card>
         </>
-      ) : (
+      ) : !showGenerateForm ? (
         <div className="text-center py-12 text-gray-400">Pilih event terlebih dahulu</div>
-      )}
+      ) : null}
 
-      {/* Generate Bracket Dialog */}
-      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Generate Bracket</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+      {/* Generate Bracket Form */}
+      {showGenerateForm && (
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Generate Bracket</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowGenerateForm(false)}>✕ Tutup</Button>
+            </div>
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Mode</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setStageMode("knockout")}
-                  className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border-2 transition-all ${
-                    stageMode === "knockout" ? "border-sky-500 bg-sky-50 text-sky-700" : "border-gray-200 bg-white text-gray-600"
-                  }`}
-                >
-                  Knockout
-                </button>
-                <button
-                  onClick={() => setStageMode("group")}
-                  className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border-2 transition-all ${
-                    stageMode === "group" ? "border-sky-500 bg-sky-50 text-sky-700" : "border-gray-200 bg-white text-gray-600"
-                  }`}
-                >
-                  Group
-                </button>
+              <div className="flex gap-2 flex-wrap">
+                {(["knockout", "group", "group-knockout"] as const).map((mode) => (
+                  <button key={mode}
+                    onClick={() => setStageMode(mode)}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold border-2 transition-all ${
+                      stageMode === mode ? "border-sky-500 bg-sky-50 text-sky-700" : "border-gray-200 bg-white text-gray-600"
+                    }`}
+                  >
+                    {mode === "group-knockout" ? "Group + KO" : mode === "knockout" ? "Knockout" : "Group"}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -599,136 +600,150 @@ export default function EventBracketManagement() {
                   <div key={i} className="flex gap-2 items-end">
                     <div className="flex-1">
                       <label className="block text-xs text-gray-500 mb-1">Round {r.round}</label>
-                      <Input
-                        placeholder="Nama round"
-                        value={r.roundName}
-                        onChange={(e) => {
-                          const updated = [...rounds];
-                          updated[i].roundName = e.target.value;
-                          setRounds(updated);
-                        }}
-                      />
+                      <Input placeholder="Nama round" value={r.roundName}
+                        onChange={(e) => { const u = [...rounds]; u[i].roundName = e.target.value; setRounds(u); }} />
                     </div>
-                    <Button
-                      variant="ghost"
-                      className="text-red-500 mb-0.5"
-                      onClick={() => setRounds(rounds.filter((_, j) => j !== i))}
-                      disabled={rounds.length <= 1}
-                    >
+                    <Button variant="ghost" className="text-red-500 mb-0.5"
+                      onClick={() => setRounds(rounds.filter((_, j) => j !== i))} disabled={rounds.length <= 1}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 ))}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setRounds([...rounds, { round: rounds.length + 1, roundName: "" }])}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Tambah Round
+                <Button variant="outline" className="w-full"
+                  onClick={() => setRounds([...rounds, { round: rounds.length + 1, roundName: "" }])}>
+                  <Plus className="w-4 h-4 mr-2" />Tambah Round
                 </Button>
               </>
-            ) : (
+            ) : stageMode === "group-knockout" ? (
               <>
-                <p className="text-xs text-gray-500">
-                  Group stage — auto-generate round-robin matches. Pilih team untuk setiap group, atau kosongkan untuk distribusi acak.
-                </p>
-                {eventTeams.length > 0 && (
-                  <div className="text-xs text-slate-500">
-                    Total tim: <span className="font-semibold">{eventTeams.length}</span>
-                  </div>
-                )}
+                <p className="text-xs text-gray-500">Group stage → Knockout. Pilih group, knockout rounds, dan jumlah tim lolos.</p>
+                {eventTeams.length > 0 && <div className="text-xs text-slate-500">Total tim: <span className="font-semibold">{eventTeams.length}</span></div>}
                 {groups.map((g, i) => (
                   <div key={i} className="space-y-2 p-3 border border-gray-200 rounded-lg">
                     <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <label className="block text-xs text-gray-500 mb-1">Nama Group</label>
-                        <Input
-                          placeholder="Group A"
-                          value={g.roundName}
-                          onChange={(e) => {
-                            const updated = [...groups];
-                            updated[i].roundName = e.target.value;
-                            setGroups(updated);
-                          }}
-                        />
+                      <div className="flex-1"><Input placeholder="Group A" value={g.roundName}
+                        onChange={(e) => { const u = [...groups]; u[i].roundName = e.target.value; setGroups(u); }} /></div>
+                      <Button variant="ghost" className="text-red-500 mb-0.5"
+                        onClick={() => setGroups(groups.filter((_, j) => j !== i))} disabled={groups.length <= 1}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                    {eventTeams.length > 0 && (
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Team ({g.teamIds.length} dipilih)</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {eventTeams.map((team) => {
+                            const sel = g.teamIds.includes(team.id);
+                            const used = groups.some((o, j) => j !== i && o.teamIds.includes(team.id));
+                            return (
+                              <button key={team.id} disabled={used}
+                                onClick={() => { const u = [...groups]; sel ? u[i].teamIds = g.teamIds.filter((id) => id !== team.id) : u[i].teamIds = [...g.teamIds, team.id]; setGroups(u); }}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${sel ? "bg-sky-50 border-sky-300 text-sky-700" : used ? "bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed opacity-40" : "bg-white border-gray-200 text-gray-600 hover:border-sky-200"}`}>
+                                {team.imageUrl && <img src={team.imageUrl} className="w-4 h-4 rounded" />}{team.name}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        className="text-red-500 mb-0.5"
-                        onClick={() => setGroups(groups.filter((_, j) => j !== i))}
-                        disabled={groups.length <= 1}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button variant="outline" className="w-full"
+                  onClick={() => setGroups([...groups, { roundName: "", teamIds: [] }])}><Plus className="w-4 h-4 mr-2" />Tambah Group</Button>
+
+                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div><div className="relative flex justify-center text-xs"><span className="bg-white px-2 text-gray-400">Knockout</span></div></div>
+                {knockoutRounds.map((r, i) => (
+                  <div key={i} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Round {r.round}</label>
+                      <Input placeholder="Nama round" value={r.roundName}
+                        onChange={(e) => { const u = [...knockoutRounds]; u[i].roundName = e.target.value; setKnockoutRounds(u); }} />
+                    </div>
+                    <Button variant="ghost" className="text-red-500 mb-0.5"
+                      onClick={() => setKnockoutRounds(knockoutRounds.filter((_, j) => j !== i))} disabled={knockoutRounds.length <= 1}><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                ))}
+                <Button variant="outline" className="w-full"
+                  onClick={() => setKnockoutRounds([...knockoutRounds, { round: knockoutRounds.length + 1, roundName: "" }])}><Plus className="w-4 h-4 mr-2" />Tambah Knockout Round</Button>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tim Lolos per Group</label>
+                  <Input type="text" inputMode="numeric" maxLength={2} placeholder="2" value={advanceText}
+                    onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").slice(0, 2); setAdvanceText(raw); const v = parseInt(raw); if (raw === "") setAdvancePerGroup(2); else if (v >= 1 && v <= 4) setAdvancePerGroup(v); }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500">Group stage — auto-generate round-robin matches. Pilih team untuk setiap group, atau kosongkan untuk distribusi acak.</p>
+                {eventTeams.length > 0 && <div className="text-xs text-slate-500">Total tim: <span className="font-semibold">{eventTeams.length}</span></div>}
+                {groups.map((g, i) => (
+                  <div key={i} className="space-y-2 p-3 border border-gray-200 rounded-lg">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1"><Input placeholder="Group A" value={g.roundName}
+                        onChange={(e) => { const u = [...groups]; u[i].roundName = e.target.value; setGroups(u); }} /></div>
+                      <Button variant="ghost" className="text-red-500 mb-0.5"
+                        onClick={() => setGroups(groups.filter((_, j) => j !== i))} disabled={groups.length <= 1}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-400 mb-1">
-                        Team ({g.teamIds.length} dipilih)
-                      </label>
+                      <label className="block text-xs text-gray-400 mb-1">Team ({g.teamIds.length} dipilih)</label>
                       <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                        {eventTeams.length === 0 ? (
-                          <span className="text-xs text-gray-400">Pilih event dulu</span>
-                        ) : (
+                        {eventTeams.length === 0 ? <span className="text-xs text-gray-400">Pilih event dulu</span> :
                           eventTeams.map((team) => {
-                            const isSelected = g.teamIds.includes(team.id);
-                            const isUsedInOther = groups.some(
-                              (other, j) => j !== i && other.teamIds.includes(team.id),
-                            );
+                            const sel = g.teamIds.includes(team.id);
+                            const used = groups.some((o, j) => j !== i && o.teamIds.includes(team.id));
                             return (
-                              <button
-                                key={team.id}
-                                onClick={() => {
-                                  const updated = [...groups];
-                                  if (isSelected) {
-                                    updated[i].teamIds = g.teamIds.filter((id) => id !== team.id);
-                                  } else {
-                                    updated[i].teamIds = [...g.teamIds, team.id];
-                                  }
-                                  setGroups(updated);
-                                }}
-                                disabled={isUsedInOther}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                                  isSelected
-                                    ? "bg-sky-50 border-sky-300 text-sky-700"
-                                    : isUsedInOther
-                                      ? "bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed opacity-40"
-                                      : "bg-white border-gray-200 text-gray-600 hover:border-sky-200 hover:bg-sky-50"
-                                }`}
-                              >
-                                {team.imageUrl && (
-                                  <img src={team.imageUrl} alt={team.name} className="w-4 h-4 rounded object-cover" />
-                                )}
-                                {team.name}
-                                {isUsedInOther && <span className="text-[9px] text-gray-400">(di group lain)</span>}
+                              <button key={team.id} disabled={used}
+                                onClick={() => { const u = [...groups]; sel ? u[i].teamIds = g.teamIds.filter((id) => id !== team.id) : u[i].teamIds = [...g.teamIds, team.id]; setGroups(u); }}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${sel ? "bg-sky-50 border-sky-300 text-sky-700" : used ? "bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed opacity-40" : "bg-white border-gray-200 text-gray-600 hover:border-sky-200 hover:bg-sky-50"}`}>
+                                {team.imageUrl && <img src={team.imageUrl} className="w-4 h-4 rounded object-cover" />}{team.name}{used && <span className="text-[9px] text-gray-400">(di group lain)</span>}
                               </button>
                             );
                           })
-                        )}
+                        }
                       </div>
                     </div>
                   </div>
                 ))}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setGroups([...groups, { roundName: "", teamIds: [] }])}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Tambah Group
-                </Button>
+                <Button variant="outline" className="w-full"
+                  onClick={() => setGroups([...groups, { roundName: "", teamIds: [] }])}><Plus className="w-4 h-4 mr-2" />Tambah Group</Button>
+              </>
+            )}
+
+            {eventTeams.length > 0 && (
+              <>
+                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div><div className="relative flex justify-center text-xs"><span className="bg-white px-2 text-gray-400">Atur Jadwal Pertandingan (opsional)</span></div></div>
+                <p className="text-xs text-gray-500">Atur sendiri jadwal pertandingan. Biarkan kosong untuk pengaturan otomatis.</p>
+                <div className="text-xs text-slate-500">Total tim tersedia: <span className="font-semibold">{eventTeams.length}</span></div>
+                {seedings.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 w-6">#{i + 1}</span>
+                    <div className="flex-1 flex items-center gap-1.5">
+                      <select value={s.teamAId} onChange={(e) => { const u = [...seedings]; u[i].teamAId = e.target.value; setSeedings(u); }}
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg">
+                        <option value="">Pilih Tim</option>
+                        {eventTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                      <span className="text-[10px] text-gray-400 font-bold">VS</span>
+                      <select value={s.teamBId} onChange={(e) => { const u = [...seedings]; u[i].teamBId = e.target.value; setSeedings(u); }}
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg">
+                        <option value="">Pilih Tim</option>
+                        {eventTeams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                    <Button variant="ghost" className="text-red-500 flex-shrink-0" onClick={() => setSeedings(seedings.filter((_, j) => j !== i))} disabled={seedings.length <= 1}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
+                ))}
+                <Button variant="outline" className="w-full" onClick={() => setSeedings([...seedings, { teamAId: "", teamBId: "" }])}><Plus className="w-4 h-4 mr-2" />Tambah Pertandingan</Button>
               </>
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowGenerateDialog(false)}>Batal</Button>
-              <Button variant="primary" className="flex-1" onClick={handleGenerateBracket} disabled={submitting}>
+              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setShowGenerateForm(false)}>Batal</Button>
+              <Button size="sm" className="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs" onClick={handleGenerateBracket} disabled={submitting}>
                 {submitting ? "Membuat..." : "Generate"}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
+      )}
 
       {/* Advance Preview Dialog */}
       <Dialog open={showAdvancePreview} onOpenChange={setShowAdvancePreview}>
