@@ -1440,6 +1440,37 @@ class AdminService {
       throw error;
     }
   }
+
+  async getAdvancePreview(
+    eventId: string,
+    advancePerGroup: number = 2,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/events/${eventId}/bracket/advance-preview?advancePerGroup=${advancePerGroup}`,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching advance preview:", error);
+      throw error;
+    }
+  }
+
+  async autoAdvance(
+    eventId: string,
+    advancePerGroup: number = 2,
+  ): Promise<any> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/events/${eventId}/bracket/advance`,
+        { advancePerGroup },
+      );
+      return response;
+    } catch (error) {
+      console.error("Error auto advancing:", error);
+      throw error;
+    }
+  }
 }
 
 export const adminService = new AdminService();

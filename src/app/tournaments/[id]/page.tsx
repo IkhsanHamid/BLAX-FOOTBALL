@@ -366,7 +366,7 @@ function PotPricingSection({
   activePhase: Phase | null;
 }) {
   return (
-    <Section icon={<Tag className="w-4 h-4" />} title="Harga per Pot">
+    <Section icon={<Tag className="w-5 h-5" />} title="Harga per Pot">
       <div className="space-y-3">
         {pots.map((pot, i) => {
           const color = POT_COLORS[i % POT_COLORS.length];
@@ -506,7 +506,7 @@ function PhaseCard({ phase, index }: { phase: Phase; index: number }) {
 
       <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
         <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <Calendar className="w-4 h-4 text-slate-400" />
           <span>
             {formatDateShort(phase.startDate)} –{" "}
             {formatDateShort(phase.endDate)}
@@ -514,7 +514,7 @@ function PhaseCard({ phase, index }: { phase: Phase; index: number }) {
         </div>
         {(phase.quotaPlayer != null || phase.quotaGk != null) && (
           <div className="flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <Users className="w-4 h-4 text-slate-400" />
             <span>
               {phase.quotaPlayer ?? 0} pemain · {phase.quotaGk ?? 0} GK
             </span>
@@ -754,17 +754,17 @@ export default function EventDetailPage() {
               <div className="absolute top-4 left-4">
                 {isExpired ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 backdrop-blur-sm">
-                    <Clock className="w-3.5 h-3.5" />
+                    <Clock className="w-4 h-4" />
                     Selesai
                   </span>
                 ) : event.isOpen ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-500/90 text-white backdrop-blur-sm shadow-lg">
-                    <UnlockKeyhole className="w-3.5 h-3.5" />
+                    <UnlockKeyhole className="w-4 h-4" />
                     Open — Daftar Sekarang
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-500/90 text-white backdrop-blur-sm shadow-lg">
-                    <LockKeyhole className="w-3.5 h-3.5" />
+                    <LockKeyhole className="w-4 h-4" />
                     Upcoming
                   </span>
                 )}
@@ -780,14 +780,14 @@ export default function EventDetailPage() {
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${typeColor}`}
                     >
-                      <Zap className="w-3 h-3" />
+                      <Zap className="w-4 h-4" />
                       {typeLabel}
                     </span>
                   )}
                   {/* Pricing mode badge */}
                   {isMulti && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border bg-white/90 text-slate-700 border-white/50">
-                      <Layers className="w-3 h-3" />
+                      <Layers className="w-4 h-4" />
                       Multi Pot
                     </span>
                   )}
@@ -799,7 +799,7 @@ export default function EventDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                  <Calendar className="w-3.5 h-3.5" />
+                  <Calendar className="w-5 h-5" />
                   Tanggal
                 </div>
                 <div className="text-sm font-semibold text-slate-800 leading-snug">
@@ -812,7 +812,7 @@ export default function EventDetailPage() {
                 )}
                 {event.time && (
                   <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
+                    <Clock className="w-4 h-4" />
                     {event.time} WIB
                   </div>
                 )}
@@ -820,7 +820,7 @@ export default function EventDetailPage() {
 
               <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                  <MapPin className="w-3.5 h-3.5" />
+                  <MapPin className="w-5 h-5" />
                   Venue
                 </div>
                 <div className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2">
@@ -832,7 +832,7 @@ export default function EventDetailPage() {
               {isMulti ? (
                 <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-4">
                   <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                    <Tag className="w-3.5 h-3.5" />
+                    <Tag className="w-5 h-5" />
                     Harga
                   </div>
                   <div className="flex items-baseline gap-1">
@@ -849,7 +849,7 @@ export default function EventDetailPage() {
               ) : event.category === "EXTERNAL" ? (
                 <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-4">
                   <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                    <Tag className="w-3.5 h-3.5" />
+                    <Tag className="w-5 h-5" />
                     Fee Team
                   </div>
                   <div className="flex items-baseline gap-1">
@@ -863,7 +863,7 @@ export default function EventDetailPage() {
                 <>
                   <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                      <Tag className="w-3.5 h-3.5" />
+                      <Tag className="w-5 h-5" />
                       Fee Pemain
                     </div>
                     <div className="text-base font-bold text-blue-600">
@@ -872,7 +872,7 @@ export default function EventDetailPage() {
                   </div>
                   <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                      <Tag className="w-3.5 h-3.5" />
+                      <Tag className="w-5 h-5" />
                       Fee GK
                     </div>
                     <div className="text-base font-bold text-blue-600">
@@ -900,8 +900,8 @@ export default function EventDetailPage() {
                     onClick={setActiveTab}
                     isActive={activeTab === t.id}
                   >
-                    <t.icon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline ml-1">{t.label}</span>
+                    <t.icon className="w-5 h-5" />
+                    <span className="hidden sm:inline ml-1.5">{t.label}</span>
                   </TabsTrigger>
                 ))}
               </div>
@@ -911,7 +911,7 @@ export default function EventDetailPage() {
 
             {/* ── Description ── */}
             {event.description && (
-              <Section icon={<Layers className="w-4 h-4" />} title="Deskripsi">
+              <Section icon={<Layers className="w-5 h-5" />} title="Deskripsi">
                 <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
                   {parseTextWithLinks(event.description)}
                 </p>
@@ -929,7 +929,7 @@ export default function EventDetailPage() {
             {/* ── Teams ── */}
             {event.teams && event.teams.length > 0 && (
               <Section
-                icon={<Users className="w-4 h-4" />}
+                icon={<Users className="w-5 h-5" />}
                 title={`Daftar Tim (${event.teams.length})`}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1113,7 +1113,7 @@ export default function EventDetailPage() {
             {/* ── Phases ── */}
             {event.phases && event.phases.length > 0 && (
               <Section
-                icon={<Layers className="w-4 h-4" />}
+                icon={<Layers className="w-5 h-5" />}
                 title="Phase / Promo"
               >
                 <p className="text-xs text-slate-400 mb-3">
@@ -1140,7 +1140,7 @@ export default function EventDetailPage() {
             {/* ── Facilities ── */}
             {event.facilities && event.facilities.length > 0 && (
               <Section
-                icon={<CheckCircle2 className="w-4 h-4" />}
+                icon={<CheckCircle2 className="w-5 h-5" />}
                 title="Fasilitas"
               >
                 <div className="flex flex-wrap gap-2">
@@ -1149,7 +1149,7 @@ export default function EventDetailPage() {
                       key={f.id}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700"
                     >
-                      <CheckCircle2 className="w-3 h-3 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
                       {f.name}
                     </span>
                   ))}
@@ -1163,7 +1163,7 @@ export default function EventDetailPage() {
             {/* ── Rules ── */}
             {event.rules && event.rules.length > 0 && (
               <Section
-                icon={<ShieldCheck className="w-4 h-4" />}
+                icon={<ShieldCheck className="w-5 h-5" />}
                 title="Peraturan"
               >
                 <ol className="space-y-2">
@@ -1212,7 +1212,7 @@ export default function EventDetailPage() {
                 }>
                   {bracketData[0]?.stage === "group" ? (
                     bracketData.map((round: any, ri: number) => (
-                      <div key={round.round ?? ri} className="flex flex-col gap-3">
+                      <div key={`${round.roundName}-${ri}`} className="flex flex-col gap-3">
                         <div className="bg-slate-800 text-white text-center py-2 px-3 rounded-lg">
                           <p className="text-xs font-bold uppercase tracking-wide">{round.roundName}</p>
                         </div>
@@ -1353,50 +1353,57 @@ export default function EventDetailPage() {
               )})()}
 
               {standings.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
-                    <span className="text-blue-500"><BarChart3 className="w-4 h-4" /></span>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <BarChart3 className="w-5 h-5 text-blue-500" />
                     <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Klasemen</h2>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 text-xs text-slate-500 uppercase">
-                          <th className="text-center py-2 w-8">#</th>
-                          <th className="text-left py-2">Tim</th>
-                          <th className="text-center py-2 w-8">P</th>
-                          <th className="text-center py-2 w-8">W</th>
-                          <th className="text-center py-2 w-8">D</th>
-                          <th className="text-center py-2 w-8">L</th>
-                          <th className="text-center py-2">GF</th>
-                          <th className="text-center py-2">GA</th>
-                          <th className="text-center py-2">GD</th>
-                          <th className="text-center py-2 font-bold">PTS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.map((s: any, i: number) => (
-                          <tr key={s.teamId} className="border-t border-slate-100">
-                            <td className="text-center py-2 font-bold">{i + 1}</td>
-                            <td className="py-2">
-                              <div className="flex items-center gap-2">
-                                {s.teamImageUrl && <img src={s.teamImageUrl} className="w-5 h-5 rounded" />}
-                                <span className="font-medium">{s.teamName}</span>
-                              </div>
-                            </td>
-                            <td className="text-center py-2 text-xs">{s.played}</td>
-                            <td className="text-center py-2 text-xs">{s.wins}</td>
-                            <td className="text-center py-2 text-xs">{s.draws}</td>
-                            <td className="text-center py-2 text-xs">{s.losses}</td>
-                            <td className="text-center py-2 text-xs">{s.goalsFor}</td>
-                            <td className="text-center py-2 text-xs">{s.goalsAgainst}</td>
-                            <td className="text-center py-2 text-xs">{s.goalDifference}</td>
-                            <td className="text-center py-2 text-sm font-bold">{s.points}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {standings.map((group: any, gi: number) => (
+                    <div key={gi} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                      <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
+                        <h3 className="text-sm font-semibold text-slate-800">{group.roundName}</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 text-xs text-slate-500 uppercase">
+                              <th className="text-center py-2 w-8">#</th>
+                              <th className="text-left py-2">Tim</th>
+                              <th className="text-center py-2 w-8">P</th>
+                              <th className="text-center py-2 w-8">W</th>
+                              <th className="text-center py-2 w-8">D</th>
+                              <th className="text-center py-2 w-8">L</th>
+                              <th className="text-center py-2">GF</th>
+                              <th className="text-center py-2">GA</th>
+                              <th className="text-center py-2">GD</th>
+                              <th className="text-center py-2 font-bold">PTS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.standings || []).map((s: any, i: number) => (
+                              <tr key={s.teamId} className="border-t border-slate-100">
+                                <td className="text-center py-2 font-bold">{i + 1}</td>
+                                <td className="py-2">
+                                  <div className="flex items-center gap-2">
+                                    {s.teamImageUrl && <img src={s.teamImageUrl} className="w-5 h-5 rounded" />}
+                                    <span className="font-medium">{s.teamName}</span>
+                                  </div>
+                                </td>
+                                <td className="text-center py-2 text-xs">{s.played}</td>
+                                <td className="text-center py-2 text-xs">{s.wins}</td>
+                                <td className="text-center py-2 text-xs">{s.draws}</td>
+                                <td className="text-center py-2 text-xs">{s.losses}</td>
+                                <td className="text-center py-2 text-xs">{s.goalsFor}</td>
+                                <td className="text-center py-2 text-xs">{s.goalsAgainst}</td>
+                                <td className="text-center py-2 text-xs">{s.goalDifference}</td>
+                                <td className="text-center py-2 text-sm font-bold">{s.points}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </TabsContent>
@@ -1448,7 +1455,7 @@ export default function EventDetailPage() {
               {activePhase ? (
                 <div className="flex flex-col">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 mb-1 w-fit">
-                    <Zap className="w-3 h-3" />
+                    <Zap className="w-4 h-4" />
                     {activePhase.name}
                   </span>
                   <div className="flex items-baseline gap-1.5 flex-wrap">

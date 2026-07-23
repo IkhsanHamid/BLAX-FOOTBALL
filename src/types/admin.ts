@@ -365,10 +365,18 @@ export interface GenerateBracketGroup {
   teamIds?: string[];
 }
 
+export interface GenerateBracketSeeding {
+  teamAId: string;
+  teamBId: string;
+}
+
 export interface GenerateBracketPayload {
-  stage: "knockout" | "group";
+  stage: "knockout" | "group" | "group-knockout";
   rounds?: GenerateBracketRound[];
   groups?: GenerateBracketGroup[];
+  seedings?: GenerateBracketSeeding[];
+  knockoutRounds?: GenerateBracketRound[];
+  advancePerGroup?: number;
 }
 
 export interface MatchDetail {
@@ -454,11 +462,17 @@ export interface Standing {
   points: number;
 }
 
+export interface StandingGroup {
+  roundName: string;
+  standings: Standing[];
+}
+
 export interface StandingResponse {
   status: boolean;
-  statusCode: number;
+  statusCode?: number;
+  code?: number;
   message: string;
-  data: Standing[];
+  data: StandingGroup[];
 }
 
 export interface MatchPlayer {
