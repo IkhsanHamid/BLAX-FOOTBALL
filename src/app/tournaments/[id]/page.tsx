@@ -316,7 +316,7 @@ const TabsTrigger = ({
 }) => (
   <button
     onClick={() => onClick(value)}
-    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
+    className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-[9px] sm:text-sm font-semibold transition-all duration-200 ${
       isActive
         ? "bg-white text-slate-900 shadow-sm"
         : "text-slate-500 hover:text-slate-700"
@@ -900,8 +900,8 @@ export default function EventDetailPage() {
                     onClick={setActiveTab}
                     isActive={activeTab === t.id}
                   >
-                    <t.icon className="w-5 h-5" />
-                    <span className="hidden sm:inline ml-1.5">{t.label}</span>
+                    <t.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-[10px] sm:text-xs">{t.label}</span>
                   </TabsTrigger>
                 ))}
               </div>
