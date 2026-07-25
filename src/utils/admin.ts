@@ -1127,18 +1127,8 @@ class AdminService {
   }
 
   async getEventDetail(id: string) {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BE}/api/v1/events/${id}`,
-      {
-        method: "GET",
-        headers: {},
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.error || "Something went wrong!");
-    }
-    return result.data;
+    const response = await apiClient.get(`/api/v1/events/${id}`);
+    return response.data;
   }
 
   async getEventLineup(
