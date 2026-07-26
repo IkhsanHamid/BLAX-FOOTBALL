@@ -600,8 +600,8 @@ function LockSlotPanel({
     0,
     totalSlots - bookedSlots - lockedGk - lockedPlayer,
   );
-  const maxGk = Math.max(0, slotConfig.gk - lockedGk);
-  const maxPlayer = Math.max(0, slotConfig.player - lockedPlayer);
+  const maxGk = Math.max(0, (slot?.gkSlots ?? slotConfig.gk) - lockedGk);
+  const maxPlayer = Math.max(0, (slot?.playerSlots ?? slotConfig.player) - lockedPlayer);
 
   const [gkCount, setGkCount] = useState(0);
   const [playerCount, setPlayerCount] = useState(0);
@@ -862,23 +862,19 @@ function TeamDetailCard({
   const gkPlayers = mainPlayers.filter((p) => p.isGk);
   const fieldPlayers = mainPlayers.filter((p) => !p.isGk);
 
-  const useActualCounts = category === "EXTERNAL";
-  const filledGk = useActualCounts
-    ? gkPlayers.length
-    : team.availableGkSlots !== undefined
-      ? slotConfig.gk - team.availableGkSlots
-      : gkPlayers.length;
-  const filledPlayer = useActualCounts
-    ? fieldPlayers.length
-    : team.availablePlayerSlots !== undefined
-      ? slotConfig.player - team.availablePlayerSlots
-      : fieldPlayers.length;
+  const filledGk = team.slot
+    ? team.slot.gkSlots - (team.availableGkSlots ?? team.slot.gkSlots)
+    : gkPlayers.length;
+  const filledPlayer = team.slot
+    ? team.slot.playerSlots - (team.availablePlayerSlots ?? team.slot.playerSlots)
+    : fieldPlayers.length;
   const totalFilled = filledGk + filledPlayer;
+  const teamTotalSlots = team.slot?.totalSlots ?? slotConfig.total;
   const fillPercent =
-    slotConfig.total > 0
-      ? Math.round((totalFilled / slotConfig.total) * 100)
+    teamTotalSlots > 0
+      ? Math.round((totalFilled / teamTotalSlots) * 100)
       : 0;
-  const isFull = totalFilled >= slotConfig.total;
+  const isFull = totalFilled >= teamTotalSlots;
 
   const lockedGk = team.slot?.lock_slot_gk ?? 0;
   const lockedPlayer = team.slot?.lock_slot_player ?? 0;
@@ -980,14 +976,14 @@ function TeamDetailCard({
                 GK:{" "}
                 <strong
                   className={
-                    filledGk >= slotConfig.gk
+                    filledGk >= (team.slot?.gkSlots ?? slotConfig.gk)
                       ? "text-green-600"
                       : "text-slate-700"
                   }
                 >
                   {filledGk}
                 </strong>
-                <span className="text-slate-400">/{slotConfig.gk}</span>
+                <span className="text-slate-400">/{team.slot?.gkSlots ?? slotConfig.gk}</span>
               </span>
             </div>
             <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -996,14 +992,14 @@ function TeamDetailCard({
                 Player:{" "}
                 <strong
                   className={
-                    filledPlayer >= slotConfig.player
+                    filledPlayer >= (team.slot?.playerSlots ?? slotConfig.player)
                       ? "text-green-600"
                       : "text-slate-700"
                   }
                 >
                   {filledPlayer}
                 </strong>
-                <span className="text-slate-400">/{slotConfig.player}</span>
+                <span className="text-slate-400">/{(team.slot?.playerSlots ?? slotConfig.player)}</span>
               </span>
             </div>
             <span
@@ -1015,7 +1011,7 @@ function TeamDetailCard({
                     : "bg-red-50 text-red-500"
               }`}
             >
-              {totalFilled}/{slotConfig.total} terisi
+              {totalFilled}/{teamTotalSlots} terisi
             </span>
           </div>
         </div>
@@ -1083,7 +1079,7 @@ function TeamDetailCard({
       {expanded && (
         <div className="px-5 pb-5 pt-4 space-y-4">
           {/* GK row */}
-          {slotConfig.gk > 0 && (
+          {(team.slot?.gkSlots ?? slotConfig.gk) > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-2.5">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-200">
@@ -1095,9 +1091,9 @@ function TeamDetailCard({
                 <div className="flex-1 h-px bg-slate-100" />
               </div>
               <div
-                className={`grid gap-2 ${slotConfig.gk === 1 ? "grid-cols-1 max-w-[200px]" : "grid-cols-2"}`}
+                className={`grid gap-2 ${(team.slot?.gkSlots ?? slotConfig.gk) === 1 ? "grid-cols-1 max-w-[200px]" : "grid-cols-2"}`}
               >
-                {Array.from({ length: slotConfig.gk }).map((_, i) => (
+                {Array.from({ length: team.slot?.gkSlots ?? slotConfig.gk }).map((_, i) => (
                   <PlayerSlot
                     key={`gk-${i}`}
                     player={gkPlayers[i]}
@@ -1122,7 +1118,7 @@ function TeamDetailCard({
               <div className="flex-1 h-px bg-slate-100" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {Array.from({ length: slotConfig.player }).map((_, i) => (
+              {Array.from({ length: team.slot?.playerSlots ?? slotConfig.player }).map((_, i) => (
                 <PlayerSlot
                   key={`player-${i}`}
                   player={fieldPlayers[i]}
