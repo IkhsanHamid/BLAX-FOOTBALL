@@ -696,24 +696,24 @@ function TeamSelector({
 
   const isTeamFull = (team: Team): boolean => {
     if (!team.slot) return false;
+    const availGk = team.availableGkSlots ?? 0;
+    const availPlayer = team.availablePlayerSlots ?? 0;
     if (bookingType === "team")
-      return (
-        team.slot.bookedSlots !== 0 ||
-        team.availableGkSlots! + team.availablePlayerSlots! === 0
-      );
-    return team.availableGkSlots! + team.availablePlayerSlots! === 0;
+      return team.slot.bookedSlots !== 0 || availGk + availPlayer === 0;
+    return availGk + availPlayer === 0;
   };
 
   const getSlotLabel = (team: Team): string => {
     if (!team.slot) return "";
+    const availGk = team.availableGkSlots ?? 0;
+    const availPlayer = team.availablePlayerSlots ?? 0;
     if (bookingType === "team")
-      return team.slot.bookedSlots !== 0 ||
-        team.availableGkSlots! + team.availablePlayerSlots! === 0
+      return team.slot.bookedSlots !== 0 || availGk + availPlayer === 0
         ? "Sudah ada booking"
         : "Tersedia";
-    if (team.availableGkSlots! + team.availablePlayerSlots! === 0)
+    if (availGk + availPlayer === 0)
       return "Penuh";
-    return `${team.availableGkSlots! + team.availablePlayerSlots!} slot tersisa`;
+    return `${availGk + availPlayer} slot tersisa`;
   };
 
   const getSlotBadgeClass = (team: Team): string => {
@@ -851,7 +851,7 @@ function TeamSelector({
                             <p className="text-[11px] text-gray-400">
                               {bookingType === "team"
                                 ? `Booked: ${team.slot.bookedSlots} · GK: ${team.slot.gkSlots} · Player: ${team.slot.playerSlots}`
-                                : `${team.availableGkSlots! + team.availablePlayerSlots!}/${team.slot.totalSlots} slot · GK: ${team.availableGkSlots} · Player: ${team.availablePlayerSlots}`}
+                                : `${team.availableGkSlots! + team.availablePlayerSlots!}/${team.slot.totalSlots} slot · GK: ${team.availableGkSlots}/${team.slot.gkSlots} · Player: ${team.availablePlayerSlots}/${team.slot.playerSlots}`}
                             </p>
                           )}
                         </div>
@@ -993,6 +993,9 @@ export default function EventCheckoutPage() {
       : 0;
   const teams = event?.teams ?? [];
   const addOns = event?.addOn ?? [];
+  const allTeamsFull = teams.length > 0 && teams.every(
+    (t) => (t.availableGkSlots ?? 0) + (t.availablePlayerSlots ?? 0) === 0,
+  );
 
   const selectedTeam = teams.find((t) => t.id === selectedTeamId) ?? null;
   const availableGkSlots = selectedTeam?.availableGkSlots ?? 0;
@@ -1837,19 +1840,19 @@ export default function EventCheckoutPage() {
                     )}
                     {isOnlyTeam && (
                       <motion.button
-                        whileHover={{ scale: !canRegistTeam ? 1 : 1.02 }}
-                        whileTap={{ scale: !canRegistTeam ? 1 : 0.98 }}
+                        whileHover={{ scale: allTeamsFull ? 1 : 1.02 }}
+                        whileTap={{ scale: allTeamsFull ? 1 : 0.98 }}
                         onClick={() => {
-                          if (canRegistTeam) {
+                          if (!allTeamsFull) {
                             setBookingType("team");
                             setSelectedTeamId(null);
                           }
                         }}
-                        disabled={!canRegistTeam}
-                        className={`flex-1 px-6 py-4 rounded-2xl transition-all relative ${!canRegistTeam ? "bg-gray-200 text-gray-400 cursor-not-allowed" : bookingType === "team" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
+                        disabled={allTeamsFull}
+                        className={`flex-1 px-6 py-4 rounded-2xl transition-all relative ${allTeamsFull ? "bg-gray-200 text-gray-400 cursor-not-allowed" : bookingType === "team" ? "bg-blue-600 text-white shadow-md" : "text-gray-600 hover:text-blue-600"}`}
                       >
                         Team
-                        {!canRegistTeam && (
+                        {allTeamsFull && (
                           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                             FULL
                           </span>

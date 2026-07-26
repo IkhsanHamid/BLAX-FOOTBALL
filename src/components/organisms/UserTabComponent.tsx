@@ -210,24 +210,21 @@ export default function UsersTab() {
   }, [showError, userForm.role, editingUser]);
 
   // Effects
-  useEffect(() => {
-    // Initial load
-    if (initialLoading) {
-      fetchUsers(1, true);
-    }
-  }, []);
+  const initialLoadRef = useRef(false);
 
   useEffect(() => {
-    // Don't run on initial mount
-    if (!initialLoading) {
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      fetchUsers(1, true);
+    } else {
       fetchUsers(currentPage, false);
     }
-  }, [currentPage, searchTerm, fetchUsers, initialLoading]);
+  }, [currentPage, searchTerm, fetchUsers]);
 
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
-    } else if (!initialLoading) {
+    } else if (initialLoadRef.current) {
       fetchUsers(1, false);
     }
   }, [roleFilter, statusFilter]);

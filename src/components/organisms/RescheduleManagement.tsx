@@ -165,6 +165,8 @@ export default function RescheduleManagementComponent() {
     }
   }, [bookingsPagination.currentPage, searchBooking, showError]);
 
+  const initialLoadRef = useRef(false);
+
   // Fetch bookings on component mount and when dependencies change
   useEffect(() => {
     if (activeTab === "create") {
@@ -172,15 +174,15 @@ export default function RescheduleManagementComponent() {
     }
   }, [activeTab, bookingsPagination.currentPage, searchBooking]);
 
-  // Debounce search for bookings
+  // Debounce search for bookings (skip initial mount)
   useEffect(() => {
+    if (!initialLoadRef.current) return;
     const timer = setTimeout(() => {
       if (activeTab === "create") {
         setBookingsPagination((prev) => ({ ...prev, currentPage: 1 }));
         fetchAvailableBookings();
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchBooking]);
 
@@ -240,17 +242,22 @@ export default function RescheduleManagementComponent() {
     }
   }, [activeTab, historyPagination.currentPage, searchHistory]);
 
-  // Debounce search for history
+  // Debounce search for history (skip initial mount)
   useEffect(() => {
+    if (!initialLoadRef.current) return;
     const timer = setTimeout(() => {
       if (activeTab === "history") {
         setHistoryPagination((prev) => ({ ...prev, currentPage: 1 }));
         fetchRescheduleHistory();
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchHistory]);
+
+  // Mark initial load complete after first render
+  useEffect(() => {
+    initialLoadRef.current = true;
+  }, []);
 
   // Filter history - now handled by API
   const filteredHistory = useMemo(() => {
