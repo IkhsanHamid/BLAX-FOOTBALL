@@ -327,8 +327,8 @@ export interface ScheduleMatchListResponse {
 }
 
 export interface ScheduleMatchInput {
-  teamA: string;
-  teamB: string;
+  teamAId: string;
+  teamBId: string;
   matchTime: string;
 }
 
@@ -338,6 +338,6 @@ export interface ScheduleMatchBulkPayload {
 
 export interface ScheduleMatchUpdatePayload {
   matchTime?: string;
-  teamA?: string;
-  teamB?: string;
+  teamAId?: string;
+  teamBId?: string;
 }

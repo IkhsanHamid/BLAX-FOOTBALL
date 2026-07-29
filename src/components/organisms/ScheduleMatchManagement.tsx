@@ -46,14 +46,14 @@ interface ScheduleOption {
 }
 
 interface MatchFormRow {
-  teamA: string;
-  teamB: string;
+  teamAId: string;
+  teamBId: string;
   matchTime: string;
 }
 
 const emptyMatch: MatchFormRow = {
-  teamA: "",
-  teamB: "",
+  teamAId: "",
+  teamBId: "",
   matchTime: "",
 };
 
@@ -208,8 +208,8 @@ export default function ScheduleMatchManagement() {
     if (matches.length > 0) {
       setBulkMatches(
         matches.map((m) => ({
-          teamA: m.teamA?.name || "",
-          teamB: m.teamB?.name || "",
+          teamAId: m.teamA?.id || "",
+          teamBId: m.teamB?.id || "",
           matchTime: m.matchTime,
         })),
       );
@@ -245,14 +245,14 @@ export default function ScheduleMatchManagement() {
     }
     for (let i = 0; i < bulkMatches.length; i++) {
       const m = bulkMatches[i];
-      if (!m.teamA || !m.teamB || !m.matchTime) {
+      if (!m.teamAId || !m.teamBId || !m.matchTime) {
         showError(
           "Validasi gagal",
           `Pertandingan #${i + 1}: Team A, Team B, dan waktu wajib diisi`,
         );
         return;
       }
-      if (m.teamA === m.teamB) {
+      if (m.teamAId === m.teamBId) {
         showError(
           "Validasi gagal",
           `Pertandingan #${i + 1}: Team A dan Team B tidak boleh sama`,
@@ -265,8 +265,8 @@ export default function ScheduleMatchManagement() {
     try {
       const payload = {
         matches: bulkMatches.map((m) => ({
-          teamA: m.teamA,
-          teamB: m.teamB,
+          teamAId: m.teamAId,
+          teamBId: m.teamBId,
           matchTime: m.matchTime,
         })),
       };
@@ -292,8 +292,8 @@ export default function ScheduleMatchManagement() {
   const openEditMatch = (match: ScheduleMatch) => {
     setEditingMatch(match);
     setEditForm({
-      teamA: match.teamA?.name || "",
-      teamB: match.teamB?.name || "",
+      teamAId: match.teamA?.id || "",
+      teamBId: match.teamB?.id || "",
       matchTime: match.matchTime,
     });
   };
@@ -305,11 +305,11 @@ export default function ScheduleMatchManagement() {
 
   const handleUpdateMatch = async () => {
     if (!editingMatch) return;
-    if (!editForm.teamA || !editForm.teamB || !editForm.matchTime) {
+    if (!editForm.teamAId || !editForm.teamBId || !editForm.matchTime) {
       showError("Validasi gagal", "Semua field wajib diisi");
       return;
     }
-    if (editForm.teamA === editForm.teamB) {
+    if (editForm.teamAId === editForm.teamBId) {
       showError("Validasi gagal", "Team A dan Team B tidak boleh sama");
       return;
     }
@@ -317,8 +317,8 @@ export default function ScheduleMatchManagement() {
     try {
       await adminService.updateScheduleMatch(editingMatch.id, {
         matchTime: editForm.matchTime,
-        teamA: editForm.teamA,
-        teamB: editForm.teamB,
+        teamAId: editForm.teamAId,
+        teamBId: editForm.teamBId,
       });
       showSuccess("Pertandingan berhasil diupdate");
       closeEditMatch();
@@ -371,14 +371,19 @@ export default function ScheduleMatchManagement() {
     ? schedules.find((s) => s.id === selectedScheduleId)
     : null;
   const availableTeamNames = selectedSchedule?.scheduleTeams ?? [];
-  const allTeamsForDropdown = masterTeams
-    .filter((t) => availableTeamNames.includes(t.name))
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      hexColor: t.hexColor,
-      image: t.image,
-    }));
+  const allTeamsForDropdown = (() => {
+    const map = new Map<string, {
+      id: string;
+      name: string;
+      hexColor: string | null;
+      image: string | null;
+    }>();
+    masterTeams
+      .filter((t) => availableTeamNames.includes(t.name))
+      .forEach((t) => map.set(t.id, { id: t.id, name: t.name, hexColor: t.hexColor, image: t.image }));
+    teams.forEach((t) => map.set(t.id, { id: t.id, name: t.name, hexColor: t.hexColor, image: t.image }));
+    return Array.from(map.values());
+  })();
 
   return (
     <div className="space-y-6">
@@ -444,21 +449,21 @@ export default function ScheduleMatchManagement() {
                   <button
                     key={s.id}
                     onClick={() => handleSelectSchedule(s)}
-                    className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-sky-400 hover:shadow-md transition-all text-left"
+                    className="w-full flex items-center gap-2 p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-sky-400 hover:shadow-md transition-all text-left"
                   >
-                    <div>
-                      <div className="font-medium text-gray-900">{s.name}</div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(s.date)} • {s.time}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 text-sm sm:text-base truncate">{s.name}</div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Calendar className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{formatDate(s.date)} • {s.time}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge variant="outline" className="hidden sm:inline-flex">
                         <Users className="w-3 h-3 mr-1" />
                         {s.team} team
                       </Badge>
-                      <span className="text-sky-600 text-sm font-medium">
+                      <span className="text-sky-600 text-xs sm:text-sm font-medium whitespace-nowrap">
                         Atur Match →
                       </span>
                     </div>
@@ -515,10 +520,10 @@ export default function ScheduleMatchManagement() {
                 {matches.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Badge variant="outline" className="flex-shrink-0">
+                      <Badge variant="outline" className="flex-shrink-0 hidden sm:inline-flex">
                         #{m.matchOrder + 1}
                       </Badge>
                       <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -538,7 +543,7 @@ export default function ScheduleMatchManagement() {
                             m.teamA?.name?.charAt(0).toUpperCase() || "?"
                           )}
                         </div>
-                        <span className="font-medium text-gray-900 truncate">
+                        <span className="font-medium text-gray-900 truncate text-sm sm:text-base">
                           {m.teamA?.name}
                         </span>
                         <Swords className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -558,11 +563,11 @@ export default function ScheduleMatchManagement() {
                             m.teamB?.name?.charAt(0).toUpperCase() || "?"
                           )}
                         </div>
-                        <span className="font-medium text-gray-900 truncate">
+                        <span className="font-medium text-gray-900 truncate text-sm sm:text-base">
                           {m.teamB?.name}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-gray-600 flex-shrink-0">
+                      <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 flex-shrink-0">
                         <Clock className="w-3 h-3" />
                         {m.matchTime}
                       </div>
@@ -628,26 +633,26 @@ export default function ScheduleMatchManagement() {
                     #{i + 1}
                   </span>
                   <select
-                    value={m.teamA}
-                    onChange={(e) => updateBulkRow(i, "teamA", e.target.value)}
+                    value={m.teamAId}
+                    onChange={(e) => updateBulkRow(i, "teamAId", e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     <option value="">Pilih Team A</option>
                     {allTeamsForDropdown.map((t) => (
-                      <option key={`a-${i}-${t.id}`} value={t.name}>
+                      <option key={`a-${i}-${t.id}`} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </select>
                   <Swords className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <select
-                    value={m.teamB}
-                    onChange={(e) => updateBulkRow(i, "teamB", e.target.value)}
+                    value={m.teamBId}
+                    onChange={(e) => updateBulkRow(i, "teamBId", e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     <option value="">Pilih Team B</option>
                     {allTeamsForDropdown.map((t) => (
-                      <option key={`b-${i}-${t.id}`} value={t.name}>
+                      <option key={`b-${i}-${t.id}`} value={t.id}>
                         {t.name}
                       </option>
                     ))}
@@ -714,15 +719,15 @@ export default function ScheduleMatchManagement() {
                 Team A
               </label>
               <select
-                value={editForm.teamA}
+                value={editForm.teamAId}
                 onChange={(e) =>
-                  setEditForm((p) => ({ ...p, teamA: e.target.value }))
+                  setEditForm((p) => ({ ...p, teamAId: e.target.value }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
                 <option value="">Pilih Team A</option>
                 {allTeamsForDropdown.map((t) => (
-                  <option key={t.id} value={t.name}>
+                  <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
@@ -733,15 +738,15 @@ export default function ScheduleMatchManagement() {
                 Team B
               </label>
               <select
-                value={editForm.teamB}
+                value={editForm.teamBId}
                 onChange={(e) =>
-                  setEditForm((p) => ({ ...p, teamB: e.target.value }))
+                  setEditForm((p) => ({ ...p, teamBId: e.target.value }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
                 <option value="">Pilih Team B</option>
                 {allTeamsForDropdown.map((t) => (
-                  <option key={t.id} value={t.name}>
+                  <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
