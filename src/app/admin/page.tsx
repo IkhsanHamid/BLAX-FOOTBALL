@@ -50,6 +50,7 @@ export default function AdminPage() {
     if (!isAdmin || !user) return;
     if (user.role === "Admin-news") return;
     if (user.role === "Sub-Admin") return;
+    if (user.role === "Sub-Admin-1") return;
     if (user.role === "Co-Admin") return;
 
     const setupFCM = async () => {
@@ -155,6 +156,7 @@ export default function AdminPage() {
         user?.role !== "Admin-Ayo" &&
         user?.role !== "Admin-news" &&
         user?.role !== "Sub-Admin" &&
+        user?.role !== "Sub-Admin-1" &&
         user?.role !== "Co-Admin" &&
         !adminStatus?.isAdmin
       ) {
@@ -169,6 +171,9 @@ export default function AdminPage() {
       }
       if (user?.role === "Sub-Admin") {
         setSelectedTab("schedule-matches");
+      }
+      if (user?.role === "Sub-Admin-1") {
+        setSelectedTab("booking-history");
       }
     } catch (error) {
       console.error("Error checking admin access:", error);
@@ -218,6 +223,25 @@ export default function AdminPage() {
       return <NewsTab />;
     }
 
+    if (user?.role === "Sub-Admin-1") {
+      const allowedTabs = [
+        "booking-history",
+        "lineup",
+        "reschedule",
+        "event-kelola",
+        "event-team",
+        "event-bracket",
+        "refund",
+      ];
+      if (!allowedTabs.includes(selectedTab)) {
+        return (
+          <div className="text-center py-12">
+            <p className="text-gray-600">Anda tidak memiliki akses ke menu ini.</p>
+          </div>
+        );
+      }
+    }
+
     switch (selectedTab) {
       case "reports":
         return <ReportsTab userRole={user?.role} />;
@@ -230,6 +254,7 @@ export default function AdminPage() {
       case "lineup":
         return <LineupManagement />;
       case "lineup-kehadiran":
+        if (user?.role !== "Owner") return null;
         return <AttendanceTab />;
       case "users":
         return <UsersTab />;
@@ -251,7 +276,7 @@ export default function AdminPage() {
       case "deposit":
         return <DepositManagementComponent />;
       case "refund":
-        if (user?.role !== "Admin" && user?.role !== "Owner") {
+        if (user?.role !== "Admin" && user?.role !== "Owner" && user?.role !== "Sub-Admin-1") {
           return (
             <div className="text-center py-12">
               <p className="text-gray-600">
