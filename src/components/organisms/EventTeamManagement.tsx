@@ -138,9 +138,8 @@ const getEffectiveSlotConfig = (
   category?: "INTERNAL" | "EXTERNAL",
   maxSquadSize?: number | null,
 ): { gk: number; player: number; total: number } => {
-  if (category === "EXTERNAL" && maxSquadSize != null && maxSquadSize > 0) {
-    const total = maxSquadSize;
-    return { gk: 1, player: total - 1, total };
+  if (maxSquadSize != null && maxSquadSize > 0) {
+    return { gk: 1, player: maxSquadSize - 1, total: maxSquadSize };
   }
   return MATCH_SLOTS[typeMatch ?? "FOOTBALL"];
 };
@@ -861,6 +860,7 @@ function TeamDetailCard({
   const mainPlayers = players.filter((p) => !p.isSubstitute);
   const gkPlayers = mainPlayers.filter((p) => p.isGk);
   const fieldPlayers = mainPlayers.filter((p) => !p.isGk);
+  const subPlayers = players.filter((p) => p.isSubstitute);
 
   const filledGk = team.slot
     ? team.slot.gkSlots - (team.availableGkSlots ?? team.slot.gkSlots)
@@ -868,7 +868,9 @@ function TeamDetailCard({
   const filledPlayer = team.slot
     ? team.slot.playerSlots - (team.availablePlayerSlots ?? team.slot.playerSlots)
     : fieldPlayers.length;
-  const totalFilled = filledGk + filledPlayer;
+  const totalFilled = team.slot
+    ? filledGk + filledPlayer
+    : filledGk + filledPlayer + subPlayers.length;
   const teamTotalSlots = team.slot?.totalSlots ?? slotConfig.total;
   const fillPercent =
     teamTotalSlots > 0
@@ -1118,7 +1120,7 @@ function TeamDetailCard({
               <div className="flex-1 h-px bg-slate-100" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {Array.from({ length: team.slot?.playerSlots ?? slotConfig.player }).map((_, i) => (
+              {Array.from({ length: Math.max(0, (team.slot?.playerSlots ?? slotConfig.player) - subPlayers.length) }).map((_, i) => (
                 <PlayerSlot
                   key={`player-${i}`}
                   player={fieldPlayers[i]}
@@ -1129,6 +1131,32 @@ function TeamDetailCard({
               ))}
             </div>
           </div>
+
+          {/* Substitutes section */}
+          {players.filter((p) => p.isSubstitute).length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2.5">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200">
+                  <Users className="w-3.5 h-3.5 text-gray-600" />
+                  <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
+                    Cadangan
+                  </span>
+                </div>
+                <div className="flex-1 h-px bg-slate-100" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {players.filter((p) => p.isSubstitute).map((sub, i) => (
+                  <PlayerSlot
+                    key={sub.id ?? `sub-${i}`}
+                    player={sub}
+                    slotIndex={i + 1}
+                    isGk={false}
+                    isEmpty={false}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Player full detail table */}
           {players.length > 0 && (
