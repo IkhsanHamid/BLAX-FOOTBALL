@@ -286,10 +286,11 @@ const EventCard = ({
               variant="primary"
               size="sm"
               onClick={() => onDetail(event.id)}
+              disabled={isExpired}
               className="shadow-sm hover:shadow-md text-sm"
             >
-              Lihat Event
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              {isExpired ? "Selesai" : "Lihat Event"}
+              {!isExpired && <ArrowRight className="w-3.5 h-3.5 ml-1.5" />}
             </Button>
           </div>
         </div>

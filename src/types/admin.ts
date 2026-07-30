@@ -568,3 +568,33 @@ export interface AttendanceHistoryResponse {
   statusCode: number;
   data: AttendanceHistoryData;
 }
+
+export interface ScanBookingData {
+  bookId: string;
+  customerName: string;
+  phone: string;
+  scheduleName: string;
+  date: string;
+  time: string;
+  venue: string;
+  position: string;
+  jerseyNumber: string;
+  jerseySize: string;
+  teamName: string;
+}
+
+export interface ScanBookingResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: ScanBookingData;
+}
+
+export interface CheckinResponse {
+  status: boolean;
+  statusCode: number;
+  message: string;
+  data: {
+    updatedCount: number;
+  };
+}
