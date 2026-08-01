@@ -495,42 +495,51 @@ function ScanQrModal({
       } else {
         scannerRef.current = null;
       }
+      setShowManual(false);
+      setCameraError("");
       return;
     }
-    const el = document.getElementById("qr-reader");
-    if (!el) return;
-    setCameraError("");
-    const scanner = new Html5Qrcode("qr-reader");
-    scannerRef.current = scanner;
-    const startScanner = (facingMode: any) =>
-      scanner.start(
-        facingMode,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          if (scannerStartedRef.current) {
-            scanner.stop().then(() => {
-              scannerStartedRef.current = false;
-              scannerRef.current = null;
-            }).catch(() => {});
-          }
-          setScanBookId(decodedText);
-          setTimeout(() => onScan(), 100);
-        },
-        () => {},
-      );
-    startScanner({ exact: "environment" })
-      .then(() => { scannerStartedRef.current = true; })
-      .catch(() =>
-        startScanner({ exact: "user" })
-          .then(() => { scannerStartedRef.current = true; })
-          .catch(() => {
-            setCameraError("Kamera tidak tersedia. Silakan input manual.");
-            setShowManual(true);
-          }),
-      );
+    const timer = setTimeout(() => {
+      const el = document.getElementById("qr-reader");
+      if (!el) {
+        setCameraError("Gagal memuat kamera. Input manual tersedia.");
+        setShowManual(true);
+        return;
+      }
+      setCameraError("");
+      const scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+      const startScanner = (facingMode: any) =>
+        scanner.start(
+          facingMode,
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            if (scannerStartedRef.current) {
+              scanner.stop().then(() => {
+                scannerStartedRef.current = false;
+                scannerRef.current = null;
+              }).catch(() => {});
+            }
+            setScanBookId(decodedText);
+            setTimeout(() => onScan(), 100);
+          },
+          () => {},
+        );
+      startScanner({ exact: "environment" })
+        .then(() => { scannerStartedRef.current = true; })
+        .catch(() =>
+          startScanner({ exact: "user" })
+            .then(() => { scannerStartedRef.current = true; })
+            .catch(() => {
+              setCameraError("Kamera tidak tersedia. Pastikan menggunakan HTTPS dan izinkan akses kamera.");
+              setShowManual(true);
+            }),
+        );
+    }, 300);
     return () => {
-      if (scannerStartedRef.current) {
-        scanner.stop().then(() => {
+      clearTimeout(timer);
+      if (scannerStartedRef.current && scannerRef.current) {
+        scannerRef.current.stop().then(() => {
           scannerStartedRef.current = false;
           scannerRef.current = null;
         }).catch(() => {});
