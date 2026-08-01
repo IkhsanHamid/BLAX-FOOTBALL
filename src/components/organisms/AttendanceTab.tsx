@@ -499,7 +499,7 @@ function ScanQrModal({
       setCameraError("");
       return;
     }
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const el = document.getElementById("qr-reader");
       if (!el) {
         setCameraError("Gagal memuat kamera. Input manual tersedia.");
@@ -507,6 +507,16 @@ function ScanQrModal({
         return;
       }
       setCameraError("");
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch {
+        setCameraError("Akses kamera ditolak. Izinkan kamera di pengaturan browser lalu coba lagi.");
+        setShowManual(true);
+        return;
+      }
+
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       const startScanner = (facingMode: any) =>
