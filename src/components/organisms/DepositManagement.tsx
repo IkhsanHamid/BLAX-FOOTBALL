@@ -377,6 +377,7 @@ export default function DepositManagementComponent() {
         "No. Telepon",
         "Tipe",
         "Amount",
+        "Status",
         "Saldo Sebelum",
         "Saldo Sesudah",
         "Dibuat",
@@ -388,6 +389,7 @@ export default function DepositManagementComponent() {
         record.userPhone,
         record.type,
         record.amount,
+        record.paymentStatus || "-",
         record.balanceBefore,
         record.balanceAfter,
         new Date(record.createdAt).toLocaleDateString("id-ID", {
@@ -694,6 +696,7 @@ export default function DepositManagementComponent() {
                         <TableHead>Phone</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Saldo Sebelum</TableHead>
                         <TableHead>Saldo Sesudah</TableHead>
                         <TableHead>Created</TableHead>
@@ -707,11 +710,7 @@ export default function DepositManagementComponent() {
                           </TableCell>
                           <TableCell>{record.userPhone}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                record.type === "TOPUP" ? "success" : "default"
-                              }
-                            >
+                            <Badge variant="default">
                               {record.type}
                             </Badge>
                           </TableCell>
@@ -719,6 +718,24 @@ export default function DepositManagementComponent() {
                             className={`font-medium ${record.amount >= 0 ? "text-green-600" : "text-red-600"}`}
                           >
                             {formatCurrency(record.amount)}
+                          </TableCell>
+                          <TableCell>
+                            {record.paymentStatus ? (
+                              <Badge
+                                variant={
+                                  record.paymentStatus.toLowerCase() === "paid" ||
+                                  record.paymentStatus.toLowerCase() === "success"
+                                    ? "success"
+                                    : record.paymentStatus.toLowerCase() === "failed"
+                                      ? "destructive"
+                                      : "default"
+                                }
+                              >
+                                {record.paymentStatus}
+                              </Badge>
+                            ) : (
+                              "-"
+                            )}
                           </TableCell>
                           <TableCell>
                             {formatCurrency(record.balanceBefore)}

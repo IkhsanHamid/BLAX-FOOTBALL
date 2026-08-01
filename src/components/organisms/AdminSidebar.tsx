@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     icon: Shield,
     children: [
       { id: "lineup", label: "Kelola Lineup", icon: Shield },
-      // { id: "lineup-kehadiran", label: "Kehadiran", icon: ClipboardCheck },
+      { id: "lineup-kehadiran", label: "Kehadiran (BETA)", icon: ClipboardCheck },
     ],
   },
   { id: "users", label: "Member", icon: Users },
@@ -129,6 +129,7 @@ export default function AdminSidebar({
   const isAyo = userRole === "Admin-Ayo";
   const isNewsOnly = userRole === "Admin-news";
   const isSubAdmin = userRole === "Sub-Admin";
+  const isSubAdmin1 = userRole === "Sub-Admin-1";
   const isCoAdmin = userRole === "Co-Admin";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
@@ -222,6 +223,24 @@ export default function AdminSidebar({
       });
       return items;
     }
+    if (isSubAdmin1) {
+      const subAdmin1Ids = [
+        "booking-history",
+        "lineup",
+        "reschedule",
+        "event",
+        "refund",
+      ];
+      return navItems.filter((item) => subAdmin1Ids.includes(item.id)).map((item) => {
+        if (item.id === "lineup" && item.children) {
+          return {
+            ...item,
+            children: item.children.filter((c) => c.id !== "lineup-kehadiran"),
+          };
+        }
+        return item;
+      });
+    }
     if (isCoAdmin) {
       const coAdminIds = [
         "booking-history",
@@ -255,6 +274,15 @@ export default function AdminSidebar({
     )
       return false;
     return true;
+  }).map((item) => {
+    // Kehadiran (BETA) hanya untuk Owner
+    if (item.id === "lineup" && item.children && userRole !== "Owner") {
+      return {
+        ...item,
+        children: item.children.filter((c) => c.id !== "lineup-kehadiran"),
+      };
+    }
+    return item;
   });
   })();
 
