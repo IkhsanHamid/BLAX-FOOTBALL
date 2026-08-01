@@ -486,6 +486,7 @@ function ScanQrModal({
   const [showManual, setShowManual] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -500,24 +501,12 @@ function ScanQrModal({
       setShowManual(false);
       setCameraError("");
       setCameraLoading(false);
-      return;
+      setCameraReady(false);
     }
-
-    setShowManual(false);
-    setCameraError("");
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !qrContainerRef.current) return;
-
-    const allow = window.confirm(
-      "Izinkan akses kamera untuk scan QR code.\n\nKlik OK untuk mengaktifkan kamera.",
-    );
-    if (!allow) {
-      setShowManual(true);
-      return;
-    }
-
+  const startCamera = useCallback(() => {
+    if (!qrContainerRef.current) return;
     setCameraLoading(true);
     setCameraError("");
 
@@ -545,12 +534,14 @@ function ScanQrModal({
       .then(() => {
         scannerStartedRef.current = true;
         setCameraLoading(false);
+        setCameraReady(true);
       })
       .catch(() =>
         startScanner({ exact: "user" })
           .then(() => {
             scannerStartedRef.current = true;
             setCameraLoading(false);
+            setCameraReady(true);
           })
           .catch(() => {
             setCameraLoading(false);
@@ -558,18 +549,7 @@ function ScanQrModal({
             setShowManual(true);
           }),
       );
-
-    return () => {
-      if (scannerStartedRef.current && scannerRef.current) {
-        scannerRef.current.stop().then(() => {
-          scannerStartedRef.current = false;
-          scannerRef.current = null;
-        }).catch(() => {});
-      } else {
-        scannerRef.current = null;
-      }
-    };
-  }, [open]);
+  }, [onScan]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -588,13 +568,33 @@ function ScanQrModal({
 
           {!showManual ? (
             <div>
-              <div id="qr-reader" ref={qrContainerRef} className="w-full max-w-xs mx-auto rounded-lg overflow-hidden" style={{ minHeight: cameraLoading ? 200 : 250 }} />
-              {cameraLoading && (
-                <p className="text-center text-xs text-gray-400 mt-2 animate-pulse">Mengaktifkan kamera...</p>
+              {!cameraReady && !cameraLoading && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center">
+                    <QrCode className="w-8 h-8 text-sky-500" />
+                  </div>
+                  <p className="text-sm text-gray-600 text-center">
+                    Klik tombol di bawah untuk mengaktifkan kamera
+                  </p>
+                  <Button variant="primary" onClick={startCamera}>
+                    Aktifkan Kamera
+                  </Button>
+                </div>
               )}
-              {!cameraLoading && !cameraError && (
+
+              {cameraLoading && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-gray-600">Mengaktifkan kamera...</p>
+                </div>
+              )}
+
+              <div id="qr-reader" ref={qrContainerRef} className="w-full max-w-xs mx-auto rounded-lg overflow-hidden" style={{ minHeight: cameraReady ? 250 : 0 }} />
+
+              {cameraReady && (
                 <p className="text-center text-xs text-gray-400 mt-2">Arahkan kamera ke QR code</p>
               )}
+
               {cameraError && (
                 <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
