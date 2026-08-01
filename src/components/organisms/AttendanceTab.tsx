@@ -505,7 +505,7 @@ function ScanQrModal({
     }
   }, [open]);
 
-  const startCamera = useCallback(() => {
+  const startCamera = async () => {
     if (!qrContainerRef.current) return;
     setCameraLoading(true);
     setCameraError("");
@@ -549,7 +549,7 @@ function ScanQrModal({
             setShowManual(true);
           }),
       );
-  }, [onScan]);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
