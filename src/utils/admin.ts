@@ -46,6 +46,8 @@ import {
   UpdateAttendancePayload,
   CompleteSchedulePayload,
   AttendanceHistoryResponse,
+  ScanBookingResponse,
+  CheckinResponse,
 } from "@/types/admin";
 import { News } from "@/types/news";
 import { GalleriesRequest, GalleryData } from "@/types/galleries";
@@ -1389,6 +1391,21 @@ class AdminService {
     }
   }
 
+  async bulkUpdateAttendance(
+    lineups: UpdateAttendancePayload[],
+  ): Promise<any> {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/attendance/lineup/bulk`,
+        { lineups },
+      );
+      return response;
+    } catch (error) {
+      console.error("Error bulk updating attendance:", error);
+      throw error;
+    }
+  }
+
   async completeSchedule(
     scheduleId: string,
     payload: CompleteSchedulePayload,
@@ -1458,6 +1475,30 @@ class AdminService {
       return response;
     } catch (error) {
       console.error("Error auto advancing:", error);
+      throw error;
+    }
+  }
+
+  async scanAttendance(bookId: string): Promise<ScanBookingResponse> {
+    try {
+      const response = await apiClient.post(`/api/v1/attendance/scan`, {
+        bookId,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error scanning attendance:", error);
+      throw error;
+    }
+  }
+
+  async checkinAttendance(bookId: string): Promise<CheckinResponse> {
+    try {
+      const response = await apiClient.post(`/api/v1/attendance/checkin`, {
+        bookId,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error checking in attendance:", error);
       throw error;
     }
   }

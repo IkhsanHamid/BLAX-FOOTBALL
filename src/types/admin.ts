@@ -230,6 +230,7 @@ export interface DepositHistoryRecord {
   balanceAfter: number;
   bookingId: string | null;
   paymentId: string;
+  paymentStatus?: string;
   createdAt: string;
 }
 
@@ -525,6 +526,7 @@ export interface AttendanceChecklistResponse {
 }
 
 export interface UpdateAttendancePayload {
+  lineupId?: string;
   jerseyNumber?: string;
   jerseySize?: string;
   isPresent?: boolean;
@@ -541,6 +543,7 @@ export interface AttendanceHistoryPlayer {
   isPresent: boolean;
   jerseyNumber: string | null;
   jerseySize: string | null;
+  lineupId?: string;
 }
 
 export interface AttendanceHistoryTeam {
@@ -569,6 +572,15 @@ export interface AttendanceHistoryResponse {
   data: AttendanceHistoryData;
 }
 
+export interface ScanLineupData {
+  lineupId: string;
+  team: string;
+  position: string;
+  jerseyNumber: string | null;
+  jerseySize: string | null;
+  isPresent: boolean;
+}
+
 export interface ScanBookingData {
   bookId: string;
   customerName: string;
@@ -577,10 +589,8 @@ export interface ScanBookingData {
   date: string;
   time: string;
   venue: string;
-  position: string;
-  jerseyNumber: string;
-  jerseySize: string;
   teamName: string;
+  lineups: ScanLineupData[];
 }
 
 export interface ScanBookingResponse {
