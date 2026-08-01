@@ -482,8 +482,10 @@ function ScanQrModal({
 }) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerStartedRef = useRef(false);
+  const qrContainerRef = useRef<HTMLDivElement | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [cameraLoading, setCameraLoading] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -497,56 +499,67 @@ function ScanQrModal({
       }
       setShowManual(false);
       setCameraError("");
+      setCameraLoading(false);
       return;
     }
-    const timer = setTimeout(() => {
-      const el = document.getElementById("qr-reader");
-      if (!el) {
-        setCameraError("Gagal memuat kamera. Input manual tersedia.");
-        setShowManual(true);
-        return;
-      }
 
-      const allow = window.confirm(
-        "Izinkan akses kamera untuk scan QR code.\n\nKlik OK untuk mengaktifkan kamera.",
+    setShowManual(false);
+    setCameraError("");
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !qrContainerRef.current) return;
+
+    const allow = window.confirm(
+      "Izinkan akses kamera untuk scan QR code.\n\nKlik OK untuk mengaktifkan kamera.",
+    );
+    if (!allow) {
+      setShowManual(true);
+      return;
+    }
+
+    setCameraLoading(true);
+    setCameraError("");
+
+    const scanner = new Html5Qrcode("qr-reader");
+    scannerRef.current = scanner;
+
+    const startScanner = (facingMode: any) =>
+      scanner.start(
+        facingMode,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          if (scannerStartedRef.current) {
+            scanner.stop().then(() => {
+              scannerStartedRef.current = false;
+              scannerRef.current = null;
+            }).catch(() => {});
+          }
+          setScanBookId(decodedText);
+          setTimeout(() => onScan(), 100);
+        },
+        () => {},
       );
-      if (!allow) {
-        setShowManual(true);
-        return;
-      }
 
-      setCameraError("");
-      const scanner = new Html5Qrcode("qr-reader");
-      scannerRef.current = scanner;
-      const startScanner = (facingMode: any) =>
-        scanner.start(
-          facingMode,
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            if (scannerStartedRef.current) {
-              scanner.stop().then(() => {
-                scannerStartedRef.current = false;
-                scannerRef.current = null;
-              }).catch(() => {});
-            }
-            setScanBookId(decodedText);
-            setTimeout(() => onScan(), 100);
-          },
-          () => {},
-        );
-      startScanner({ exact: "environment" })
-        .then(() => { scannerStartedRef.current = true; })
-        .catch(() =>
-          startScanner({ exact: "user" })
-            .then(() => { scannerStartedRef.current = true; })
-            .catch(() => {
-              setCameraError("Kamera tidak tersedia. Pastikan gunakan HTTPS dan izinkan akses kamera di pengaturan browser.");
-              setShowManual(true);
-            }),
-        );
-    }, 500);
+    startScanner({ exact: "environment" })
+      .then(() => {
+        scannerStartedRef.current = true;
+        setCameraLoading(false);
+      })
+      .catch(() =>
+        startScanner({ exact: "user" })
+          .then(() => {
+            scannerStartedRef.current = true;
+            setCameraLoading(false);
+          })
+          .catch(() => {
+            setCameraLoading(false);
+            setCameraError("Kamera tidak tersedia. Pastikan gunakan HTTPS dan izinkan akses kamera.");
+            setShowManual(true);
+          }),
+      );
+
     return () => {
-      clearTimeout(timer);
       if (scannerStartedRef.current && scannerRef.current) {
         scannerRef.current.stop().then(() => {
           scannerStartedRef.current = false;
@@ -575,7 +588,13 @@ function ScanQrModal({
 
           {!showManual ? (
             <div>
-              <div id="qr-reader" className="w-full max-w-xs mx-auto rounded-lg overflow-hidden" />
+              <div id="qr-reader" ref={qrContainerRef} className="w-full max-w-xs mx-auto rounded-lg overflow-hidden" style={{ minHeight: cameraLoading ? 200 : 250 }} />
+              {cameraLoading && (
+                <p className="text-center text-xs text-gray-400 mt-2 animate-pulse">Mengaktifkan kamera...</p>
+              )}
+              {!cameraLoading && !cameraError && (
+                <p className="text-center text-xs text-gray-400 mt-2">Arahkan kamera ke QR code</p>
+              )}
               {cameraError && (
                 <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
