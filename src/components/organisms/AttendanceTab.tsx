@@ -499,24 +499,23 @@ function ScanQrModal({
       setCameraError("");
       return;
     }
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       const el = document.getElementById("qr-reader");
       if (!el) {
         setCameraError("Gagal memuat kamera. Input manual tersedia.");
         setShowManual(true);
         return;
       }
-      setCameraError("");
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        stream.getTracks().forEach((t) => t.stop());
-      } catch {
-        setCameraError("Akses kamera ditolak. Izinkan kamera di pengaturan browser lalu coba lagi.");
+      const allow = window.confirm(
+        "Izinkan akses kamera untuk scan QR code.\n\nKlik OK untuk mengaktifkan kamera.",
+      );
+      if (!allow) {
         setShowManual(true);
         return;
       }
 
+      setCameraError("");
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       const startScanner = (facingMode: any) =>
@@ -541,11 +540,11 @@ function ScanQrModal({
           startScanner({ exact: "user" })
             .then(() => { scannerStartedRef.current = true; })
             .catch(() => {
-              setCameraError("Kamera tidak tersedia. Pastikan menggunakan HTTPS dan izinkan akses kamera.");
+              setCameraError("Kamera tidak tersedia. Pastikan gunakan HTTPS dan izinkan akses kamera di pengaturan browser.");
               setShowManual(true);
             }),
         );
-    }, 300);
+    }, 500);
     return () => {
       clearTimeout(timer);
       if (scannerStartedRef.current && scannerRef.current) {
