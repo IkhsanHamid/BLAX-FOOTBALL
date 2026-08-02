@@ -486,7 +486,7 @@ function ScanQrModal({
   const [showManual, setShowManual] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraLoading, setCameraLoading] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -501,12 +501,16 @@ function ScanQrModal({
       setShowManual(false);
       setCameraError("");
       setCameraLoading(false);
-      setCameraReady(false);
+      setCameraActive(false);
     }
   }, [open]);
 
   const startCamera = async () => {
-    if (!qrContainerRef.current) return;
+    if (!qrContainerRef.current) {
+      setCameraError("Gagal mengakses kamera. Gunakan input manual.");
+      setShowManual(true);
+      return;
+    }
     setCameraLoading(true);
     setCameraError("");
 
@@ -530,25 +534,33 @@ function ScanQrModal({
         () => {},
       );
 
-    startScanner({ exact: "environment" })
-      .then(() => {
-        scannerStartedRef.current = true;
-        setCameraLoading(false);
-        setCameraReady(true);
-      })
-      .catch(() =>
-        startScanner({ exact: "user" })
-          .then(() => {
-            scannerStartedRef.current = true;
-            setCameraLoading(false);
-            setCameraReady(true);
-          })
-          .catch(() => {
-            setCameraLoading(false);
-            setCameraError("Kamera tidak tersedia. Pastikan gunakan HTTPS dan izinkan akses kamera.");
-            setShowManual(true);
-          }),
-      );
+    const TIMEOUT_MS = 15000;
+
+    const tryStart = async () => {
+      try {
+        return await startScanner({ exact: "environment" });
+      } catch {
+        return await startScanner({ exact: "user" });
+      }
+    };
+
+    try {
+      const result = await Promise.race<unknown>([
+        tryStart(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)),
+      ]);
+      scannerStartedRef.current = true;
+      setCameraLoading(false);
+      setCameraActive(true);
+    } catch (e: any) {
+      setCameraLoading(false);
+      if (e.message === "TIMEOUT") {
+        setCameraError("Kamera tidak merespons. Coba input manual.");
+      } else {
+        setCameraError("Kamera tidak tersedia. Pastikan gunakan HTTPS dan izinkan akses kamera.");
+      }
+      setShowManual(true);
+    }
   };
 
   return (
@@ -568,7 +580,7 @@ function ScanQrModal({
 
           {!showManual ? (
             <div>
-              {!cameraReady && !cameraLoading && (
+              {!cameraActive && !cameraLoading && (
                 <div className="flex flex-col items-center gap-3 py-4">
                   <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center">
                     <QrCode className="w-8 h-8 text-sky-500" />
@@ -589,9 +601,9 @@ function ScanQrModal({
                 </div>
               )}
 
-              <div id="qr-reader" ref={qrContainerRef} className="w-full max-w-xs mx-auto rounded-lg overflow-hidden" style={{ minHeight: cameraReady ? 250 : 0 }} />
+              <div id="qr-reader" ref={qrContainerRef} className="w-full max-w-xs mx-auto rounded-lg overflow-hidden bg-black" style={{ minHeight: 250 }} />
 
-              {cameraReady && (
+              {cameraActive && (
                 <p className="text-center text-xs text-gray-400 mt-2">Arahkan kamera ke QR code</p>
               )}
 
