@@ -57,6 +57,7 @@ interface Schedule {
 interface BookingDetailModalProps {
   schedule: Schedule | null;
   bookings: BookingDetail[];
+  apiTotalBaseFee?: number;
   onClose: () => void;
 }
 
@@ -67,6 +68,7 @@ interface BookingDetailModalProps {
 const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   schedule,
   bookings,
+  apiTotalBaseFee,
   onClose,
 }) => {
   const { showSuccess, showError } = useNotifications();
@@ -77,11 +79,11 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
 
   // Calculate totals
   const totalSlots: number = bookings.reduce((sum, b) => sum + b.quantity, 0);
-  const totalBaseFee: number = bookings.reduce(
+  const computedBaseFee: number = bookings.reduce(
     (sum, b) => sum + (b.baseFee ? parseInt(String(b.baseFee)) : 0),
     0,
   );
-  const totalAdminFee: number = bookings.reduce(
+  const totalBaseFee: number = apiTotalBaseFee ?? computedBaseFee;const totalAdminFee: number = bookings.reduce(
     (sum, b) => sum + (!b.isMember && b.adminFee ? parseInt(b.adminFee) : 0),
     0,
   );
