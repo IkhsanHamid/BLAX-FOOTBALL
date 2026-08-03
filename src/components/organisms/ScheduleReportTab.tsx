@@ -89,6 +89,7 @@ export default function ScheduleReportTab({
   );
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [bookingDetails, setBookingDetails] = useState<BookingDetail[]>([]);
+  const [apiTotalBaseFee, setApiTotalBaseFee] = useState<number>(0);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -337,6 +338,7 @@ export default function ScheduleReportTab({
     try {
       const type = (schedule as any).type;
       const result = await adminService.getScheduleBookings(schedule.id, type);
+      setApiTotalBaseFee(parseInt(result?.totalBaseFee) || 0);
       if (type === "event" && Array.isArray(result.teams)) {
         const allBookings: any[] = [];
         result.teams.forEach((team: any) => {
@@ -460,11 +462,6 @@ export default function ScheduleReportTab({
                 <p className="text-3xl font-bold text-gray-900">
                   {stats.totalBooking}
                 </p>
-                <p className="text-xs text-blue-600 flex items-center mt-1">
-                  <Activity className="w-3 h-3 mr-1" />
-                  {stats.activeBookings} aktif, {stats.completedBookings}{" "}
-                  selesai
-                </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
                 <Calendar className="w-6 h-6 text-blue-600" />
@@ -483,11 +480,6 @@ export default function ScheduleReportTab({
                 <p className="text-3xl font-bold text-gray-900">
                   Rp {(stats.totalRevenue / 1000000).toFixed(1)}M
                 </p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  Rata-rata: Rp {Math.round(stats.averageRevenue / 1000)}K per
-                  booking
-                </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <DollarSign className="w-4 h-4 text-green-600" />
@@ -505,13 +497,6 @@ export default function ScheduleReportTab({
                 </p>
                 <p className="text-3xl font-bold text-gray-900">
                   {stats.totalPlayers}
-                </p>
-                <p className="text-xs text-purple-600 flex items-center mt-1">
-                  <Users className="w-3 h-3 mr-1" />
-                  {stats.totalBooking > 0
-                    ? Math.round(stats.totalPlayers / stats.totalBooking)
-                    : 0}{" "}
-                  rata-rata per sesi
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -773,6 +758,7 @@ export default function ScheduleReportTab({
         <BookingDetailModal
           schedule={selectedSchedule}
           bookings={bookingDetails}
+          apiTotalBaseFee={apiTotalBaseFee}
           onClose={handleCloseModal}
         />
       )}
