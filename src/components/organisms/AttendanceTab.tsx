@@ -64,6 +64,7 @@ export default function AttendanceTab() {
   const [penanggungJawab, setPenanggungJawab] = useState("");
   const [completeResult, setCompleteResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Scan modal (inside Kehadiran)
   const [showScanModal, setShowScanModal] = useState(false);
@@ -135,11 +136,16 @@ export default function AttendanceTab() {
     [showError],
   );
 
-  const handleCompleteSchedule = async () => {
+  const handleShowConfirm = () => {
     if (!penanggungJawab.trim()) {
       showError("Error", "Nama penanggung jawab wajib diisi");
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const handleCompleteSchedule = async () => {
+    setShowConfirm(false);
     setSubmitting(true);
     try {
       const res = await adminService.completeSchedule(selectedScheduleId, {
@@ -163,7 +169,7 @@ export default function AttendanceTab() {
     setScanResult(null);
     setCheckinSuccess(false);
     try {
-      const res = await adminService.scanAttendance(bookId);
+      const res = await adminService.scanAttendance(bookId, selectedScheduleId);
       if (res?.status && res?.data) {
         setScanResult(res.data);
       } else {
@@ -187,34 +193,20 @@ export default function AttendanceTab() {
           "Berhasil",
           `Checkin berhasil (${res.data?.updatedCount ?? 0} pemain)`,
         );
-        if (scanPlayer) {
-          const jersey = scanJerseyData[scanPlayer.lineupId] || {
-            jerseyNumber: "",
-            jerseySize: "",
-          };
-          const payload: any = {
-            lineupId: scanPlayer.lineupId,
-            isPresent: true,
-            jerseyNumber: jersey.jerseyNumber,
-            jerseySize: jersey.jerseySize,
-          };
-          await adminService.updateAttendance(scanPlayer.lineupId, payload);
-        } else {
-          const lineupPayloads = (scanResult.lineups || []).map(
-            (lineup: ScanLineupData) => {
-              const jersey = scanJerseyData[lineup.lineupId] || {
-                jerseyNumber: "",
-                jerseySize: "",
-              };
-              return {
-                lineupId: lineup.lineupId,
-                jerseyNumber: jersey.jerseyNumber,
-                jerseySize: jersey.jerseySize,
-              };
-            },
-          );
-          await adminService.bulkUpdateAttendance(lineupPayloads);
-        }
+        const lineupPayloads = (scanResult.lineups || []).map(
+          (lineup: ScanLineupData) => {
+            const jersey = scanJerseyData[lineup.lineupId] || {
+              jerseyNumber: "",
+              jerseySize: "",
+            };
+            return {
+              lineupId: lineup.lineupId,
+              jerseyNumber: jersey.jerseyNumber,
+              jerseySize: jersey.jerseySize,
+            };
+          },
+        );
+        await adminService.bulkUpdateAttendance(lineupPayloads);
         loadHistory(selectedScheduleId);
         setShowScanModal(false);
       } else {
@@ -357,6 +349,7 @@ export default function AttendanceTab() {
                   setShowComplete(true);
                   setCompleteResult(null);
                   setPenanggungJawab("");
+                  setShowConfirm(false);
                 }}
               >
                 <CheckCircle className="w-4 h-4 sm:mr-1" />
@@ -443,6 +436,9 @@ export default function AttendanceTab() {
                       <th className="text-left px-4 py-2 font-medium text-gray-500">
                         Nama
                       </th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-500 w-14">
+                        ID
+                      </th>
                       <th className="text-left px-4 py-2 font-medium text-gray-500 w-16">
                         Posisi
                       </th>
@@ -521,11 +517,44 @@ export default function AttendanceTab() {
               </div>
               <Button
                 variant="primary"
+                size="sm"
                 className="w-full"
                 onClick={() => setShowComplete(false)}
               >
                 Tutup
               </Button>
+            </div>
+          ) : showConfirm ? (
+            <div className="space-y-4 py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800">Konfirmasi</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Anda yakin menyelesaikan jadwal ini? Tindakan ini tidak dapat dikembalikan jika melakukan kesalahan.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setShowConfirm(false)}
+                  disabled={submitting}
+                >
+                  Kembali
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleCompleteSchedule}
+                  disabled={submitting}
+                >
+                  {submitting ? "Memproses..." : "Ya, Selesaikan"}
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 py-4">
@@ -548,19 +577,21 @@ export default function AttendanceTab() {
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
+                  size="sm"
                   className="flex-1"
-                  onClick={() => setShowComplete(false)}
+                  onClick={() => { setShowComplete(false); setShowConfirm(false); }}
                   disabled={submitting}
                 >
                   Batal
                 </Button>
                 <Button
                   variant="primary"
+                  size="sm"
                   className="flex-1"
-                  onClick={handleCompleteSchedule}
+                  onClick={handleShowConfirm}
                   disabled={submitting}
                 >
-                  {submitting ? "Memproses..." : "Selesaikan"}
+                  Selesaikan
                 </Button>
               </div>
             </div>
@@ -738,6 +769,13 @@ function ScanQrModal({
     }
   };
 
+  const allJerseyFilled = scanResult
+    ? (scanResult.lineups || []).every((l: ScanLineupData) => {
+        const j = scanJerseyData[l.lineupId];
+        return j?.jerseyNumber?.trim() && j?.jerseySize?.trim();
+      })
+    : false;
+
   return (
     <Dialog
       open={open}
@@ -747,7 +785,15 @@ function ScanQrModal({
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Scan QR / Booking ID</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Scan QR / Booking ID</DialogTitle>
+            <button
+              onClick={() => onClose()}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <p className="text-sm text-gray-500">
@@ -773,7 +819,7 @@ function ScanQrModal({
                   <p className="text-sm text-gray-600 text-center">
                     Klik tombol di bawah untuk mengaktifkan kamera
                   </p>
-                  <Button variant="primary" onClick={startCamera}>
+                  <Button variant="primary" size="sm" onClick={startCamera}>
                     Aktifkan Kamera
                   </Button>
                 </div>
@@ -791,11 +837,11 @@ function ScanQrModal({
               <div
                 id="qr-reader"
                 ref={qrContainerRef}
-                className="w-full max-w-xs mx-auto rounded-lg overflow-hidden bg-black"
-                style={{ minHeight: 250 }}
+                className="w-full max-w-xs mx-auto overflow-hidden transition-all duration-300"
+                style={{ maxHeight: cameraActive && !scanResult ? 250 : 0 }}
               />
 
-              {cameraActive && (
+              {cameraActive && !scanResult && (
                 <p className="text-center text-xs text-gray-400 mt-2">
                   Arahkan kamera ke QR code
                 </p>
@@ -807,25 +853,27 @@ function ScanQrModal({
                   <p className="text-xs text-amber-800">{cameraError}</p>
                 </div>
               )}
-              <button
-                onClick={() => {
-                  if (scannerRef.current && scannerStartedRef.current) {
-                    scannerRef.current
-                      .stop()
-                      .then(() => {
-                        scannerStartedRef.current = false;
-                        scannerRef.current = null;
-                      })
-                      .catch(() => {});
-                  } else {
-                    scannerRef.current = null;
-                  }
-                  setShowManual(true);
-                }}
-                className="mt-3 text-xs text-sky-600 hover:text-sky-800 text-center w-full"
-              >
-                Input Manual →
-              </button>
+              {!scanResult && (
+                <button
+                  onClick={() => {
+                    if (scannerRef.current && scannerStartedRef.current) {
+                      scannerRef.current
+                        .stop()
+                        .then(() => {
+                          scannerStartedRef.current = false;
+                          scannerRef.current = null;
+                        })
+                        .catch(() => {});
+                    } else {
+                      scannerRef.current = null;
+                    }
+                    setShowManual(true);
+                  }}
+                  className="mt-3 text-xs text-sky-600 hover:text-sky-800 text-center w-full"
+                >
+                  Input Manual →
+                </button>
+              )}
             </div>
           ) : (
             <div>
@@ -844,7 +892,8 @@ function ScanQrModal({
                 </div>
                 <Button
                   variant="primary"
-                  onClick={onScan}
+                  size="sm"
+                  onClick={() => onScan()}
                   disabled={scanning || !scanBookId.trim()}
                 >
                   {scanning ? "Memindai..." : "Cari"}
@@ -960,24 +1009,23 @@ function ScanQrModal({
                               <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                 <input
                                   type="text"
-                                  maxLength={5}
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                   placeholder="No"
                                   value={jersey.jerseyNumber}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/\D/g, "").slice(0, 2);
                                     setScanJerseyData({
                                       ...scanJerseyData,
                                       [lineup.lineupId]: {
                                         ...jersey,
-                                        jerseyNumber: e.target.value,
+                                        jerseyNumber: v,
                                       },
-                                    })
-                                  }
+                                    });
+                                  }}
                                   className="w-14 px-1.5 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-sky-500"
                                 />
-                                <input
-                                  type="text"
-                                  maxLength={5}
-                                  placeholder="Size"
+                                <select
                                   value={jersey.jerseySize}
                                   onChange={(e) =>
                                     setScanJerseyData({
@@ -988,8 +1036,13 @@ function ScanQrModal({
                                       },
                                     })
                                   }
-                                  className="w-14 px-1.5 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-sky-500"
-                                />
+                                  className="w-16 px-0.5 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-sky-500"
+                                >
+                                  <option value="">Size</option>
+                                  {["S", "M", "L", "XL", "XXL", "XXXL"].map((s) => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
                               </div>
                             </div>
                           );
@@ -1000,11 +1053,12 @@ function ScanQrModal({
 
                   <Button
                     variant="primary"
+                    size="sm"
                     className="w-full"
                     onClick={onCheckin}
-                    disabled={checkingIn}
+                    disabled={checkingIn || !allJerseyFilled}
                   >
-                    {checkingIn ? "Memproses..." : "Konfirmasi Hadir"}
+                    {checkingIn ? "Memproses..." : !allJerseyFilled ? "Isi No & Size Jersey" : "Konfirmasi Hadir"}
                   </Button>
                 </>
               )}
@@ -1030,23 +1084,27 @@ function HistoryPlayerRow({
   const [editSize, setEditSize] = useState(player.jerseySize || "");
   const [editPresent, setEditPresent] = useState(player.isPresent);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const handleSave = async () => {
-    if (!player.lineupId) return;
+    const lineupId = player.lineupId || player.id;
+    if (!lineupId) {
+      setEditError("Data pemain tidak valid. Silakan refresh halaman.");
+      return;
+    }
     setSaving(true);
+    setEditError("");
     try {
-      await adminService.updateAttendance(player.lineupId, {
-        lineupId: player.lineupId,
+      await adminService.updateAttendance(lineupId, {
         jerseyNumber: editNum,
         jerseySize: editSize,
         isPresent: editPresent,
       });
       onUpdate();
-    } catch {
-      // silently fail
+    } catch (err: any) {
+      setEditError(err?.message || "Gagal menyimpan");
     } finally {
       setSaving(false);
-      setEditing(false);
     }
   };
 
@@ -1054,28 +1112,38 @@ function HistoryPlayerRow({
     return (
       <tr>
         <td className="px-4 py-2 text-sm">{player.name || "—"}</td>
+        <td className="px-4 py-2 text-[11px] text-gray-400 font-mono">{player.bookId || "—"}</td>
         <td className="px-4 py-2 text-xs text-gray-500">{player.position}</td>
         <td className="px-4 py-2">
           <div className="flex flex-col gap-1">
             <input
               type="text"
-              maxLength={5}
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="No"
               value={editNum}
-              onChange={(e) => setEditNum(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                setEditNum(v);
+              }}
               className="w-full px-1.5 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-sky-500"
             />
-            <input
-              type="text"
-              maxLength={5}
-              placeholder="Size"
+            <select
               value={editSize}
               onChange={(e) => setEditSize(e.target.value)}
               className="w-full px-1.5 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-sky-500"
-            />
+            >
+              <option value="">Size</option>
+              {["S", "M", "L", "XL", "XXL", "XXXL"].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </td>
         <td className="px-4 py-2">
+          {editError && (
+            <p className="text-[10px] text-red-500 mb-1">{editError}</p>
+          )}
           <div className="flex items-center gap-1 flex-wrap">
             <select
               value={editPresent ? "true" : "false"}
@@ -1094,7 +1162,7 @@ function HistoryPlayerRow({
               <Save className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setEditing(false)}
+              onClick={() => { setEditError(""); setEditing(false); }}
               disabled={saving}
               className="p-1 text-gray-400 hover:text-gray-600"
               title="Batal"
@@ -1112,6 +1180,7 @@ function HistoryPlayerRow({
       <td className="px-4 py-2.5 text-sm font-medium text-gray-800 truncate max-w-[120px]">
         {player.name || "—"}
       </td>
+      <td className="px-4 py-2.5 text-[11px] text-gray-400 font-mono">{player.bookId || "—"}</td>
       <td className="px-4 py-2.5 text-xs text-gray-500">{player.position}</td>
       <td className="px-4 py-2.5 text-xs text-gray-500">
         {player.jerseyNumber ? `#${player.jerseyNumber}` : "—"}
@@ -1134,6 +1203,7 @@ function HistoryPlayerRow({
                 setEditNum(player.jerseyNumber || "");
                 setEditSize(player.jerseySize || "");
                 setEditPresent(player.isPresent);
+                setEditError("");
                 setEditing(true);
               }}
               className="p-0.5 text-gray-400 hover:text-sky-600 transition-colors flex-shrink-0"
