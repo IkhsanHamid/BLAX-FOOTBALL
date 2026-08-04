@@ -59,7 +59,7 @@ export class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
     }
 
     return data;
