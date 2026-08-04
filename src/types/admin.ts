@@ -544,6 +544,7 @@ export interface AttendanceHistoryPlayer {
   jerseyNumber: string | null;
   jerseySize: string | null;
   lineupId?: string;
+  bookId?: string;
 }
 
 export interface AttendanceHistoryTeam {

@@ -1479,10 +1479,11 @@ class AdminService {
     }
   }
 
-  async scanAttendance(bookId: string): Promise<ScanBookingResponse> {
+  async scanAttendance(bookId: string, scheduleId?: string): Promise<ScanBookingResponse> {
     try {
       const response = await apiClient.post(`/api/v1/attendance/scan`, {
         bookId,
+        scheduleId,
       });
       return response;
     } catch (error) {
