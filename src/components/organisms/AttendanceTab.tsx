@@ -154,14 +154,16 @@ export default function AttendanceTab() {
     }
   };
 
-  const handleScan = async () => {
-    if (!scanBookId.trim()) return;
+  const handleScan = async (directBookId?: string) => {
+    const bookId = (directBookId || scanBookId).trim();
+    if (!bookId) return;
+    setScanBookId(bookId);
     setScanning(true);
     setScanError("");
     setScanResult(null);
     setCheckinSuccess(false);
     try {
-      const res = await adminService.scanAttendance(scanBookId.trim());
+      const res = await adminService.scanAttendance(bookId);
       if (res?.status && res?.data) {
         setScanResult(res.data);
       } else {
@@ -214,6 +216,7 @@ export default function AttendanceTab() {
           await adminService.bulkUpdateAttendance(lineupPayloads);
         }
         loadHistory(selectedScheduleId);
+        setShowScanModal(false);
       } else {
         showError("Error", res?.message || "Gagal checkin");
       }
@@ -597,7 +600,7 @@ function ScanQrModal({
   setScanJerseyData: (
     v: Record<string, { jerseyNumber: string; jerseySize: string }>,
   ) => void;
-  onScan: () => void;
+  onScan: (directBookId?: string) => void;
   onCheckin: () => void;
   onClose: () => void;
 }) {
@@ -693,8 +696,8 @@ function ScanQrModal({
                 })
                 .catch(() => {});
             }
-            setScanBookId(decodedText);
-            setTimeout(() => onScan(), 100);
+          setScanBookId(decodedText);
+          onScan(decodedText);
           },
           () => {},
         ),
