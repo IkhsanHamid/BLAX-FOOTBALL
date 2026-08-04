@@ -458,6 +458,7 @@ export default function AttendanceTab() {
                     {team.gk && (
                       <HistoryPlayerRow
                         player={team.gk}
+                        editable={!history?.penanggungJawab}
                         onUpdate={() => loadHistory(selectedScheduleId)}
                       />
                     )}
@@ -465,6 +466,7 @@ export default function AttendanceTab() {
                       <HistoryPlayerRow
                         key={i}
                         player={p}
+                        editable={!history?.penanggungJawab}
                         onUpdate={() => loadHistory(selectedScheduleId)}
                       />
                     ))}
@@ -1017,9 +1019,11 @@ function ScanQrModal({
 function HistoryPlayerRow({
   player,
   onUpdate,
+  editable,
 }: {
   player: any;
   onUpdate: () => void;
+  editable: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [editNum, setEditNum] = useState(player.jerseyNumber || "");
@@ -1124,7 +1128,7 @@ function HistoryPlayerRow({
               <UserX className="w-3 h-3" /> Tidak
             </span>
           )}
-          {player.isPresent && (
+          {editable && player.isPresent && (
             <button
               onClick={() => {
                 setEditNum(player.jerseyNumber || "");

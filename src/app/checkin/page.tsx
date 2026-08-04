@@ -29,11 +29,11 @@ export default function CheckinPage() {
         if (res?.status && res?.data?.qrCode) {
           setQrCode(res.data.qrCode);
         } else {
-          setError("Gagal memuat QR code kehadiran.");
+          setError(res?.message || "Gagal memuat QR code kehadiran.");
         }
       } catch (err: any) {
         console.error("Error fetching QR code:", err);
-        setError(err?.response?.data?.message || "Gagal memuat QR code kehadiran.");
+        setError(err?.message || "Gagal memuat QR code kehadiran.");
       } finally {
         setLoading(false);
       }
