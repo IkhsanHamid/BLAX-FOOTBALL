@@ -786,11 +786,6 @@ export default function LineupManagement() {
 
       if (!over || !selectedLineup || active.id === over.id) return;
 
-      if (selectedLineup.lockLineup) {
-        showWarning("Lineup Locked", "Cannot move players. Lineup is locked.");
-        return;
-      }
-
       const activeId = active.id as string;
       const overId = over.id as string;
       const allPlayers = getAllPlayers(selectedLineup);
@@ -1068,7 +1063,7 @@ export default function LineupManagement() {
     if (!selectedLineup) return null;
 
     const maxPlayersPerTeam = getPlayersPerTeam(selectedLineup);
-    const isLocked = isSubAdmin || selectedLineup.lockLineup || false;
+    const isLocked = false;
 
     const teamKeys = selectedLineup.teams
       ? Object.keys(selectedLineup.teams)
@@ -1491,7 +1486,6 @@ export default function LineupManagement() {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                      {!isSubAdmin && (
                       <Button
                         onClick={handleLockLineup}
                         disabled={isLocking}
@@ -1518,7 +1512,6 @@ export default function LineupManagement() {
                           </>
                         )}
                       </Button>
-                      )}
 
                       <Button
                         onClick={handleExportToExcel}

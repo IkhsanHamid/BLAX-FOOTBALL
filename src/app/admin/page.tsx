@@ -254,7 +254,7 @@ export default function AdminPage() {
       case "lineup":
         return <LineupManagement />;
       case "lineup-kehadiran":
-        if (user?.role !== "Owner") return null;
+        if (user?.role === "Admin-news") return null;
         return <AttendanceTab />;
       case "users":
         return <UsersTab />;

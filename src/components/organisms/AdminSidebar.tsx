@@ -275,8 +275,8 @@ export default function AdminSidebar({
       return false;
     return true;
   }).map((item) => {
-    // Kehadiran (BETA) hanya untuk Owner
-    if (item.id === "lineup" && item.children && userRole !== "Owner") {
+    // Kehadiran (BETA) — kecuali Admin-news
+    if (item.id === "lineup" && item.children && userRole === "Admin-news") {
       return {
         ...item,
         children: item.children.filter((c) => c.id !== "lineup-kehadiran"),
