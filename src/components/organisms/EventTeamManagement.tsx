@@ -1120,7 +1120,7 @@ function TeamDetailCard({
               <div className="flex-1 h-px bg-slate-100" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {Array.from({ length: Math.max(0, (team.slot?.playerSlots ?? slotConfig.player) - subPlayers.length) }).map((_, i) => (
+              {Array.from({ length: team.slot?.playerSlots ?? slotConfig.player }).map((_, i) => (
                 <PlayerSlot
                   key={`player-${i}`}
                   player={fieldPlayers[i]}
