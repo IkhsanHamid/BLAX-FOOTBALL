@@ -62,7 +62,7 @@ export default function EventBracketManagement() {
 
   // Add goal
   const [goalMatch, setGoalMatch] = useState<MatchDetail | null>(null);
-  const [goalForm, setGoalForm] = useState({ eventTeamId: "", userId: "", type: "goal" as string });
+  const [goalForm, setGoalForm] = useState({ eventTeamId: "", userId: "", name: "", type: "goal" as string });
   const [matchPlayers, setMatchPlayers] = useState<any>(null);
   const [showDeleteGoal, setShowDeleteGoal] = useState<{ matchId: string; goalId: string } | null>(null);
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
@@ -253,7 +253,7 @@ export default function EventBracketManagement() {
       ]);
       setGoalMatch(detailRes.data);
       setMatchPlayers(playersRes?.data ?? null);
-      setGoalForm({ eventTeamId: "", userId: "", type: "goal" });
+      setGoalForm({ eventTeamId: "", userId: "", name: "", type: "goal" });
     } catch {
       showError("Error", "Gagal memuat detail match");
     }
@@ -261,13 +261,19 @@ export default function EventBracketManagement() {
 
   const handleAddGoal = async () => {
     if (!goalMatch || !goalForm.eventTeamId) return;
+    if (!goalForm.userId && !goalForm.name) return;
     setSubmitting(true);
     try {
-      await adminService.addGoal(selectedEventId, goalMatch.id, {
+      const payload: any = {
         eventTeamId: goalForm.eventTeamId,
-        userId: goalForm.userId || undefined,
         type: goalForm.type as any,
-      });
+      };
+      if (goalForm.userId) {
+        payload.userId = goalForm.userId;
+      } else {
+        payload.name = goalForm.name;
+      }
+      await adminService.addGoal(selectedEventId, goalMatch.id, payload);
       setGoalMatch(null);
       showSuccess("Berhasil", "Gol berhasil ditambahkan");
       loadEventData(selectedEventId);
@@ -878,10 +884,10 @@ export default function EventBracketManagement() {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Pemain Pencetak Gol</label>
                 <select
-                  value={`${goalForm.eventTeamId}||${goalForm.userId}`}
+                  value={`${goalForm.eventTeamId}||${goalForm.userId}||${goalForm.name}`}
                   onChange={(e) => {
-                    const [teamId, userId] = e.target.value.split("||");
-                    setGoalForm({ ...goalForm, eventTeamId: teamId, userId: userId });
+                    const [teamId, userId, name] = e.target.value.split("||");
+                    setGoalForm({ ...goalForm, eventTeamId: teamId, userId, name });
                   }}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
                 >
@@ -891,8 +897,8 @@ export default function EventBracketManagement() {
                       {matchPlayers.teamA?.players?.length > 0 && (
                         <optgroup label={matchPlayers.teamA.teamName}>
                           {matchPlayers.teamA.players.map((p: any) => (
-                            <option key={p.userId} value={`${matchPlayers.teamA.teamId}||${p.userId}`}>
-                              {p.name}
+                            <option key={p.userId || p.name} value={`${matchPlayers.teamA.teamId}||${p.userId || ""}||${p.name}`}>
+                              {p.name}{p.isSubstitute ? " (Cadangan)" : ""}
                             </option>
                           ))}
                         </optgroup>
@@ -900,8 +906,8 @@ export default function EventBracketManagement() {
                       {matchPlayers.teamB?.players?.length > 0 && (
                         <optgroup label={matchPlayers.teamB.teamName}>
                           {matchPlayers.teamB.players.map((p: any) => (
-                            <option key={p.userId} value={`${matchPlayers.teamB.teamId}||${p.userId}`}>
-                              {p.name}
+                            <option key={p.userId || p.name} value={`${matchPlayers.teamB.teamId}||${p.userId || ""}||${p.name}`}>
+                              {p.name}{p.isSubstitute ? " (Cadangan)" : ""}
                             </option>
                           ))}
                         </optgroup>
