@@ -138,9 +138,12 @@ const EventCard = ({
     TYPE_MATCH_COLOR[event.typeMatch ?? ""] ??
     "bg-slate-50 text-slate-700 border-slate-200";
 
+  const endDateOnly = event.endDate ? event.endDate.split("T")[0] : null;
+  const endTime = event.time || "23:59";
+  const endDateTime = endDateOnly ? new Date(`${endDateOnly}T${endTime}`) : new Date();
   const now = new Date();
-  const end = new Date(event.endDate);
-  const isExpired = end < now;
+  const isExpired = endDateTime < now;
+  const isH1Closed = new Date(endDateTime.getTime() - 60 * 60 * 1000) < now;
 
   return (
     <div className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
@@ -165,7 +168,12 @@ const EventCard = ({
             {isExpired ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800/80 text-slate-300 backdrop-blur-sm">
                 <Clock className="w-3 h-3" />
-                Selesai
+                Berakhir
+              </span>
+            ) : isH1Closed ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/90 text-white backdrop-blur-sm">
+                <Clock className="w-3 h-3" />
+                Ditutup
               </span>
             ) : event.isOpen ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/90 text-white backdrop-blur-sm shadow-lg">
@@ -286,11 +294,10 @@ const EventCard = ({
               variant="primary"
               size="sm"
               onClick={() => onDetail(event.id)}
-              disabled={isExpired}
               className="shadow-sm hover:shadow-md text-sm"
             >
-              {isExpired ? "Selesai" : "Lihat Event"}
-              {!isExpired && <ArrowRight className="w-3.5 h-3.5 ml-1.5" />}
+              Lihat Event
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           </div>
         </div>

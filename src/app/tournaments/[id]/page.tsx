@@ -679,7 +679,13 @@ export default function EventDetailPage() {
     : null;
 
   const now = new Date();
-  const isExpired = event ? new Date(event.endDate) < now : false;
+  const endDateOnly = event?.endDate ? event.endDate.split("T")[0] : null;
+  const endTime = event?.time || "23:59";
+  const eventEndDateTime = endDateOnly ? new Date(`${endDateOnly}T${endTime}`) : null;
+  const isExpired = eventEndDateTime ? eventEndDateTime < now : false;
+  const isH1Closed = eventEndDateTime
+    ? new Date(eventEndDateTime.getTime() - 60 * 60 * 1000) < now
+    : false;
   const canRegistTeam = event?.canRegistTeam;
   const isOnlyTeam = event?.isOnlyTeam;
   const isOnlyIndividual = event?.isOnlyIndividual;
@@ -1492,17 +1498,17 @@ export default function EventDetailPage() {
             <Button
               variant="primary"
               onClick={handleBooking}
-              disabled={!event.isOpen || isExpired || isFullBlocked}
+              disabled={!event.isOpen || isH1Closed || isFullBlocked}
               className="flex-shrink-0 shadow-md hover:shadow-lg px-5 sm:px-6 text-sm sm:text-base"
             >
               {isFullBlocked
                 ? "FULL"
-                : isExpired
+                : isExpired || isH1Closed
                   ? "Selesai"
                   : !event.isOpen
                     ? "Belum Dibuka"
                     : "Book Sekarang"}
-              {!isFullBlocked && event.isOpen && !isExpired && (
+              {!isFullBlocked && !isH1Closed && !isExpired && event.isOpen && (
                 <ChevronRight className="w-4 h-4 ml-1" />
               )}
             </Button>
