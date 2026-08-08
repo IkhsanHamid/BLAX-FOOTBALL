@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Clock,
   Plus,
@@ -64,8 +64,13 @@ export default function NewsTab() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const { showSuccess, showError } = useNotifications();
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+  const newsFetched = useRef(false);
 
   useEffect(() => {
+    if (newsFetched.current) return;
+    newsFetched.current = true;
     fetchNews();
   }, []);
 
@@ -82,7 +87,7 @@ export default function NewsTab() {
       }
     } catch (error) {
       console.error("Error fetching news:", error);
-      showError("Gagal memuat berita", "Silakan refresh halaman");
+      showErrorRef.current("Gagal memuat berita", "Silakan refresh halaman");
     } finally {
       setIsLoading(false);
     }
@@ -113,14 +118,14 @@ export default function NewsTab() {
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
-    if (!title.trim()) errors.title = "Title is required";
-    if (!excerpt.trim()) errors.excerpt = "Excerpt is required";
-    if (!content.trim()) errors.content = "Content is required";
-    if (!category.trim()) errors.category = "Category is required";
+    if (!title.trim()) errors.title = "Judul wajib diisi";
+    if (!excerpt.trim()) errors.excerpt = "Kutipan singkat wajib diisi";
+    if (!content.trim()) errors.content = "Konten wajib diisi";
+    if (!category.trim()) errors.category = "Kategori wajib diisi";
 
     // For new articles, image is required
     if (!editingNews && !image) {
-      errors.image = "Featured image is required";
+      errors.image = "Gambar utama wajib diupload";
     }
 
     setFormErrors(errors);

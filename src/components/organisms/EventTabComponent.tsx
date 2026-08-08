@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -966,8 +966,16 @@ function EventFormView({
   const { user } = useAuth();
   const canSeeBlax = user?.role === "Admin" || user?.role === "Owner";
 
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
+  const masterFetched = useRef(false);
+
   // Load master data
   useEffect(() => {
+    if (masterFetched.current) return;
+    masterFetched.current = true;
+
     const loadMasterData = async () => {
       setIsMasterLoading(true);
       try {
@@ -980,14 +988,14 @@ function EventFormView({
         setFacilities(facilitiesData.data);
         setRules(rulesData);
       } catch {
-        showError?.("Error", "Gagal memuat data master");
+        showErrorRef.current?.("Error", "Gagal memuat data master");
       } finally {
         setIsMasterLoading(false);
       }
     };
 
     loadMasterData();
-  }, [showError]);
+  }, []);
 
   // Fetch event detail for edit mode
   useEffect(() => {
@@ -1200,12 +1208,15 @@ function EventFormView({
     if (!form.dateEnd) errs.dateEnd = "Tanggal selesai wajib diisi";
     if (form.dateStart && form.dateEnd && form.dateEnd < form.dateStart)
       errs.dateEnd = "Tanggal selesai tidak boleh sebelum tanggal mulai";
+    if (!form.time) errs.time = "Jam mulai wajib diisi";
     if (!form.venueId) errs.venueId = "Venue wajib dipilih";
     if (!form.typeMatch) errs.typeMatch = "Tipe pertandingan wajib dipilih";
+    if (!form.community) errs.community = "Komunitas wajib dipilih";
     if (form.teams.length === 0) errs.totalTeams = "Minimal 1 tim";
     if (form.facilityIds.length === 0)
       errs.facilityIds = "Pilih minimal 1 fasilitas";
     if (form.ruleIds.length === 0) errs.ruleIds = "Pilih minimal 1 peraturan";
+    if (!form.imageFile && !form.imageUrl) errs.imageFile = "Banner event wajib diupload";
 
     if (form.category === "EXTERNAL") {
       if (!form.maxSquadSize || parseInt(form.maxSquadSize) < 1)
@@ -1335,11 +1346,12 @@ function EventFormView({
                   className={errors.dateEnd ? "border-red-400" : ""}
                 />
               </FormField>
-              <FormField label="Jam Mulai">
+              <FormField label="Jam Mulai" required error={errors.time}>
                 <Input
                   type="time"
                   value={form.time}
                   onChange={(e) => setField("time", e.target.value)}
+                  className={errors.time ? "border-red-400" : ""}
                 />
               </FormField>
             </div>
@@ -1430,11 +1442,11 @@ function EventFormView({
               </div>
             </FormField>
 
-            <FormField label="Community">
+            <FormField label="Community" required error={errors.community}>
               <select
                 value={form.community}
                 onChange={(e) => setField("community", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors.community ? "border-red-400" : "border-gray-300"}`}
               >
                 <option value="">Pilih Community</option>
                 {canSeeBlax && <option value="blax">Blax</option>}
@@ -1841,12 +1853,16 @@ function EventFormView({
             Gambar utama event (field:{" "}
             <code className="bg-gray-100 px-1 rounded">image</code>)
           </p>
+          {errors.imageFile && (
+            <p className="text-xs text-red-500 mb-2">{errors.imageFile}</p>
+          )}
           <ImageUpload
             value={form.imageFile ?? form.imageUrl}
             onChange={(file) =>
               setForm((prev) => ({ ...prev, imageFile: file }))
             }
             maxSize={5}
+            error={errors.imageFile}
           />
         </CardContent>
       </Card>
@@ -1957,7 +1973,10 @@ function EventFormView({
                   <Input
                     type="number"
                     value={form.totalTeams}
-                    onChange={(e) => setField("totalTeams", e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setField("totalTeams", val);
+                    }}
                     min="1"
                     max="32"
                     className="w-28"
@@ -2053,17 +2072,24 @@ function EventListView({
   const [isDeleting, setIsDeleting] = useState(false);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
+  const eventsFetched = useRef(false);
+
   const loadEvents = useCallback(async () => {
+    if (eventsFetched.current) return;
+    eventsFetched.current = true;
     setIsLoading(true);
     try {
       const res = await adminService.getAdminEvents();
       setEvents(res);
     } catch {
-      showError?.("Error", "Gagal memuat data event");
+      showErrorRef.current?.("Error", "Gagal memuat data event");
     } finally {
       setIsLoading(false);
     }
-  }, [showError]);
+  }, []);
 
   useEffect(() => {
     loadEvents();

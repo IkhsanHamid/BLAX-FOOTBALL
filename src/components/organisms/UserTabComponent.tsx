@@ -76,27 +76,33 @@ const STATS_CONFIG = [
 const INPUT_FIELDS = [
   {
     field: "name",
-    label: "Full Name",
+    label: "Nama Lengkap",
     type: "text",
-    placeholder: "Enter full name",
+    placeholder: "Masukkan nama lengkap",
   },
   {
     field: "email",
-    label: "Email Address",
+    label: "Alamat Email",
     type: "email",
-    placeholder: "Enter email address",
+    placeholder: "Masukkan alamat email",
   },
   {
     field: "phone",
-    label: "Phone Number",
+    label: "Nomor Telepon",
     type: "tel",
-    placeholder: "Enter phone number",
+    placeholder: "Masukkan nomor telepon",
   },
 ];
 
 export default function UsersTab() {
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+  const showSuccessRef = useRef(showSuccess);
+  showSuccessRef.current = showSuccess;
+  const initialFetched = useRef(false);
+  const usersFetchKey = useRef("");
 
   // State
   const [users, setUsers] = useState<UserManagement[]>([]);
@@ -166,12 +172,16 @@ export default function UsersTab() {
 
   // Fetch Users
   const fetchUsers = useCallback(
-    async (page: number = 1, isInitial: boolean = false) => {
+    async (page: number = 1, _isInitial: boolean = false) => {
+      const key = `${page}|${searchTerm}`;
+      if (key === usersFetchKey.current) return;
+      usersFetchKey.current = key;
+
       try {
-        if (isInitial) {
-          setInitialLoading(true);
-        } else {
+        if (initialFetched.current) {
           setTableLoading(true);
+        } else {
+          setInitialLoading(true);
         }
         const skip = (page - 1) * ITEMS_PER_PAGE;
 
@@ -184,16 +194,13 @@ export default function UsersTab() {
         setUsersStats(result.pagination);
         setTotalUsers(result.pagination.total || result.users.length);
       } catch (error) {
-        showError("Error", "Failed to load users");
+        showErrorRef.current("Error", "Gagal memuat data pengguna");
       } finally {
-        if (isInitial) {
-          setInitialLoading(false);
-        } else {
-          setTableLoading(false);
-        }
+        setInitialLoading(false);
+        setTableLoading(false);
       }
     },
-    [showError, searchTerm],
+    [searchTerm],
   );
 
   // Fetch Roles
@@ -205,9 +212,9 @@ export default function UsersTab() {
         setUserForm((prev) => ({ ...prev, role: rolesData[0].id }));
       }
     } catch (error) {
-      showError("Error", "Failed to load roles");
+      showErrorRef.current("Error", "Gagal memuat daftar peran");
     }
-  }, [showError, userForm.role, editingUser]);
+  }, [userForm.role, editingUser]);
 
   // Effects
   const initialLoadRef = useRef(false);
@@ -215,9 +222,12 @@ export default function UsersTab() {
   useEffect(() => {
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
-      fetchUsers(1, true);
+      initialFetched.current = false;
+      fetchUsers(1);
+      fetchRoles();
+      initialFetched.current = true;
     } else {
-      fetchUsers(currentPage, false);
+      fetchUsers(currentPage);
     }
   }, [currentPage, searchTerm, fetchUsers]);
 
@@ -225,7 +235,7 @@ export default function UsersTab() {
     if (currentPage !== 1) {
       setCurrentPage(1);
     } else if (initialLoadRef.current) {
-      fetchUsers(1, false);
+      fetchUsers(1);
     }
   }, [roleFilter, statusFilter]);
 
@@ -358,15 +368,15 @@ export default function UsersTab() {
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    if (!userForm.name.trim()) errors.name = "Name is required";
-    if (!userForm.email.trim()) errors.email = "Email is required";
+    if (!userForm.name.trim()) errors.name = "Nama wajib diisi";
+    if (!userForm.email.trim()) errors.email = "Email wajib diisi";
     else if (!/\S+@\S+\.\S+/.test(userForm.email))
-      errors.email = "Email is invalid";
-    if (!userForm.phone.trim()) errors.phone = "Phone is required";
+      errors.email = "Email tidak valid";
+    if (!userForm.phone.trim()) errors.phone = "Nomor telepon wajib diisi";
     else if (!/^\d{10,15}$/.test(userForm.phone.replace(/\D/g, ""))) {
-      errors.phone = "Phone number must be 10-15 digits";
+      errors.phone = "Nomor telepon harus 10-15 digit";
     }
-    if (!userForm.role.trim()) errors.role = "Role is required";
+    if (!userForm.role.trim()) errors.role = "Peran wajib dipilih";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -382,20 +392,20 @@ export default function UsersTab() {
           email: userForm.email,
           phone: userForm.phone,
         });
-        showSuccess("User updated successfully!");
+        showSuccessRef.current("Pengguna berhasil diperbarui!");
       } else {
         await adminService.addStaff({
           name: userForm.name,
           email: userForm.email,
           phone: userForm.phone,
         });
-        showSuccess("User created successfully!");
+        showSuccessRef.current("Pengguna berhasil dibuat!");
       }
       setShowUserDialog(false);
       resetForm();
-      fetchUsers(currentPage, false);
+      fetchUsers(currentPage);
     } catch (error: any) {
-      showError("Error", error?.message || "Failed to save user");
+      showErrorRef.current("Error", error?.message || "Gagal menyimpan pengguna");
     } finally {
       setActionLoading(null);
     }
@@ -406,12 +416,12 @@ export default function UsersTab() {
     try {
       setActionLoading("delete");
       await adminService.removeUser(userToDelete.id);
-      showSuccess("User deleted successfully!");
+      showSuccessRef.current("Pengguna berhasil dihapus!");
       setShowDeleteConfirm(false);
       setUserToDelete(null);
-      fetchUsers(currentPage, false);
+      fetchUsers(currentPage);
     } catch (error) {
-      showError("Error", "Failed to delete user");
+      showErrorRef.current("Error", "Gagal menghapus pengguna");
     } finally {
       setActionLoading(null);
     }
@@ -477,7 +487,7 @@ export default function UsersTab() {
               <Search className="absolute left-3 top-9 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="text"
-                placeholder="Search users by name, email, or phone..."
+                placeholder="Cari nama, email, atau telepon..."
                 value={searchInput}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -487,7 +497,7 @@ export default function UsersTab() {
                 <button
                   onClick={handleClearSearch}
                   className="absolute right-3 top-9 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="Clear search"
+                  title="Hapus pencarian"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -506,7 +516,7 @@ export default function UsersTab() {
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">All Roles</option>
+                 <option value="all">Semua Peran</option>
                 {uniqueRoles.map((role) => (
                   <option key={role} value={role}>
                     {getRoleName(role)}
@@ -519,9 +529,9 @@ export default function UsersTab() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="all">Semua Status</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Tidak Aktif</option>
               </select>
             </div>
           </div>
@@ -529,7 +539,7 @@ export default function UsersTab() {
           {/* Active Filters */}
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mr-2">Active filters:</p>
+              <p className="text-sm text-gray-600 mr-2">Filter aktif:</p>
               {activeFilters.map((filter: any, idx) => (
                 <span
                   key={idx}
@@ -556,8 +566,8 @@ export default function UsersTab() {
           {filteredUsers.length === 0
             ? 0
             : (currentPage - 1) * ITEMS_PER_PAGE + 1}
-          -{Math.min(currentPage * ITEMS_PER_PAGE, totalUsers)} of {totalUsers}{" "}
-          users
+          -{Math.min(currentPage * ITEMS_PER_PAGE, totalUsers)} dari {totalUsers}{" "}
+          pengguna
         </p>
       </div>
 
@@ -569,14 +579,14 @@ export default function UsersTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Total Points</TableHead>
-                    <TableHead>Total Games</TableHead>
-                    <TableHead>Last Activity</TableHead>
+                    <TableHead>Pengguna</TableHead>
+                    <TableHead>Kontak</TableHead>
+                    <TableHead>Peran</TableHead>
+                    <TableHead>Total Poin</TableHead>
+                    <TableHead>Total Game</TableHead>
+                    <TableHead>Aktivitas Terakhir</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -624,12 +634,12 @@ export default function UsersTab() {
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No users found
+                Tidak ada pengguna
               </h3>
               <p className="text-gray-600 mb-6">
                 {activeFilters.length > 0
-                  ? "Try adjusting your search criteria"
-                  : "Get started by adding your first user"}
+                  ? "Coba sesuaikan kriteria pencarian"
+                  : "Mulai dengan menambahkan pengguna pertama"}
               </p>
               {activeFilters.length === 0 && (
                 <Button
@@ -637,7 +647,7 @@ export default function UsersTab() {
                   onClick={openUserDialog}
                   className="flex items-center mx-auto"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" /> Add First User
+                  <UserPlus className="w-4 h-4 mr-2" /> Tambah Pengguna Pertama
                 </Button>
               )}
             </div>
@@ -748,8 +758,8 @@ export default function UsersTab() {
                           }
                         >
                           {isActive || u.role === "Admin"
-                            ? "Active"
-                            : "Inactive"}
+                            ? "Aktif"
+                            : "Tidak Aktif"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -757,8 +767,8 @@ export default function UsersTab() {
                           <div
                             title={
                               u.role !== "Admin"
-                                ? "Only Admin can edit users"
-                                : "Edit user"
+                                ? "Hanya Admin yang dapat mengedit pengguna"
+                                : "Edit pengguna"
                             }
                           >
                             <Button
@@ -808,7 +818,7 @@ export default function UsersTab() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingUser ? "Edit User" : "Add New User"}
+              {editingUser ? "Edit Pengguna" : "Tambah Pengguna Baru"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
@@ -844,7 +854,7 @@ export default function UsersTab() {
                 }}
                 disabled={actionLoading === "save"}
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 variant="black"
@@ -856,12 +866,12 @@ export default function UsersTab() {
                 {actionLoading === "save" ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {editingUser ? "Updating..." : "Creating..."}
+                    {editingUser ? "Memperbarui..." : "Membuat..."}
                   </>
                 ) : editingUser ? (
-                  "Update User"
+                  "Perbarui Pengguna"
                 ) : (
-                  "Create User"
+                  "Buat Pengguna"
                 )}
               </Button>
             </div>
@@ -877,11 +887,11 @@ export default function UsersTab() {
           setUserToDelete(null);
         }}
         onConfirm={handleDeleteUser}
-        title="Delete User"
-        message={`Apakah kamu yakin delete user "${userToDelete?.name}"? Aksi ini tidak dapat dibatalkan.`}
+        title="Hapus Pengguna"
+        message={`Apakah kamu yakin hapus pengguna "${userToDelete?.name}"? Aksi ini tidak dapat dibatalkan.`}
         type="danger"
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText="Hapus"
+        cancelText="Batal"
         isLoading={actionLoading === "delete"}
       />
     </div>

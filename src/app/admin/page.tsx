@@ -160,7 +160,7 @@ export default function AdminPage() {
         user?.role !== "Co-Admin" &&
         !adminStatus?.isAdmin
       ) {
-        showError("Access Denied", "You don't have admin privileges");
+        showError("Akses Ditolak", "Anda tidak memiliki hak akses admin");
         router.push("/b/auth/login");
         return;
       }
@@ -177,7 +177,7 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error("Error checking admin access:", error);
-      showError("Error", "Failed to verify admin access");
+      showError("Error", "Gagal memverifikasi akses admin");
       router.push("/b/auth/login");
     } finally {
       setLoading(false);
@@ -187,7 +187,7 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await signOut();
     AuthService.clearSession();
-    showSuccess("You have been successfully logged out");
+    showSuccess("Anda telah berhasil logout");
     router.push("/b/auth/login");
   };
 
@@ -200,7 +200,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying access...</p>
+          <p className="text-gray-600">Memverifikasi akses...</p>
         </div>
       </div>
     );
@@ -211,7 +211,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Redirecting...</p>
+          <p className="text-gray-600">Mengalihkan...</p>
         </div>
       </div>
     );

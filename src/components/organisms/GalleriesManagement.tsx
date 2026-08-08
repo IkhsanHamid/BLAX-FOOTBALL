@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, Edit, Trash2, Image, Search, Calendar } from "lucide-react";
 import Button from "../atoms/Button";
 import Input from "../atoms/Input";
@@ -62,8 +62,13 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
 
   const [formErrors, setFormErrors] = useState<Partial<GalleriesRequest>>({});
   const { showSuccess, showError } = useNotifications();
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+  const dataFetched = useRef(false);
 
   useEffect(() => {
+    if (dataFetched.current) return;
+    dataFetched.current = true;
     fetchInitialData();
   }, []);
 
@@ -79,7 +84,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       setGalleries(response || []);
     } catch (error) {
       console.error("Error fetching galleries:", error);
-      showError("Error", "Failed to load galleries");
+      showErrorRef.current("Error", "Gagal memuat data galeri");
       setGalleries([]);
     }
   };
@@ -90,7 +95,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       setSchedules(response || []);
     } catch (error) {
       console.error("Error fetching schedules:", error);
-      showError("Error", "Failed to load schedules");
+      showErrorRef.current("Error", "Gagal memuat data jadwal");
       setSchedules([]);
     }
   };
@@ -103,9 +108,9 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
     }
 
     if (!formData.linkPhotos.trim()) {
-      errors.linkPhotos = "Google Drive photos link is required";
+      errors.linkPhotos = "Link foto wajib diisi";
     } else if (!isValidGDriveUrl(formData.linkPhotos)) {
-      errors.linkPhotos = "Please enter a valid Google Drive link";
+      errors.linkPhotos = "Masukkan link Google Drive yang valid";
     }
 
     if (
@@ -113,7 +118,7 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       formData.linkVideosMatch.trim() &&
       !isValidGDriveUrl(formData.linkVideosMatch)
     ) {
-      errors.linkVideosMatch = "Please enter a valid Google Drive link";
+      errors.linkVideosMatch = "Masukkan link Google Drive yang valid";
     }
 
     if (
@@ -121,13 +126,13 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       formData.linkVideosSlowmo.trim() &&
       !isValidGDriveUrl(formData.linkVideosSlowmo)
     ) {
-      errors.linkVideosSlowmo = "Please enter a valid Google Drive link";
+      errors.linkVideosSlowmo = "Masukkan link Google Drive yang valid";
     }
 
     if (!formData.expiredAt) {
-      errors.expiredAt = "Expiration date is required";
+      errors.expiredAt = "Tanggal kadaluarsa wajib diisi";
     } else if (new Date(formData.expiredAt) < new Date()) {
-      errors.expiredAt = "Expiration date must be in the future";
+      errors.expiredAt = "Tanggal kadaluarsa tidak boleh di masa lalu";
     }
 
     setFormErrors(errors);
@@ -174,10 +179,10 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
 
       if (editingGallery) {
         await adminService.updateGallery(editingGallery.id, payload);
-        showSuccess("Success", "Gallery updated successfully");
+        showSuccess("Berhasil", "Galeri berhasil diupdate");
       } else {
         await adminService.addGallery(payload);
-        showSuccess("Success", "Gallery created successfully");
+        showSuccess("Berhasil", "Galeri berhasil dibuat");
       }
 
       handleCloseDialog();
@@ -187,8 +192,8 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
       showError(
         "Error",
         editingGallery
-          ? "Failed to update gallery"
-          : "Failed to create gallery",
+          ? "Gagal mengupdate galeri"
+          : "Gagal membuat galeri",
       );
     } finally {
       setSubmitting(false);
@@ -213,12 +218,12 @@ export default function GalleriesManagement({ userRole }: GalleriesTabProps) {
     try {
       setActionLoading("delete");
       await adminService.deleteGallery(deleteConfirmation.gallery.id);
-      showSuccess("Success", "Gallery deleted successfully");
+      showSuccess("Berhasil", "Galeri berhasil dihapus");
       setDeleteConfirmation({ isOpen: false, gallery: null });
       await fetchGalleries();
     } catch (error) {
       console.error("Error deleting gallery:", error);
-      showError("Error", "Failed to delete gallery");
+      showError("Error", "Gagal menghapus galeri");
     } finally {
       setActionLoading(null);
     }
