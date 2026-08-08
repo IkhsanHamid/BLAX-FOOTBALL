@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react";
 import NotificationToast, {
   ToastNotification,
 } from "../molecules/NotificationToast";
@@ -36,7 +36,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 }) => {
   const [notifications, setNotifications] = useState<ToastNotification[]>([]);
 
-  const showNotification = (notification: Omit<ToastNotification, "id">) => {
+  const showNotification = useCallback((notification: Omit<ToastNotification, "id">) => {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
     const newNotification: ToastNotification = {
       ...notification,
@@ -44,13 +44,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     };
 
     setNotifications((prev) => [...prev, newNotification]);
-  };
+  }, []);
 
-  const showSuccess = (title: string, message?: string, duration = 4000) => {
+  const showSuccess = useCallback((title: string, message?: string, duration = 4000) => {
     showNotification({ type: "success", title, message, duration });
-  };
+  }, [showNotification]);
 
-  const showError = (title: string, message?: string, persistent = false) => {
+  const showError = useCallback((title: string, message?: string, persistent = false) => {
     showNotification({
       type: "error",
       title,
@@ -58,34 +58,34 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       duration: persistent ? 0 : 6000,
       persistent,
     });
-  };
+  }, [showNotification]);
 
-  const showWarning = (title: string, message?: string, duration = 5000) => {
+  const showWarning = useCallback((title: string, message?: string, duration = 5000) => {
     showNotification({ type: "warning", title, message, duration });
-  };
+  }, [showNotification]);
 
-  const showInfo = (title: string, message?: string, duration = 4000) => {
+  const showInfo = useCallback((title: string, message?: string, duration = 4000) => {
     showNotification({ type: "info", title, message, duration });
-  };
+  }, [showNotification]);
 
-  const clearNotifications = () => {
+  const clearNotifications = useCallback(() => {
     setNotifications([]);
-  };
+  }, []);
 
-  const removeNotification = (id: string) => {
+  const removeNotification = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.filter((notification) => notification.id !== id)
     );
-  };
+  }, []);
 
-  const value: NotificationContextType = {
+  const value: NotificationContextType = useMemo(() => ({
     showNotification,
     showSuccess,
     showError,
     showWarning,
     showInfo,
     clearNotifications,
-  };
+  }), [showNotification, showSuccess, showError, showWarning, showInfo, clearNotifications]);
 
   return (
     <NotificationContext.Provider value={value}>

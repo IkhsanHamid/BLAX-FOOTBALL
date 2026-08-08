@@ -113,38 +113,26 @@ export const getDateRange = (
       );
       break;
 
-    case "week":
-      // Last 7 days from today
+    case "week": {
+      // Monday 00:00:00 to Sunday 23:59:59 of current week
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+
       startDate = new Date(now);
-      startDate.setDate(now.getDate() - 6); // 6 days ago + today = 7 days
+      startDate.setDate(now.getDate() - daysToMonday);
       startDate.setHours(0, 0, 0, 0);
-      // End of today
-      endDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        23,
-        59,
-        59,
-        999,
-      );
+
+      endDate = new Date(now);
+      endDate.setDate(now.getDate() + daysToSunday);
+      endDate.setHours(23, 59, 59, 999);
       break;
+    }
 
     case "month":
-      // Last 30 days from today
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - 29); // 29 days ago + today = 30 days
-      startDate.setHours(0, 0, 0, 0);
-      // End of today
-      endDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        23,
-        59,
-        59,
-        999,
-      );
+      // 1st of month 00:00:00 to last day of month 23:59:59
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       break;
 
     case "all":

@@ -147,9 +147,37 @@ export default function ScheduleRevisionForm({
       showError("Validasi gagal", "Venue wajib dipilih");
       return;
     }
+    if (!form.typeEvent) {
+      showError("Validasi gagal", "Tipe event wajib dipilih");
+      return;
+    }
+    if (!form.typeMatch) {
+      showError("Validasi gagal", "Tipe pertandingan wajib dipilih");
+      return;
+    }
+    if (!form.community) {
+      showError("Validasi gagal", "Komunitas wajib dipilih");
+      return;
+    }
     if (form.facilityIds.length === 0) {
       showError("Validasi gagal", "Minimal pilih satu fasilitas");
       return;
+    }
+    if (form.ruleIds.length === 0) {
+      showError("Validasi gagal", "Minimal pilih satu aturan");
+      return;
+    }
+    const feePlayer = Number(form.feePlayer);
+    if (form.feePlayer && (isNaN(feePlayer) || feePlayer < 0)) {
+      showError("Validasi gagal", "Biaya pemain harus berupa angka positif");
+      return;
+    }
+    if (form.typeMatch !== "PADEL") {
+      const feeGk = Number(form.feeGk);
+      if (form.feeGk && (isNaN(feeGk) || feeGk < 0)) {
+        showError("Validasi gagal", "Biaya kiper harus berupa angka positif");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -244,7 +272,7 @@ export default function ScheduleRevisionForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Tipe Event
+            Tipe Event <span className="text-red-500">*</span>
           </label>
           <select
             value={form.typeEvent}
@@ -262,7 +290,7 @@ export default function ScheduleRevisionForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Tipe Match
+            Tipe Match <span className="text-red-500">*</span>
           </label>
           <select
             value={form.typeMatch}
@@ -280,7 +308,7 @@ export default function ScheduleRevisionForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Community
+            Community <span className="text-red-500">*</span>
           </label>
           <select
             value={form.community}

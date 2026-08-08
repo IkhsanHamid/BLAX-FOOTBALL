@@ -134,12 +134,14 @@ class AdminService {
     startDate?: String,
     endDate?: String,
     venue?: string,
+    community?: string,
   ): Promise<ScheduleOverview[]> {
     const queryParams = new URLSearchParams();
 
     if (startDate) queryParams.append("startDate", startDate.toString());
     if (endDate) queryParams.append("endDate", endDate.toString());
     if (venue) queryParams.append("venue", venue.toString());
+    if (community) queryParams.append("community", community.toString());
 
     const response = await apiClient.get(
       `/api/v1/matches/schedules-overview?${queryParams}`,

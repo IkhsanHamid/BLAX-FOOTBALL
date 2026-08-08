@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -57,7 +57,6 @@ const SLOTS_PER_TEAM = {
 };
 const EVENT_TYPES = ["FUN GAME", "TOURNAMENT"];
 const MATCH_TYPES = ["PADEL", "MINI-SOCCER", "FOOTBALL", "MINI-FOOTBALL"];
-const STATUS_OPTIONS = ["all", "ACTIVE", "COMPLETED", "CANCELLED"];
 const DATE_FILTERS = ["all", "today", "week", "month"];
 const PADEL_MATCH_TYPE = "PADEL";
 const COMMUNITY_OPTIONS = ["blax", "magnifico", "red-alert", "ots", "ayo-bola"];
@@ -224,8 +223,8 @@ export default function ScheduleTab({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [venueFilter, setVenueFilter] = useState("all");
+  const [communityFilter, setCommunityFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -264,44 +263,56 @@ export default function ScheduleTab({
   }, []);
 
   // Data Fetching
-  const fetchScheduleOverview = useCallback(async () => {
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
+  const masterDataFetched = useRef(false);
+  const lastFetchKey = useRef("");
+
+  const fetchScheduleData = useCallback(async () => {
+    const key = `${dateFilter}|${venueFilter}|${communityFilter}`;
+    if (key === lastFetchKey.current) return;
+    lastFetchKey.current = key;
+
     try {
       setIsLoading(true);
       const { startDate, endDate } = getDateRange(dateFilter);
-      const result = await adminService.scheduleOverview(startDate, endDate);
+      const venueId = venueFilter !== "all" ? venueFilter : undefined;
+      const community = communityFilter !== "all" ? communityFilter : undefined;
+      const result = await adminService.scheduleOverview(startDate, endDate, venueId, community);
       setSchedules(result);
     } catch (error) {
-      showError("Error", "Failed to load schedule overview");
+      showErrorRef.current("Error", "Gagal memuat data jadwal");
     } finally {
       setIsLoading(false);
     }
-  }, [dateFilter, showError]);
+  }, [dateFilter, venueFilter, communityFilter]);
 
-  const fetchMasterData = useCallback(async () => {
-    try {
-      const [venuesData, facilitiesData, rulesData, teamsData] =
-        await Promise.all([
-          masterDataService.getVenues(""),
-          masterDataService.getFacilities("", 1, 100),
-          masterDataService.getRules("", 1, 10),
-          adminService.getMasterTeams("", 0, 100),
-        ]);
-      setVenues(venuesData);
-      setFacilities(facilitiesData.data);
-      setRules(rulesData);
-      setMasterTeams(teamsData?.data?.data ?? []);
-    } catch (error) {
-      showError("Error", "Failed to load master data");
+  // Data Fetching — single effect to prevent double hits
+  useEffect(() => {
+    if (!masterDataFetched.current) {
+      masterDataFetched.current = true;
+      (async () => {
+        try {
+          const [venuesData, facilitiesData, rulesData, teamsData] =
+            await Promise.all([
+              masterDataService.getVenues(""),
+              masterDataService.getFacilities("", 1, 100),
+              masterDataService.getRules("", 1, 10),
+              adminService.getMasterTeams("", 0, 100),
+            ]);
+          setVenues(venuesData);
+          setFacilities(facilitiesData.data);
+          setRules(rulesData);
+          setMasterTeams(teamsData?.data?.data ?? []);
+        } catch (error) {
+          showErrorRef.current("Error", "Gagal memuat data master");
+        }
+      })();
     }
-  }, [showError]);
 
-  useEffect(() => {
-    fetchMasterData();
-  }, [fetchMasterData]);
-
-  useEffect(() => {
-    fetchScheduleOverview();
-  }, [fetchScheduleOverview]);
+    fetchScheduleData();
+  }, [fetchScheduleData]);
 
   // Memoized Computed Values
   const stats = useMemo(
@@ -326,15 +337,12 @@ export default function ScheduleTab({
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.venue.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === "all" || s.status === statusFilter;
-      const matchesVenue = venueFilter === "all" || s.venue === venueFilter;
-
-      return matchesSearch && matchesStatus && matchesVenue;
+      return matchesSearch;
     });
-  }, [schedules, searchTerm, statusFilter, venueFilter]);
+  }, [schedules, searchTerm]);
 
   const hasActiveFilters =
-    searchTerm || statusFilter !== "all" || venueFilter !== "all";
+    searchTerm || venueFilter !== "all" || communityFilter !== "all";
 
   const { paginatedSchedules, totalPages, startIndex } = useMemo(() => {
     const total = Math.ceil(filteredSchedules.length / ITEMS_PER_PAGE);
@@ -351,7 +359,7 @@ export default function ScheduleTab({
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, venueFilter]);
+  }, [searchTerm, venueFilter, communityFilter]);
 
   // Form Handlers
   const handleFeeChange = useCallback(
@@ -427,13 +435,13 @@ export default function ScheduleTab({
     try {
       await adminService.toggleScheduleIsOpen(schedule.id, !schedule.isOpen);
       showSuccess(`Booking ${!schedule.isOpen ? "Dibuka" : "Ditutup"}!`);
-      fetchScheduleOverview();
+      fetchScheduleData();
     } catch (error) {
-      showError("Error", "Failed to toggle schedule status");
+      showError("Error", "Gagal mengubah status jadwal");
     } finally {
       setTogglingScheduleId(null);
     }
-  }, [showSuccess, showError, fetchScheduleOverview]);
+  }, [showSuccess, showError, fetchScheduleData]);
 
   const handleConfirmLockSlots = useCallback(async () => {
     if (!lockingSchedule) return;
@@ -454,7 +462,7 @@ export default function ScheduleTab({
       (lockingSchedule.lockedSlotsPlayer || 0);
 
     if (countGk > availableSlotsGk) {
-      showError("Error", `Only ${availableSlotsGk} GK slots available to lock`);
+      showError("Error", `Hanya tersedia ${availableSlotsGk} slot kiper yang bisa dikunci`);
       setIsLoadingLocked(false);
       return;
     }
@@ -462,7 +470,7 @@ export default function ScheduleTab({
     if (countPlayer > availableSlotsPlayer) {
       showError(
         "Error",
-        `Only ${availableSlotsPlayer} player slots available to lock`,
+        `Hanya tersedia ${availableSlotsPlayer} slot pemain yang bisa dikunci`,
       );
       setIsLoadingLocked(false);
       return;
@@ -474,9 +482,9 @@ export default function ScheduleTab({
       setLockingSchedule(null);
       setLockSlotCounts({ gk: "", player: "" });
       showSuccess("Slots locked successfully!");
-      fetchScheduleOverview();
+      fetchScheduleData();
     } catch (error) {
-      showError("Error", "Failed to lock slots");
+      showError("Error", "Gagal mengunci slot");
     } finally {
       setIsLoadingLocked(false);
     }
@@ -485,24 +493,25 @@ export default function ScheduleTab({
     lockSlotCounts,
     showError,
     showSuccess,
-    fetchScheduleOverview,
+    fetchScheduleData,
   ]);
 
   // Form Validation
   const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
     const requiredFields = {
-      name: "Schedule name is required",
-      date: "Date is required",
-      time: "Time is required",
-      venueId: "Venue is required",
-      feePlayer: "Player fee is required",
+      name: "Nama jadwal wajib diisi",
+      date: "Tanggal wajib diisi",
+      time: "Waktu wajib diisi",
+      venueId: "Venue wajib dipilih",
+      community: "Komunitas wajib dipilih",
+      feePlayer: "Biaya pemain wajib diisi",
       ...(scheduleForm.typeMatch !== PADEL_MATCH_TYPE && {
-        feeGk: "Goalkeeper fee is required",
+        feeGk: "Biaya kiper wajib diisi",
       }),
-      typeEvent: "Event type is required",
-      typeMatch: "Match type is required",
-      image: "Match image is required",
+      typeEvent: "Tipe event wajib dipilih",
+      typeMatch: "Tipe pertandingan wajib dipilih",
+      image: "Gambar jadwal wajib diupload",
     };
 
     Object.entries(requiredFields).forEach(([field, message]) => {
@@ -512,11 +521,11 @@ export default function ScheduleTab({
     });
 
     if (scheduleForm.facilityIds.length === 0) {
-      errors.facilityIds = "At least one facility must be selected";
+      errors.facilityIds = "Minimal pilih satu fasilitas";
     }
 
     if (scheduleForm.ruleIds.length === 0) {
-      errors.ruleIds = "At least one rule must be selected";
+      errors.ruleIds = "Minimal pilih satu aturan";
     }
 
     if (
@@ -526,15 +535,15 @@ export default function ScheduleTab({
       !editingSchedule
     ) {
       errors.paymentProof =
-        "Bukti pembayaran lapangan wajib diupload untuk community selain Blax";
+        "Bukti pembayaran wajib diupload untuk komunitas selain Blax";
     }
 
     ["feePlayer", "feeGk"].forEach((field) => {
       const value = scheduleForm[field as keyof ScheduleForm];
       if (value && (isNaN(Number(value)) || Number(value) < 0)) {
-        errors[field] = `${
-          field === "feePlayer" ? "Player" : "Goalkeeper"
-        } fee must be a positive number`;
+        errors[field] = `Biaya ${
+          field === "feePlayer" ? "pemain" : "kiper"
+        } harus berupa angka positif`;
       }
     });
 
@@ -594,9 +603,9 @@ export default function ScheduleTab({
       );
       setShowScheduleDialog(false);
       resetForm();
-      fetchScheduleOverview();
+      fetchScheduleData();
     } catch (error) {
-      showError("Error", "Failed to save schedule");
+      showError("Error", "Gagal menyimpan jadwal");
     } finally {
       setIsSubmitting(false);
     }
@@ -607,7 +616,7 @@ export default function ScheduleTab({
     showSuccess,
     showError,
     resetForm,
-    fetchScheduleOverview,
+    fetchScheduleData,
   ]);
 
   const handleEditSchedule = useCallback(
@@ -666,25 +675,25 @@ export default function ScheduleTab({
       showSuccess("Schedule deleted successfully!");
       setShowDeleteConfirm(false);
       setScheduleToDelete(null);
-      fetchScheduleOverview();
+      fetchScheduleData();
     } catch (error) {
-      showError("Error", "Failed to delete schedule");
+      showError("Error", "Gagal menghapus jadwal");
     } finally {
       setIsDeleting(false);
     }
-  }, [scheduleToDelete, showSuccess, showError, fetchScheduleOverview]);
+  }, [scheduleToDelete, showSuccess, showError, fetchScheduleData]);
 
   const removeFilter = useCallback(
-    (filterType: "search" | "status" | "venue") => {
+    (filterType: "search" | "venue" | "community") => {
       switch (filterType) {
         case "search":
           setSearchTerm("");
           break;
-        case "status":
-          setStatusFilter("all");
-          break;
         case "venue":
           setVenueFilter("all");
+          break;
+        case "community":
+          setCommunityFilter("all");
           break;
       }
     },
@@ -766,17 +775,6 @@ export default function ScheduleTab({
             </div>
             <div className="pt-4 flex flex-col sm:flex-row gap-4">
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border rounded-lg"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s === "all" ? "All Status" : s}
-                  </option>
-                ))}
-              </select>
-              <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="px-3 py-2 border rounded-lg"
@@ -797,9 +795,21 @@ export default function ScheduleTab({
                 className="px-3 py-2 border rounded-lg"
               >
                 <option value="all">All Venues</option>
-                {uniqueVenues.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
+                {venues.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={communityFilter}
+                onChange={(e) => setCommunityFilter(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="all">All Community</option>
+                {COMMUNITY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
                   </option>
                 ))}
               </select>
@@ -816,18 +826,18 @@ export default function ScheduleTab({
                   onRemove={() => removeFilter("search")}
                 />
               )}
-              {statusFilter !== "all" && (
-                <FilterBadge
-                  label="Status"
-                  value={statusFilter}
-                  onRemove={() => removeFilter("status")}
-                />
-              )}
               {venueFilter !== "all" && (
                 <FilterBadge
                   label="Venue"
-                  value={venueFilter}
+                  value={venues.find((v) => v.id === venueFilter)?.name || venueFilter}
                   onRemove={() => removeFilter("venue")}
+                />
+              )}
+              {communityFilter !== "all" && (
+                <FilterBadge
+                  label="Community"
+                  value={communityFilter}
+                  onRemove={() => removeFilter("community")}
                 />
               )}
             </div>
@@ -1045,8 +1055,8 @@ export default function ScheduleTab({
                               onClick={() => {
                                 if (isWithinH3(schedule.date)) {
                                   showError(
-                                    "Cannot Delete",
-                                    "Schedule cannot be deleted within 3 days before the event date (H-3)",
+                                    "Tidak bisa hapus",
+                                    "Jadwal tidak bisa dihapus dalam 3 hari sebelum tanggal pertandingan (H-3)",
                                   );
                                   return;
                                 }
@@ -1209,12 +1219,12 @@ export default function ScheduleTab({
             {/* Community Dropdown */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Community
+                Community <span className="text-red-500">*</span>
               </label>
               <select
                 value={scheduleForm.community}
                 onChange={(e) => handleFormChange("community", e.target.value)}
-                className="w-full px-4 py-3 border rounded-lg"
+                className={`w-full px-4 py-3 border rounded-lg ${formErrors.community ? "border-red-500" : ""}`}
               >
                 <option value="">Select community</option>
                 {COMMUNITY_OPTIONS.filter(
@@ -1229,6 +1239,9 @@ export default function ScheduleTab({
                   </option>
                 ))}
               </select>
+              {formErrors.community && (
+                <p className="text-red-500 text-sm mt-1">{formErrors.community}</p>
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">

@@ -153,6 +153,10 @@ export default function AttendanceTab() {
       });
       setCompleteResult(res?.data ?? res);
       showSuccess("Berhasil", "Schedule berhasil diselesaikan");
+      await loadHistory(selectedScheduleId);
+      setShowComplete(false);
+      setCompleteResult(null);
+      setPenanggungJawab("");
     } catch (err: any) {
       showError("Error", err?.message || "Gagal menyelesaikan schedule");
     } finally {
@@ -188,7 +192,6 @@ export default function AttendanceTab() {
     try {
       const res = await adminService.checkinAttendance(scanResult.bookId);
       if (res?.status) {
-        setCheckinSuccess(true);
         showSuccess(
           "Berhasil",
           `Checkin berhasil (${res.data?.updatedCount ?? 0} pemain)`,
@@ -206,8 +209,12 @@ export default function AttendanceTab() {
             };
           },
         );
-        await adminService.bulkUpdateAttendance(lineupPayloads);
-        loadHistory(selectedScheduleId);
+        try {
+          await adminService.bulkUpdateAttendance(lineupPayloads);
+        } catch {
+          // jersey update fails silently, checkin already succeeded
+        }
+        await loadHistory(selectedScheduleId);
         setShowScanModal(false);
       } else {
         showError("Error", res?.message || "Gagal checkin");
