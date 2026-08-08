@@ -115,8 +115,16 @@ export default function RescheduleManagementComponent() {
     limit: ITEMS_PER_PAGE,
   });
 
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+  const bookingsFetchKey = useRef("");
+
   // Fetch available bookings
   const fetchAvailableBookings = useCallback(async () => {
+    const key = `${bookingsPagination.currentPage}|${searchBooking}`;
+    if (key === bookingsFetchKey.current) return;
+    bookingsFetchKey.current = key;
+
     try {
       setBookingsLoading(true);
       const skip = (bookingsPagination.currentPage - 1) * ITEMS_PER_PAGE;
@@ -148,9 +156,9 @@ export default function RescheduleManagementComponent() {
       }
     } catch (error: any) {
       console.error("Error fetching available bookings:", error);
-      showError(
+      showErrorRef.current(
         "Error",
-        error?.message || "Failed to fetch available bookings",
+        error?.message || "Gagal memuat data booking",
       );
       setAvailableBookings([]);
       setBookingsPagination({
@@ -163,31 +171,33 @@ export default function RescheduleManagementComponent() {
     } finally {
       setBookingsLoading(false);
     }
-  }, [bookingsPagination.currentPage, searchBooking, showError]);
+  }, [bookingsPagination.currentPage, searchBooking]);
 
-  const initialLoadRef = useRef(false);
-
-  // Fetch bookings on component mount and when dependencies change
+  // Fetch bookings when tab/page/search changes
   useEffect(() => {
     if (activeTab === "create") {
       fetchAvailableBookings();
     }
-  }, [activeTab, bookingsPagination.currentPage, searchBooking]);
+  }, [activeTab, fetchAvailableBookings]);
 
-  // Debounce search for bookings (skip initial mount)
-  useEffect(() => {
-    if (!initialLoadRef.current) return;
-    const timer = setTimeout(() => {
-      if (activeTab === "create") {
-        setBookingsPagination((prev) => ({ ...prev, currentPage: 1 }));
-        fetchAvailableBookings();
-      }
+  // Debounce: reset page to 1 when search changes
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchBooking = (value: string) => {
+    setSearchBooking(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setBookingsPagination((prev) => ({ ...prev, currentPage: 1 }));
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchBooking]);
+  };
 
   // Fetch reschedule history
+  const historyFetchKey = useRef("");
+
   const fetchRescheduleHistory = useCallback(async () => {
+    const key = `${historyPagination.currentPage}|${searchHistory}`;
+    if (key === historyFetchKey.current) return;
+    historyFetchKey.current = key;
+
     try {
       setLoading(true);
       const skip = (historyPagination.currentPage - 1) * ITEMS_PER_PAGE;
@@ -219,9 +229,9 @@ export default function RescheduleManagementComponent() {
       }
     } catch (error: any) {
       console.error("Error fetching reschedule history:", error);
-      showError(
+      showErrorRef.current(
         "Error",
-        error?.message || "Failed to fetch reschedule history",
+        error?.message || "Gagal memuat riwayat reschedule",
       );
       setRescheduleHistory([]);
       setHistoryPagination({
@@ -234,30 +244,22 @@ export default function RescheduleManagementComponent() {
     } finally {
       setLoading(false);
     }
-  }, [historyPagination.currentPage, searchHistory, showError]);
+  }, [historyPagination.currentPage, searchHistory]);
 
   useEffect(() => {
     if (activeTab === "history") {
       fetchRescheduleHistory();
     }
-  }, [activeTab, historyPagination.currentPage, searchHistory]);
+  }, [activeTab, fetchRescheduleHistory]);
 
-  // Debounce search for history (skip initial mount)
-  useEffect(() => {
-    if (!initialLoadRef.current) return;
-    const timer = setTimeout(() => {
-      if (activeTab === "history") {
-        setHistoryPagination((prev) => ({ ...prev, currentPage: 1 }));
-        fetchRescheduleHistory();
-      }
+  const historySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchHistory = (value: string) => {
+    setSearchHistory(value);
+    if (historySearchTimer.current) clearTimeout(historySearchTimer.current);
+    historySearchTimer.current = setTimeout(() => {
+      setHistoryPagination((prev) => ({ ...prev, currentPage: 1 }));
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchHistory]);
-
-  // Mark initial load complete after first render
-  useEffect(() => {
-    initialLoadRef.current = true;
-  }, []);
+  };
 
   // Filter history - now handled by API
   const filteredHistory = useMemo(() => {
@@ -445,7 +447,7 @@ export default function RescheduleManagementComponent() {
                   type="text"
                   placeholder="Search by player name..."
                   value={searchBooking}
-                  onChange={(e) => setSearchBooking(e.target.value)}
+                  onChange={(e) => handleSearchBooking(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -539,7 +541,7 @@ export default function RescheduleManagementComponent() {
                   type="text"
                   placeholder="Search by ID, player name, or phone..."
                   value={searchHistory}
-                  onChange={(e) => setSearchHistory(e.target.value)}
+                  onChange={(e) => handleSearchHistory(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
